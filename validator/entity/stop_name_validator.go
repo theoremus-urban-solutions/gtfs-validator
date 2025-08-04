@@ -330,7 +330,7 @@ func (v *StopNameValidator) checkRepeatedWords(container *notice.NoticeContainer
 	
 	// Check for consecutive repeated words
 	for i := 1; i < len(words); i++ {
-		if strings.ToLower(words[i]) == strings.ToLower(words[i-1]) && len(words[i]) > 2 {
+		if strings.EqualFold(words[i], words[i-1]) && len(words[i]) > 2 {
 			container.AddNotice(notice.NewStopNameRepeatedWordNotice(
 				stop.StopID,
 				stop.StopName,

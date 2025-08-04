@@ -51,11 +51,11 @@ func (v *FeedExpirationDateValidator) Validate(loader *parser.FeedLoader, contai
 type FeedInfo struct {
 	FeedPublisherName string
 	FeedPublisherURL  string
-	FeedLang         string
-	FeedStartDate    *time.Time
-	FeedEndDate      *time.Time
-	FeedVersion      string
-	RowNumber        int
+	FeedLang          string
+	FeedStartDate     *time.Time
+	FeedEndDate       *time.Time
+	FeedVersion       string
+	RowNumber         int
 }
 
 // loadFeedInfo loads feed information from feed_info.txt

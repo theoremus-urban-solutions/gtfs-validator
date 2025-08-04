@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"strings"
 	"sync"
@@ -82,7 +81,7 @@ func (v *validatorImpl) ValidateReaderWithContext(ctx context.Context, reader io
 	}
 	
 	// Create temporary file for the ZIP content
-	tmpFile, err := ioutil.TempFile("", "gtfs-*.zip")
+	tmpFile, err := os.CreateTemp("", "gtfs-*.zip")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temporary file: %w", err)
 	}

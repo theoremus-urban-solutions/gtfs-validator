@@ -21,12 +21,12 @@ func NewDateTripsValidator() *DateTripsValidator {
 
 // ServiceInfo represents service information
 type ServiceInfo struct {
-	ServiceID    string
-	StartDate    *time.Time
-	EndDate      *time.Time
-	DaysOfWeek   [7]bool // Mon, Tue, Wed, Thu, Fri, Sat, Sun
-	TripCount    int
-	RowNumber    int
+	ServiceID  string
+	StartDate  *time.Time
+	EndDate    *time.Time
+	DaysOfWeek [7]bool // Mon, Tue, Wed, Thu, Fri, Sat, Sun
+	TripCount  int
+	RowNumber  int
 }
 
 // CalendarException represents calendar_dates.txt exceptions

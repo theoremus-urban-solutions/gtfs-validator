@@ -195,7 +195,7 @@ func (v *RouteConsistencyValidator) isValidHexColor(color string) bool {
 // hasGoodContrast performs a simple contrast check (basic luminance difference)
 func (v *RouteConsistencyValidator) hasGoodContrast(color1, color2 string) bool {
 	// Simple contrast check - if colors are identical, that's poor contrast
-	if strings.ToUpper(color1) == strings.ToUpper(color2) {
+	if strings.EqualFold(color1, color2) {
 		return false
 	}
 

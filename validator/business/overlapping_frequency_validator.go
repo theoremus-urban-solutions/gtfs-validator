@@ -301,10 +301,8 @@ func (v *OverlappingFrequencyValidator) validateFrequencyConsistency(container *
 		}
 
 		// Check for very short headways (< 1 minute) which might be errors
-		if freq.HeadwaySecs < 60 {
-			// Need route and service info for this notice, skip for now
-			// This validation is already covered by the main FrequencyValidator
-		}
+		// Note: This validation is already covered by the main FrequencyValidator
+		// so we skip it here to avoid duplicate notices
 	}
 }
 

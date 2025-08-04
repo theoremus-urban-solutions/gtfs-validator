@@ -15,11 +15,11 @@ type ValidationReport struct {
 
 // Summary contains summary information about the validation
 type Summary struct {
-	ValidatorVersion string      `json:"validatorVersion"`
-	ValidationTime   float64     `json:"validationTimeSeconds"`
-	Date             string      `json:"date"`
-	FeedInfo         FeedInfo    `json:"feedInfo"`
-	Counts           NoticeCounts `json:"counts"`
+	ValidatorVersion string        `json:"validatorVersion"`
+	ValidationTime   float64       `json:"validationTimeSeconds"`
+	Date             string        `json:"date"`
+	FeedInfo         FeedInfo      `json:"feedInfo"`
+	Counts           NoticeCounts  `json:"counts"`
 }
 
 // FeedInfo contains information about the validated feed

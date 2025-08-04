@@ -4,7 +4,6 @@ import (
 	"io"
 	"net/mail"
 	"net/url"
-	"regexp"
 	"strings"
 	"time"
 
@@ -214,19 +213,4 @@ func (v *FieldFormatValidator) isValidEmail(s string) bool {
 func (v *FieldFormatValidator) isValidTimezone(s string) bool {
 	_, err := time.LoadLocation(s)
 	return err == nil
-}
-
-// phoneRegex is a basic international phone number regex
-var phoneRegex = regexp.MustCompile(`^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{4,6}$`)
-
-// isValidPhoneNumber checks if a string is a valid phone number
-func (v *FieldFormatValidator) isValidPhoneNumber(s string, countryCode string) bool {
-	// Remove spaces and common separators
-	cleaned := strings.ReplaceAll(s, " ", "")
-	cleaned = strings.ReplaceAll(cleaned, "-", "")
-	cleaned = strings.ReplaceAll(cleaned, "(", "")
-	cleaned = strings.ReplaceAll(cleaned, ")", "")
-
-	// Basic validation
-	return phoneRegex.MatchString(cleaned)
 }
