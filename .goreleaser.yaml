@@ -1,0 +1,25 @@
+project_name: yourapp
+
+builds:
+  - main: ./cmd/yourapp
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format: tar.gz
+    files:
+      - LICENSE
+      - README.md
+
+release:
+  github:
+    owner: yourusername
+    name: yourapp
+
+changelog:
+  use: git

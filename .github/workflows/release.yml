@@ -3,47 +3,27 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
-
-permissions:
-  contents: write
+      - 'v*.*.*'  # trigger on version tags
 
 jobs:
   release:
-    name: Release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # needed for GitHub release
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Go
-      uses: actions/setup-go@v5
-      with:
-        go-version: '1.23'
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
 
-    - name: Run tests
-      run: go test ./...
-
-    - name: Build binaries
-      run: |
-        # Build for multiple platforms
-        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o gtfs-validator-linux-amd64 ./cmd/gtfs-validator
-        GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o gtfs-validator-linux-arm64 ./cmd/gtfs-validator
-        GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o gtfs-validator-windows-amd64.exe ./cmd/gtfs-validator
-        GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o gtfs-validator-darwin-amd64 ./cmd/gtfs-validator
-        GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o gtfs-validator-darwin-arm64 ./cmd/gtfs-validator
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v2
-      with:
-        files: |
-          gtfs-validator-linux-amd64
-          gtfs-validator-linux-arm64
-          gtfs-validator-windows-amd64.exe
-          gtfs-validator-darwin-amd64
-          gtfs-validator-darwin-arm64
-        generate_release_notes: true
-        draft: false
-        prerelease: false
+      - name: Set up GoReleaser
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
