@@ -39,9 +39,9 @@ func LoadFromZip(zipPath string) (*FeedLoader, error) {
 			continue
 		}
 
-		// Only include .txt files at root level
+		// Only include .txt and .geojson files at root level
 		name := filepath.Base(file.Name)
-		if !strings.HasSuffix(name, ".txt") {
+		if !strings.HasSuffix(name, ".txt") && !strings.HasSuffix(name, ".geojson") {
 			continue
 		}
 
@@ -70,7 +70,7 @@ func LoadFromDirectory(dirPath string) (*FeedLoader, error) {
 		}
 
 		name := entry.Name()
-		if !strings.HasSuffix(name, ".txt") {
+		if !strings.HasSuffix(name, ".txt") && !strings.HasSuffix(name, ".geojson") {
 			continue
 		}
 
