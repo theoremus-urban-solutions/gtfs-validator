@@ -1,4 +1,4 @@
-# GTFS Validator Performance Benchmarks
+go# GTFS Validator Performance Benchmarks
 
 This document provides performance benchmarks and optimization guidelines for the GTFS validator.
 

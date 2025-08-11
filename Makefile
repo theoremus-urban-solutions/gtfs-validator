@@ -1,5 +1,5 @@
 # GTFS Validator Go - Makefile
-.PHONY: help build test lint fmt vet clean install dev-tools benchmark coverage security release-build
+.PHONY: help build test lint fmt vet clean install dev-tools benchmark coverage security release-build release release-dry-run
 
 # Variables
 GO := go
@@ -85,6 +85,10 @@ lint-fix: ## Run golangci-lint with auto-fix
 	@echo "Running linter with auto-fix..."
 	@golangci-lint run --fix --timeout=5m
 
+staticcheck: ## Run staticcheck
+	@echo "Running staticcheck..."
+	@staticcheck ./...
+
 security: ## Run security analysis
 	@echo "Running security analysis..."
 	@gosec -quiet -fmt=json -out=security-report.json ./...
@@ -116,6 +120,16 @@ release-test: ## Test release build process
 	@$(MAKE) build-all
 	@echo "Release test completed successfully"
 
+release-prep: clean deps deps-update fmt lint staticcheck test build-all ## Prepare for release
+
+release: ## Create a release with GoReleaser
+	@echo "Creating release..."
+	@goreleaser release --clean
+
+release-dry-run: ## Dry run release with GoReleaser
+	@echo "Dry running release..."
+	@goreleaser release --clean --snapshot --skip-publish
+
 # Cleanup
 clean: ## Clean build artifacts
 	@echo "Cleaning up..."
@@ -124,10 +138,10 @@ clean: ## Clean build artifacts
 	@rm -f security-report.json
 	@$(GO) clean -cache -testcache
 
-clean-all: clean deps-clean docs-clean ## Clean everything including caches and documentation
+clean-all: clean deps-clean ## Clean everything including caches
 
 # Documentation
-docs: .FORCE ## Generate documentation
+docs: ## Generate documentation
 	@echo "Generating documentation..."
 	@mkdir -p docs/api
 	@$(GO) doc -all . > docs/api.txt

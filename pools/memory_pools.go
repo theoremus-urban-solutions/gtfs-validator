@@ -51,7 +51,8 @@ func NewStringSlicePool(initialCapacity int) *StringSlicePool {
 	return &StringSlicePool{
 		pool: sync.Pool{
 			New: func() interface{} {
-				return make([]string, 0, initialCapacity)
+				slice := make([]string, 0, initialCapacity)
+				return &slice
 			},
 		},
 		size: initialCapacity,
@@ -60,15 +61,21 @@ func NewStringSlicePool(initialCapacity int) *StringSlicePool {
 
 // Get retrieves a string slice from the pool
 func (p *StringSlicePool) Get() []string {
-	slice := p.pool.Get().([]string)
-	return slice[:0] // Reset length but keep capacity
+	slicePtr := p.pool.Get().(*[]string)
+	if slicePtr == nil {
+		slice := make([]string, 0, p.size)
+		return slice
+	}
+	return (*slicePtr)[:0] // Reset length but keep capacity
 }
 
 // Put returns a string slice to the pool for reuse
 func (p *StringSlicePool) Put(slice []string) {
 	// Only put back slices that aren't too large
 	if cap(slice) <= p.size*4 {
-		p.pool.Put(slice)
+		// Clear the slice before returning to pool
+		slice = slice[:0]
+		p.pool.Put(&slice)
 	}
 }
 

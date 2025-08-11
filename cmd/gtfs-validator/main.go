@@ -15,7 +15,8 @@ import (
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator"
 )
 
-const version = "1.0.0"
+// Version information - this will be set during build
+var version = "dev"
 
 var (
 	// Global flags
@@ -64,7 +65,10 @@ structured logging, and comprehensive validation with 294+ validation rules.`,
 	rootCmd.Flags().BoolVarP(&showProgress, "progress", "p", false, "Show progress bar")
 
 	// Mark input as required
-	rootCmd.MarkFlagRequired("input")
+	if err := rootCmd.MarkFlagRequired("input"); err != nil {
+		fmt.Fprintf(os.Stderr, "Error marking input flag as required: %v\n", err)
+		os.Exit(1)
+	}
 
 	// Add subcommands
 	rootCmd.AddCommand(newVersionCmd())
@@ -246,19 +250,19 @@ func runValidation(cmd *cobra.Command, args []string) error {
 func validateInput(inputPath, mode, format string) error {
 	// Check if input exists
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
-		return fmt.Errorf("Input Error: Path does not exist: '%s'", inputPath)
+		return fmt.Errorf("input error: path does not exist: '%s'", inputPath)
 	}
 
 	// Validate mode
 	validModes := []string{"performance", "default", "comprehensive"}
 	if !contains(validModes, mode) {
-		return fmt.Errorf("Invalid validation mode: '%s'. Valid modes: %s", mode, strings.Join(validModes, ", "))
+		return fmt.Errorf("invalid validation mode: '%s'. valid modes: %s", mode, strings.Join(validModes, ", "))
 	}
 
 	// Validate format
 	validFormats := []string{"console", "json", "summary", "html"}
 	if !contains(validFormats, format) {
-		return fmt.Errorf("Invalid output format: '%s'. Valid formats: %s", format, strings.Join(validFormats, ", "))
+		return fmt.Errorf("invalid output format: '%s'. valid formats: %s", format, strings.Join(validFormats, ", "))
 	}
 
 	return nil

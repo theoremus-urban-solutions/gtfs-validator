@@ -111,7 +111,7 @@ func TestStopTimeHeadsignValidator_Validate(t *testing.T) {
 			name: "very long headsigns",
 			files: map[string]string{
 				"stop_times.txt": "trip_id,stop_id,stop_sequence,arrival_time,departure_time,stop_headsign\n" +
-					"trip1,stop1,1,08:00:00,08:00:00," + string(make([]rune, 120, 120)[0:120]) + "",
+					"trip1,stop1,1,08:00:00,08:00:00," + string(make([]rune, 120)) + "",
 				"trips.txt": "trip_id,route_id,service_id,trip_headsign\n" +
 					"trip1,route1,service1,Downtown",
 			},

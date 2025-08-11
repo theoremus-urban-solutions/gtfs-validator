@@ -7,6 +7,9 @@ import (
 	"os"
 	"strings"
 	"time"
+	
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 //go:embed templates/*.html
@@ -34,8 +37,9 @@ type HTMLFormatter struct {
 // NewHTMLFormatter creates a new HTML formatter with embedded templates
 func NewHTMLFormatter() (*HTMLFormatter, error) {
 	// Parse the embedded template
+	caser := cases.Title(language.English)
 	tmpl, err := template.New("report.html").Funcs(template.FuncMap{
-		"title": strings.Title,
+		"title": caser.String,
 	}).ParseFS(templateFS, "templates/report.html")
 	if err != nil {
 		return nil, err
@@ -136,8 +140,9 @@ func getNoticeDescription(code string) string {
 
 	// Generate a description from the code name
 	words := strings.Split(code, "_")
+	caser := cases.Title(language.English)
 	for i, word := range words {
-		words[i] = strings.Title(word)
+		words[i] = caser.String(word)
 	}
 	return strings.Join(words, " ")
 }

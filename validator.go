@@ -481,7 +481,8 @@ func sanitizeConfig(config *Config) {
 	// Sanitize ValidationMode
 	switch config.ValidationMode {
 	case ValidationModePerformance, ValidationModeDefault, ValidationModeComprehensive:
-		// Valid modes, keep as is
+		// Valid modes, keep as is - no action needed
+		_ = config.ValidationMode // Avoid unused variable warning
 	default:
 		config.ValidationMode = ValidationModeDefault
 	}
