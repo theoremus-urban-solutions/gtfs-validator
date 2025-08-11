@@ -68,7 +68,7 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,red,Red Line,3\nR2,A1,RED,red line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name", "duplicate_route_long_name"},
+			expectedNoticeCodes: []string{"duplicate_route_short_name", "duplicate_route_long_name", "duplicate_route_name_combination"},
 			description:         "Case differences should still be detected as duplicates",
 		},
 		{
@@ -84,7 +84,7 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1, Red , Red Line ,3\nR2,A1,Red,Red Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name", "duplicate_route_long_name"},
+			expectedNoticeCodes: []string{"duplicate_route_short_name", "duplicate_route_long_name", "duplicate_route_name_combination"},
 			description:         "Whitespace should be trimmed for comparison",
 		},
 		{

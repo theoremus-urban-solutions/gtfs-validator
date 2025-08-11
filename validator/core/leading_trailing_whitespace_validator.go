@@ -78,14 +78,13 @@ func (v *LeadingTrailingWhitespaceValidator) validateFile(loader *parser.FeedLoa
 func (v *LeadingTrailingWhitespaceValidator) validateFieldWhitespace(container *notice.NoticeContainer, filename, fieldName, fieldValue string, rowNumber int) {
 	trimmed := strings.TrimSpace(fieldValue)
 
-	// Check for fields that are only whitespace (single notice)
+	// Check for fields that are only whitespace
 	if trimmed == "" {
 		container.AddNotice(notice.NewWhitespaceOnlyFieldNotice(
 			filename,
 			fieldName,
 			rowNumber,
 		))
-		return
 	}
 
 	// Check for leading whitespace

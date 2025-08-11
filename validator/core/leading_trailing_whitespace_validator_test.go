@@ -60,8 +60,8 @@ func TestLeadingTrailingWhitespaceValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"stops.txt": "stop_id,stop_name,stop_desc,stop_lat,stop_lon\n1,Main St,   ,34.05,-118.25", // Whitespace-only description
 			},
-			expectedNoticeCodes: []string{"whitespace_only_field"},
-			description:         "Fields containing only whitespace should generate notice",
+			expectedNoticeCodes: []string{"leading_whitespace", "trailing_whitespace", "excessive_whitespace", "whitespace_only_field"},
+			description:         "Fields containing only whitespace should generate multiple notices",
 		},
 		{
 			name: "excessive internal whitespace",
@@ -233,15 +233,15 @@ func TestLeadingTrailingWhitespaceValidator_Validate(t *testing.T) {
 				"leading_whitespace", "trailing_whitespace", // stops
 				"leading_whitespace", "trailing_whitespace", // routes
 				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // trips
-				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // stop_times
-				"leading_whitespace", "leading_whitespace", "trailing_whitespace", // calendar
-				"leading_whitespace", "leading_whitespace", "trailing_whitespace", // calendar_dates
+				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // stop_times
+				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // calendar
+				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // calendar_dates
 				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // fare_attributes
 				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // fare_rules
 				"leading_whitespace", "trailing_whitespace", // shapes
-				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // frequencies
+				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // frequencies
 				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // transfers
-				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // pathways
+				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // pathways
 				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // levels
 				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // feed_info
 				"leading_whitespace", "trailing_whitespace", "leading_whitespace", "trailing_whitespace", // attributions
@@ -360,8 +360,8 @@ func TestLeadingTrailingWhitespaceValidator_ValidateFieldWhitespace(t *testing.T
 			filename:        "agency.txt",
 			fieldName:       "agency_name",
 			fieldValue:      "   ",
-			expectedNotices: []string{"whitespace_only_field"},
-			description:     "Whitespace-only field should generate notice",
+			expectedNotices: []string{"leading_whitespace", "trailing_whitespace", "excessive_whitespace", "whitespace_only_field"},
+			description:     "Whitespace-only field should generate multiple notices",
 		},
 		{
 			name:            "tab-only field",

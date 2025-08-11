@@ -56,12 +56,24 @@ func (v *InvalidRowValidator) validateFile(loader *parser.FeedLoader, container 
 			break
 		}
 		if err != nil {
-			// CSV parsing error - treat as wrong number of fields if we can detect it; otherwise generic invalid row
-			container.AddNotice(notice.NewInvalidRowNotice(
-				filename,
-				headerCount+1, // approximate first data row
-				"CSV parsing error: "+err.Error(),
-			))
+			// CSV parsing error - check if it's a wrong number of fields error
+			if strings.Contains(err.Error(), "wrong number of fields") {
+				// Extract field count information if possible
+				// For now, we'll generate a wrong number of fields notice
+				container.AddNotice(notice.NewWrongNumberOfFieldsNotice(
+					filename,
+					headerCount+1, // approximate first data row
+					headerCount,
+					0, // unknown actual count
+				))
+			} else {
+				// Other CSV parsing errors - treat as generic invalid row
+				container.AddNotice(notice.NewInvalidRowNotice(
+					filename,
+					headerCount+1, // approximate first data row
+					"CSV parsing error: "+err.Error(),
+				))
+			}
 			continue
 		}
 
