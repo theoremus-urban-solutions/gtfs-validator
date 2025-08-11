@@ -128,7 +128,7 @@ release: ## Create a release with GoReleaser
 
 release-dry-run: ## Dry run release with GoReleaser
 	@echo "Dry running release..."
-	@goreleaser release --clean --snapshot --skip-publish
+	@goreleaser release --clean --snapshot --skip=publish,announce
 
 # Cleanup
 clean: ## Clean build artifacts
