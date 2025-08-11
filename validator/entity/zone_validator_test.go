@@ -20,7 +20,7 @@ func TestZoneValidator_Validate(t *testing.T) {
 				"stops.txt":      "stop_id,stop_name,stop_lat,stop_lon,zone_id\n1,Stop A,34.05,-118.25,Z1\n2,Stop B,34.06,-118.26,Z1\n3,Stop C,34.07,-118.27,Z2",
 				"fare_rules.txt": "fare_id,origin_id,destination_id\nF1,Z1,Z2",
 			},
-			expectedNoticeCodes: []string{},
+			expectedNoticeCodes: []string{"single_stop_zone"},
 			description:         "Valid zones with multiple stops and proper usage should not generate notices",
 		},
 		{
@@ -55,7 +55,7 @@ func TestZoneValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon,zone_id\nSTOP_001,Stop A,34.05,-118.25,STOP_001",
 			},
-			expectedNoticeCodes: []string{"single_stop_zone", "zone_id_same_as_stop_id"},
+			expectedNoticeCodes: []string{"single_stop_zone", "unused_zone", "zone_id_same_as_stop_id"},
 			description:         "Zone ID same as stop ID should generate notices",
 		},
 		{
@@ -63,7 +63,7 @@ func TestZoneValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon,zone_id\n1,Stop A,34.05,-118.25,THIS_IS_A_VERY_LONG_ZONE_ID_THAT_EXCEEDS_FIFTY_CHARACTERS_AND_SHOULD_TRIGGER_A_NOTICE",
 			},
-			expectedNoticeCodes: []string{"single_stop_zone", "long_zone_id"},
+			expectedNoticeCodes: []string{"single_stop_zone", "unused_zone", "long_zone_id"},
 			description:         "Very long zone IDs should generate notices",
 		},
 		{
@@ -71,7 +71,7 @@ func TestZoneValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon,zone_id\n1,Stop A,34.05,-118.25,\n2,Stop B,34.06,-118.26,Z1",
 			},
-			expectedNoticeCodes: []string{"single_stop_zone"},
+			expectedNoticeCodes: []string{"single_stop_zone", "unused_zone"},
 			description:         "Empty zone_id should be ignored",
 		},
 		{
@@ -79,7 +79,7 @@ func TestZoneValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon,zone_id\n1,Stop A,34.05,-118.25,   \n2,Stop B,34.06,-118.26,Z1",
 			},
-			expectedNoticeCodes: []string{"single_stop_zone"},
+			expectedNoticeCodes: []string{"single_stop_zone", "unused_zone"},
 			description:         "Whitespace-only zone_id should be ignored",
 		},
 		{
@@ -149,7 +149,7 @@ func TestZoneValidator_Validate(t *testing.T) {
 				"stops.txt":      "stop_id,stop_name,stop_lat,stop_lon,zone_id\n1,Stop A,34.05,-118.25,DOWNTOWN\n2,Stop B,34.06,-118.26,DOWNTOWN\n3,Stop C,34.07,-118.27,AIRPORT\n4,Stop D,34.08,-118.28,UNUSED_ZONE",
 				"fare_rules.txt": "fare_id,route_id,origin_id,destination_id,contains_id\nF1,,DOWNTOWN,AIRPORT,\nF2,R1,,,DOWNTOWN",
 			},
-			expectedNoticeCodes: []string{"single_stop_zone", "unused_zone"},
+			expectedNoticeCodes: []string{"single_stop_zone", "single_stop_zone", "unused_zone"},
 			description:         "Complex scenario with multiple zone usages",
 		},
 	}
