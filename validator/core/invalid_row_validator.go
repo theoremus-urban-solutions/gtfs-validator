@@ -56,17 +56,17 @@ func (v *InvalidRowValidator) validateFile(loader *parser.FeedLoader, container 
 			break
 		}
 		if err != nil {
-			// CSV parsing error - invalid row structure
+			// CSV parsing error - treat as wrong number of fields if we can detect it; otherwise generic invalid row
 			container.AddNotice(notice.NewInvalidRowNotice(
 				filename,
-				row.RowNumber,
+				headerCount+1, // approximate first data row
 				"CSV parsing error: "+err.Error(),
 			))
 			continue
 		}
 
-		// Check for rows with wrong number of fields
-		fieldCount := len(row.Values)
+		// Check for rows with wrong number of fields using raw field count if available
+		fieldCount := row.RawFieldCount
 		if fieldCount != headerCount {
 			container.AddNotice(notice.NewWrongNumberOfFieldsNotice(
 				filename,
@@ -182,7 +182,7 @@ func (v *InvalidRowValidator) validateRouteRow(container *notice.NoticeContainer
 			if routeType >= 100 && routeType <= 1700 {
 				valid = true
 			}
-			
+
 			if !valid {
 				container.AddNotice(notice.NewInvalidRouteTypeNotice(
 					row.Values["route_id"],
@@ -241,7 +241,7 @@ func (v *InvalidRowValidator) validateTripRow(container *notice.NoticeContainer,
 func (v *InvalidRowValidator) validateCalendarRow(container *notice.NoticeContainer, row *parser.CSVRow) {
 	// Check day fields are 0 or 1
 	dayFields := []string{"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
-	
+
 	for _, field := range dayFields {
 		if value, exists := row.Values[field]; exists {
 			trimmedValue := strings.TrimSpace(value)

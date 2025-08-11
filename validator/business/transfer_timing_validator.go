@@ -283,10 +283,10 @@ func (v *TransferTimingValidator) validateMinimumTimeTransfer(container *notice.
 	}
 
 	minTime := *transfer.MinTransferTime
-	
+
 	// Calculate expected walking time (assume 1.4 m/s walking speed)
 	expectedWalkTime := int(distance / 1.4)
-	
+
 	// Check if min_transfer_time is reasonable
 	if minTime < expectedWalkTime {
 		container.AddNotice(notice.NewUnrealisticTransferTimeNotice(
@@ -355,7 +355,7 @@ func (v *TransferTimingValidator) validateTransferPatterns(container *notice.Not
 // validateDuplicateTransfers checks for duplicate transfer definitions
 func (v *TransferTimingValidator) validateDuplicateTransfers(container *notice.NoticeContainer, transfers []*TransferTimingInfo) {
 	seen := make(map[string][]*TransferTimingInfo)
-	
+
 	for _, transfer := range transfers {
 		key := transfer.FromStopID + "_" + transfer.ToStopID
 		seen[key] = append(seen[key], transfer)
@@ -376,7 +376,7 @@ func (v *TransferTimingValidator) validateDuplicateTransfers(container *notice.N
 // validateBidirectionalTransfers checks for bidirectional transfer consistency
 func (v *TransferTimingValidator) validateBidirectionalTransfers(container *notice.NoticeContainer, transfers []*TransferTimingInfo) {
 	transferMap := make(map[string]*TransferTimingInfo)
-	
+
 	for _, transfer := range transfers {
 		key := transfer.FromStopID + "_" + transfer.ToStopID
 		transferMap[key] = transfer
@@ -384,7 +384,7 @@ func (v *TransferTimingValidator) validateBidirectionalTransfers(container *noti
 
 	for _, transfer := range transfers {
 		reverseKey := transfer.ToStopID + "_" + transfer.FromStopID
-		
+
 		if reverseTransfer, hasReverse := transferMap[reverseKey]; hasReverse {
 			// Check for consistency between bidirectional transfers
 			if transfer.TransferType != reverseTransfer.TransferType {

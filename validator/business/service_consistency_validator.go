@@ -22,12 +22,12 @@ func NewServiceConsistencyValidator() *ServiceConsistencyValidator {
 
 // ServiceDefinition represents a service definition from calendar.txt
 type ServiceDefinition struct {
-	ServiceID   string
-	StartDate   string
-	EndDate     string
-	DaysActive  []string
-	TripCount   int
-	RowNumber   int
+	ServiceID  string
+	StartDate  string
+	EndDate    string
+	DaysActive []string
+	TripCount  int
+	RowNumber  int
 }
 
 // ServiceException represents an exception from calendar_dates.txt
@@ -50,10 +50,10 @@ type TripService struct {
 func (v *ServiceConsistencyValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
 	// Load services from calendar.txt
 	services := v.loadServices(loader)
-	
-	// Load exceptions from calendar_dates.txt  
+
+	// Load exceptions from calendar_dates.txt
 	exceptions := v.loadServiceExceptions(loader)
-	
+
 	// Load trip services from trips.txt
 	tripServices := v.loadTripServices(loader)
 
@@ -65,13 +65,13 @@ func (v *ServiceConsistencyValidator) Validate(loader *parser.FeedLoader, contai
 
 	// Validate service definitions
 	v.validateServiceDefinitions(container, services, currentDate)
-	
+
 	// Validate service exceptions
 	v.validateServiceExceptions(container, exceptions, currentDate)
-	
+
 	// Validate service usage consistency
 	v.validateServiceUsage(container, services, exceptions, tripServices)
-	
+
 	// Validate service patterns
 	v.validateServicePatterns(container, services, tripServices)
 }
@@ -117,8 +117,8 @@ func (v *ServiceConsistencyValidator) parseServiceDefinition(row *parser.CSVRow)
 	}
 
 	service := &ServiceDefinition{
-		ServiceID: strings.TrimSpace(serviceID),
-		RowNumber: row.RowNumber,
+		ServiceID:  strings.TrimSpace(serviceID),
+		RowNumber:  row.RowNumber,
 		DaysActive: []string{},
 	}
 
@@ -399,7 +399,7 @@ func (v *ServiceConsistencyValidator) validateServiceUsage(container *notice.Not
 func (v *ServiceConsistencyValidator) validateServicePatterns(container *notice.NoticeContainer, services map[string]*ServiceDefinition, tripServices []*TripService) {
 	// Group trips by route and service
 	routeServiceMap := make(map[string]map[string]int)
-	
+
 	for _, tripService := range tripServices {
 		if routeServiceMap[tripService.RouteID] == nil {
 			routeServiceMap[tripService.RouteID] = make(map[string]int)

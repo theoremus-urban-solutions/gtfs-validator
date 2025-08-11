@@ -4,75 +4,134 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"strings"
 	"time"
-	
+
+	"github.com/spf13/cobra"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator"
 )
 
 const version = "1.0.0"
 
+var (
+	// Global flags
+	inputPath    string
+	outputFormat string
+	outputFile   string
+	countryCode  string
+	maxMemory    int64
+	workers      int
+	mode         string
+	maxNotices   int
+	timeout      time.Duration
+	showProgress bool
+)
+
 func main() {
-	// Command line flags
-	var (
-		inputPath    = flag.String("input", "", "Path to GTFS feed (ZIP file or directory)")
-		outputFormat = flag.String("format", "console", "Output format: console, json, summary")
-		outputFile   = flag.String("output", "", "Output file path (default: stdout)")
-		countryCode  = flag.String("country", "US", "Country code for validation (e.g., US, GB, FR)")
-		maxMemory    = flag.Int64("memory", 0, "Maximum memory usage in MB (0 = no limit)")
-		workers      = flag.Int("workers", 4, "Number of parallel workers")
-		mode         = flag.String("mode", "default", "Validation mode: performance, default, comprehensive")
-		maxNotices   = flag.Int("max-notices", 100, "Maximum notices per type (0 = no limit)")
-		timeout      = flag.Duration("timeout", 5*time.Minute, "Validation timeout")
-		showProgress = flag.Bool("progress", false, "Show progress bar")
-		help         = flag.Bool("help", false, "Show help message")
-		showVersion  = flag.Bool("version", false, "Show version information")
-	)
+	var rootCmd = &cobra.Command{
+		Use:   "gtfs-validator [flags]",
+		Short: "A comprehensive GTFS feed validator",
+		Long: `GTFS Validator CLI - A comprehensive GTFS feed validator written in Go.
 
-	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "GTFS Validator CLI - A comprehensive GTFS feed validator\n\n")
-		fmt.Fprintf(os.Stderr, "Usage: %s [options] -input <path>\n\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "Options:\n")
-		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nExamples:\n")
-		fmt.Fprintf(os.Stderr, "  %s -input feed.zip\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s -input ./gtfs-feed -format json -output report.json\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s -input feed.zip -mode performance\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "  %s -input feed.zip -progress\n", os.Args[0])
+This tool validates General Transit Feed Specification (GTFS) feeds for compliance
+with the GTFS specification and transit industry best practices.
+
+Features memory optimization with streaming CSV processing for large feeds,
+structured logging, and comprehensive validation with 294+ validation rules.`,
+		Example: `  gtfs-validator -i feed.zip
+  gtfs-validator -i ./gtfs-feed -f json -o report.json
+  gtfs-validator -i feed.zip -f html -o report.html
+  gtfs-validator -i feed.zip -m performance
+  gtfs-validator -i feed.zip --progress`,
+		Version: version,
+		RunE:    runValidation,
 	}
 
-	flag.Parse()
+	// Add flags
+	rootCmd.Flags().StringVarP(&inputPath, "input", "i", "", "Path to GTFS feed (ZIP file or directory) [required]")
+	rootCmd.Flags().StringVarP(&outputFormat, "format", "f", "console", "Output format: console, json, summary, html")
+	rootCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file path (default: stdout)")
+	rootCmd.Flags().StringVarP(&countryCode, "country", "c", "US", "Country code for validation (e.g., US, GB, FR)")
+	rootCmd.Flags().Int64Var(&maxMemory, "memory", 0, "Maximum memory usage in MB (0 = no limit)")
+	rootCmd.Flags().IntVarP(&workers, "workers", "w", 4, "Number of parallel workers")
+	rootCmd.Flags().StringVarP(&mode, "mode", "m", "default", "Validation mode: performance, default, comprehensive")
+	rootCmd.Flags().IntVar(&maxNotices, "max-notices", 100, "Maximum notices per type (0 = no limit)")
+	rootCmd.Flags().DurationVarP(&timeout, "timeout", "t", 5*time.Minute, "Validation timeout")
+	rootCmd.Flags().BoolVarP(&showProgress, "progress", "p", false, "Show progress bar")
 
-	if *help {
-		flag.Usage()
-		return
-	}
+	// Mark input as required
+	rootCmd.MarkFlagRequired("input")
 
-	if *showVersion {
-		fmt.Printf("GTFS Validator CLI v%s\n", version)
-		fmt.Println("A comprehensive GTFS feed validator written in Go")
-		return
-	}
+	// Add subcommands
+	rootCmd.AddCommand(newVersionCmd())
+	rootCmd.AddCommand(newValidateCmd())
 
-	if *inputPath == "" {
-		fmt.Fprintf(os.Stderr, "Error: -input flag is required\n\n")
-		flag.Usage()
+	// Execute
+	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
+}
 
+func newVersionCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Show version information",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("GTFS Validator CLI v%s\n", version)
+			fmt.Println("A comprehensive GTFS feed validator written in Go")
+			fmt.Println("https://github.com/theoremus-urban-solutions/gtfs-validator")
+		},
+	}
+}
+
+func newValidateCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "validate [flags] <input>",
+		Short: "Validate a GTFS feed",
+		Long: `Validate a GTFS feed for compliance with the GTFS specification.
+
+The input can be either a ZIP file containing the GTFS feed or a directory
+with the GTFS files.
+
+Uses memory-efficient streaming processing for large feeds and provides
+comprehensive validation with 294+ validation rules.`,
+		Example: `  gtfs-validator validate feed.zip
+  gtfs-validator validate ./gtfs-directory --format json
+  gtfs-validator validate feed.zip --format html --output report.html
+  gtfs-validator validate feed.zip --mode performance --progress`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			inputPath = args[0]
+			return runValidation(cmd, args)
+		},
+	}
+
+	// Add the same flags as root command
+	cmd.Flags().StringVarP(&outputFormat, "format", "f", "console", "Output format: console, json, summary, html")
+	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file path (default: stdout)")
+	cmd.Flags().StringVarP(&countryCode, "country", "c", "US", "Country code for validation (e.g., US, GB, FR)")
+	cmd.Flags().Int64Var(&maxMemory, "memory", 0, "Maximum memory usage in MB (0 = no limit)")
+	cmd.Flags().IntVarP(&workers, "workers", "w", 4, "Number of parallel workers")
+	cmd.Flags().StringVarP(&mode, "mode", "m", "default", "Validation mode: performance, default, comprehensive")
+	cmd.Flags().IntVar(&maxNotices, "max-notices", 100, "Maximum notices per type (0 = no limit)")
+	cmd.Flags().DurationVarP(&timeout, "timeout", "t", 5*time.Minute, "Validation timeout")
+	cmd.Flags().BoolVarP(&showProgress, "progress", "p", false, "Show progress bar")
+
+	return cmd
+}
+
+func runValidation(cmd *cobra.Command, args []string) error {
 	// Validate input
-	if err := validateInput(*inputPath, *mode, *outputFormat); err != nil {
-		fmt.Fprintf(os.Stderr, "❌ %v\n", err)
-		os.Exit(1)
+	if err := validateInput(inputPath, mode, outputFormat); err != nil {
+		return fmt.Errorf("❌ %v", err)
 	}
 
 	// Create context with timeout and cancellation
-	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	// Handle interrupt signal
@@ -86,14 +145,14 @@ func main() {
 
 	// Configure validator options
 	opts := []gtfsvalidator.Option{
-		gtfsvalidator.WithCountryCode(*countryCode),
-		gtfsvalidator.WithMaxMemory(*maxMemory * 1024 * 1024), // Convert MB to bytes
-		gtfsvalidator.WithParallelWorkers(*workers),
-		gtfsvalidator.WithMaxNoticesPerType(*maxNotices),
+		gtfsvalidator.WithCountryCode(countryCode),
+		gtfsvalidator.WithMaxMemory(maxMemory * 1024 * 1024), // Convert MB to bytes
+		gtfsvalidator.WithParallelWorkers(workers),
+		gtfsvalidator.WithMaxNoticesPerType(maxNotices),
 	}
 
 	// Set validation mode
-	switch *mode {
+	switch mode {
 	case "performance":
 		opts = append(opts, gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance))
 	case "comprehensive":
@@ -103,7 +162,7 @@ func main() {
 	}
 
 	// Add progress callback if requested
-	if *showProgress {
+	if showProgress {
 		progressBar := NewProgressBar()
 		opts = append(opts, gtfsvalidator.WithProgressCallback(func(info gtfsvalidator.ProgressInfo) {
 			progressBar.Update(info.PercentComplete, info.CurrentValidator)
@@ -115,16 +174,16 @@ func main() {
 
 	// Show startup message
 	fmt.Fprintf(os.Stderr, "🚀 Starting GTFS validation...\n")
-	fmt.Fprintf(os.Stderr, "   Feed: %s\n", filepath.Base(*inputPath))
-	fmt.Fprintf(os.Stderr, "   Mode: %s\n", *mode)
-	if *maxNotices > 0 {
-		fmt.Fprintf(os.Stderr, "   Notice limit: %d per type\n", *maxNotices)
+	fmt.Fprintf(os.Stderr, "   Feed: %s\n", filepath.Base(inputPath))
+	fmt.Fprintf(os.Stderr, "   Mode: %s\n", mode)
+	if maxNotices > 0 {
+		fmt.Fprintf(os.Stderr, "   Notice limit: %d per type\n", maxNotices)
 	}
 	fmt.Fprintf(os.Stderr, "\n")
 
 	// Perform validation
 	startTime := time.Now()
-	report, err := validator.ValidateFileWithContext(ctx, *inputPath)
+	report, err := validator.ValidateFileWithContext(ctx, inputPath)
 	elapsed := time.Since(startTime)
 
 	if err != nil {
@@ -132,11 +191,10 @@ func main() {
 			fmt.Fprintf(os.Stderr, "⚠️  Validation cancelled by user\n")
 			os.Exit(1)
 		} else if err == context.DeadlineExceeded {
-			fmt.Fprintf(os.Stderr, "⏰ Validation timed out after %v\n", *timeout)
+			fmt.Fprintf(os.Stderr, "⏰ Validation timed out after %v\n", timeout)
 			os.Exit(1)
 		} else {
-			fmt.Fprintf(os.Stderr, "❌ Validation Error: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("❌ Validation Error: %v", err)
 		}
 	}
 
@@ -144,32 +202,32 @@ func main() {
 
 	// Handle output
 	output := os.Stdout
-	if *outputFile != "" {
-		file, err := os.Create(*outputFile)
+	if outputFile != "" {
+		file, err := os.Create(outputFile)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "❌ Output Error: Failed to create output file '%s': %v\n", *outputFile, err)
-			os.Exit(1)
+			return fmt.Errorf("❌ Output Error: Failed to create output file '%s': %v", outputFile, err)
 		}
 		defer file.Close()
 		output = file
-		fmt.Fprintf(os.Stderr, "📄 Writing output to: %s\n", *outputFile)
+		fmt.Fprintf(os.Stderr, "📄 Writing output to: %s\n", outputFile)
 	}
 
 	// Generate output based on format
-	switch *outputFormat {
+	switch outputFormat {
 	case "json":
 		if err := json.NewEncoder(output).Encode(report); err != nil {
-			fmt.Fprintf(os.Stderr, "❌ JSON Error: Failed to encode report: %v\n", err)
-			os.Exit(1)
+			return fmt.Errorf("❌ JSON Error: Failed to encode report: %v", err)
 		}
 	case "summary":
-		outputSummary(output, report, *inputPath)
+		outputSummary(output, report, inputPath)
 	case "console":
-		outputConsole(output, report, *inputPath)
+		outputConsole(output, report, inputPath)
+	case "html":
+		if err := outputHTML(output, report, inputPath); err != nil {
+			return fmt.Errorf("❌ HTML Error: Failed to generate HTML report: %v", err)
+		}
 	default:
-		fmt.Fprintf(os.Stderr, "❌ Format Error: Unknown output format '%s'\n", *outputFormat)
-		fmt.Fprintf(os.Stderr, "   Valid formats: console, json, summary\n")
-		os.Exit(1)
+		return fmt.Errorf("❌ Format Error: Unknown output format '%s'. Valid formats: console, json, summary, html", outputFormat)
 	}
 
 	// Final status and exit
@@ -181,6 +239,8 @@ func main() {
 	} else {
 		fmt.Fprintf(os.Stderr, "🎉 Validation PASSED: Feed is valid!\n")
 	}
+
+	return nil
 }
 
 func validateInput(inputPath, mode, format string) error {
@@ -196,7 +256,7 @@ func validateInput(inputPath, mode, format string) error {
 	}
 
 	// Validate format
-	validFormats := []string{"console", "json", "summary"}
+	validFormats := []string{"console", "json", "summary", "html"}
 	if !contains(validFormats, format) {
 		return fmt.Errorf("Invalid output format: '%s'. Valid formats: %s", format, strings.Join(validFormats, ", "))
 	}
@@ -276,14 +336,14 @@ func outputConsole(output *os.File, report *gtfsvalidator.ValidationReport, inpu
 		}
 
 		if len(report.Notices) > 10 {
-			fmt.Fprintf(output, "\n... and %d more notices (use -format json for full details)\n", len(report.Notices)-10)
+			fmt.Fprintf(output, "\n... and %d more notices (use -f json for full details)\n", len(report.Notices)-10)
 		}
 	}
 }
 
 func showNoticeContext(output *os.File, context map[string]interface{}) {
 	details := []string{}
-	
+
 	if filename, ok := context["filename"].(string); ok {
 		details = append(details, fmt.Sprintf("file=%s", filename))
 	}
@@ -296,7 +356,7 @@ func showNoticeContext(output *os.File, context map[string]interface{}) {
 	if routeId, ok := context["routeId"].(string); ok {
 		details = append(details, fmt.Sprintf("route=%s", routeId))
 	}
-	
+
 	if len(details) > 0 {
 		fmt.Fprintf(output, "       (%s)\n", strings.Join(details, ", "))
 	}
@@ -329,4 +389,15 @@ func (p *ProgressBar) Update(percent float64, status string) {
 	}
 
 	fmt.Fprintf(os.Stderr, "\r[%s] %3d%% %s", bar, currentPercent, status)
+}
+
+func outputHTML(output *os.File, report *gtfsvalidator.ValidationReport, inputPath string) error {
+	// Create HTML formatter
+	formatter, err := gtfsvalidator.NewHTMLFormatter()
+	if err != nil {
+		return fmt.Errorf("failed to create HTML formatter: %v", err)
+	}
+
+	// Generate HTML report
+	return formatter.GenerateHTML(report, output)
 }

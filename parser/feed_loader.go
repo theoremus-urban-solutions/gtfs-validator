@@ -11,11 +11,11 @@ import (
 
 // FeedLoader loads GTFS feeds from various sources
 type FeedLoader struct {
-	files       map[string]io.ReadCloser  // For ZIP files (deprecated approach)
-	filePaths   map[string]string         // For directory files
-	zipReader   *zip.ReadCloser           // For ZIP files (new approach)
-	zipFiles    map[string]*zip.File      // For ZIP files (new approach)
-	isDir       bool                      // True if loading from directory
+	files     map[string]io.ReadCloser // For ZIP files (deprecated approach)
+	filePaths map[string]string        // For directory files
+	zipReader *zip.ReadCloser          // For ZIP files (new approach)
+	zipFiles  map[string]*zip.File     // For ZIP files (new approach)
+	isDir     bool                     // True if loading from directory
 }
 
 // LoadFromZip loads a GTFS feed from a zip file
@@ -131,21 +131,21 @@ func (l *FeedLoader) ListFiles() []string {
 // Close closes all open file readers
 func (l *FeedLoader) Close() error {
 	var firstErr error
-	
+
 	// Close any old-style file readers
 	for _, reader := range l.files {
 		if err := reader.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
-	
+
 	// Close ZIP reader if present
 	if l.zipReader != nil {
 		if err := l.zipReader.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
-	
+
 	return firstErr
 }
 

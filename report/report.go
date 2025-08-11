@@ -15,11 +15,11 @@ type ValidationReport struct {
 
 // Summary contains summary information about the validation
 type Summary struct {
-	ValidatorVersion string        `json:"validatorVersion"`
-	ValidationTime   float64       `json:"validationTimeSeconds"`
-	Date             string        `json:"date"`
-	FeedInfo         FeedInfo      `json:"feedInfo"`
-	Counts           NoticeCounts  `json:"counts"`
+	ValidatorVersion string       `json:"validatorVersion"`
+	ValidationTime   float64      `json:"validationTimeSeconds"`
+	Date             string       `json:"date"`
+	FeedInfo         FeedInfo     `json:"feedInfo"`
+	Counts           NoticeCounts `json:"counts"`
 }
 
 // FeedInfo contains information about the validated feed
@@ -53,14 +53,14 @@ type NoticeReport struct {
 
 // ReportGenerator generates validation reports
 type ReportGenerator struct {
-	validatorVersion string
+	validatorVersion    string
 	maxSamplesPerNotice int
 }
 
 // NewReportGenerator creates a new report generator
 func NewReportGenerator(validatorVersion string) *ReportGenerator {
 	return &ReportGenerator{
-		validatorVersion: validatorVersion,
+		validatorVersion:    validatorVersion,
 		maxSamplesPerNotice: 5, // Limit samples to prevent huge reports
 	}
 }
@@ -69,18 +69,18 @@ func NewReportGenerator(validatorVersion string) *ReportGenerator {
 func (g *ReportGenerator) GenerateReport(container *notice.NoticeContainer, feedInfo FeedInfo, validationTime float64) *ValidationReport {
 	// Group notices by code
 	noticeGroups := g.groupNoticesByCode(container.GetNotices())
-	
+
 	// Create notice reports
 	noticeReports := make([]NoticeReport, 0, len(noticeGroups))
 	for code, notices := range noticeGroups {
 		if len(notices) == 0 {
 			continue
 		}
-		
+
 		report := NoticeReport{
-			Code:         code,
-			Severity:     notices[0].Severity().String(),
-			TotalNotices: len(notices),
+			Code:          code,
+			Severity:      notices[0].Severity().String(),
+			TotalNotices:  len(notices),
 			SampleNotices: g.getSampleNotices(notices),
 		}
 		noticeReports = append(noticeReports, report)
@@ -99,9 +99,9 @@ func (g *ReportGenerator) GenerateReport(container *notice.NoticeContainer, feed
 	summary := Summary{
 		ValidatorVersion: g.validatorVersion,
 		ValidationTime:   validationTime,
-		Date:            time.Now().Format(time.RFC3339),
-		FeedInfo:        feedInfo,
-		Counts:          noticeCounts,
+		Date:             time.Now().Format(time.RFC3339),
+		FeedInfo:         feedInfo,
+		Counts:           noticeCounts,
 	}
 
 	return &ValidationReport{

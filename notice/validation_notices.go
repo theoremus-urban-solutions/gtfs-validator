@@ -205,11 +205,11 @@ type DuplicateStopSequenceNotice struct {
 
 func NewDuplicateStopSequenceNotice(tripID string, stopSequence int, stopID string, rowNumber int, duplicateRowNumber int) *DuplicateStopSequenceNotice {
 	context := map[string]interface{}{
-		"tripId":               tripID,
-		"stopSequence":         stopSequence,
-		"stopId":               stopID,
-		"csvRowNumber":         rowNumber,
-		"duplicateRowNumber":   duplicateRowNumber,
+		"tripId":             tripID,
+		"stopSequence":       stopSequence,
+		"stopId":             stopID,
+		"csvRowNumber":       rowNumber,
+		"duplicateRowNumber": duplicateRowNumber,
 	}
 	return &DuplicateStopSequenceNotice{
 		BaseNotice: NewBaseNotice("duplicate_stop_sequence", ERROR, context),
@@ -223,14 +223,14 @@ type DecreasingOrEqualStopTimeDistanceNotice struct {
 
 func NewDecreasingOrEqualStopTimeDistanceNotice(tripID string, stopID string, rowNumber int, shapeDistTraveled float64, stopSequence int, prevRowNumber int, prevShapeDistTraveled float64, prevStopSequence int) *DecreasingOrEqualStopTimeDistanceNotice {
 	context := map[string]interface{}{
-		"tripId":                 tripID,
-		"stopId":                 stopID,
-		"csvRowNumber":           rowNumber,
-		"shapeDistTraveled":      shapeDistTraveled,
-		"stopSequence":           stopSequence,
-		"prevCsvRowNumber":       prevRowNumber,
-		"prevShapeDistTraveled":  prevShapeDistTraveled,
-		"prevStopSequence":       prevStopSequence,
+		"tripId":                tripID,
+		"stopId":                stopID,
+		"csvRowNumber":          rowNumber,
+		"shapeDistTraveled":     shapeDistTraveled,
+		"stopSequence":          stopSequence,
+		"prevCsvRowNumber":      prevRowNumber,
+		"prevShapeDistTraveled": prevShapeDistTraveled,
+		"prevStopSequence":      prevStopSequence,
 	}
 	return &DecreasingOrEqualStopTimeDistanceNotice{
 		BaseNotice: NewBaseNotice("decreasing_or_equal_stop_time_distance", ERROR, context),
@@ -382,13 +382,13 @@ type StopTimeDecreasingTimeNotice struct {
 
 func NewStopTimeDecreasingTimeNotice(tripID string, stopSequence int, arrivalTime string, rowNumber int, prevStopSequence int, prevDepartureTime string, prevRowNumber int) *StopTimeDecreasingTimeNotice {
 	context := map[string]interface{}{
-		"tripId":             tripID,
-		"stopSequence":       stopSequence,
-		"arrivalTime":        arrivalTime,
-		"csvRowNumber":       rowNumber,
-		"prevStopSequence":   prevStopSequence,
-		"prevDepartureTime":  prevDepartureTime,
-		"prevCsvRowNumber":   prevRowNumber,
+		"tripId":            tripID,
+		"stopSequence":      stopSequence,
+		"arrivalTime":       arrivalTime,
+		"csvRowNumber":      rowNumber,
+		"prevStopSequence":  prevStopSequence,
+		"prevDepartureTime": prevDepartureTime,
+		"prevCsvRowNumber":  prevRowNumber,
 	}
 	return &StopTimeDecreasingTimeNotice{
 		BaseNotice: NewBaseNotice("stop_time_decreasing_time", ERROR, context),
@@ -419,13 +419,13 @@ type DecreasingOrEqualShapeDistanceNotice struct {
 
 func NewDecreasingOrEqualShapeDistanceNotice(shapeID string, shapePtSequence int, rowNumber int, shapeDistTraveled float64, prevShapePtSequence int, prevRowNumber int, prevShapeDistTraveled float64) *DecreasingOrEqualShapeDistanceNotice {
 	context := map[string]interface{}{
-		"shapeId":                shapeID,
-		"shapePtSequence":        shapePtSequence,
-		"csvRowNumber":           rowNumber,
-		"shapeDistTraveled":      shapeDistTraveled,
-		"prevShapePtSequence":    prevShapePtSequence,
-		"prevCsvRowNumber":       prevRowNumber,
-		"prevShapeDistTraveled":  prevShapeDistTraveled,
+		"shapeId":               shapeID,
+		"shapePtSequence":       shapePtSequence,
+		"csvRowNumber":          rowNumber,
+		"shapeDistTraveled":     shapeDistTraveled,
+		"prevShapePtSequence":   prevShapePtSequence,
+		"prevCsvRowNumber":      prevRowNumber,
+		"prevShapeDistTraveled": prevShapeDistTraveled,
 	}
 	return &DecreasingOrEqualShapeDistanceNotice{
 		BaseNotice: NewBaseNotice("decreasing_or_equal_shape_distance", ERROR, context),
@@ -464,17 +464,17 @@ type BlockTripsOverlapNotice struct {
 
 func NewBlockTripsOverlapNotice(blockID string, trip1ID string, trip2ID string, service1ID string, service2ID string, trip1StartTime string, trip1EndTime string, trip2StartTime string, trip2EndTime string, trip1RowNumber int, trip2RowNumber int) *BlockTripsOverlapNotice {
 	context := map[string]interface{}{
-		"blockId":         blockID,
-		"trip1Id":         trip1ID,
-		"trip2Id":         trip2ID,
-		"service1Id":      service1ID,
-		"service2Id":      service2ID,
-		"trip1StartTime":  trip1StartTime,
-		"trip1EndTime":    trip1EndTime,
-		"trip2StartTime":  trip2StartTime,
-		"trip2EndTime":    trip2EndTime,
-		"trip1RowNumber":  trip1RowNumber,
-		"trip2RowNumber":  trip2RowNumber,
+		"blockId":        blockID,
+		"trip1Id":        trip1ID,
+		"trip2Id":        trip2ID,
+		"service1Id":     service1ID,
+		"service2Id":     service2ID,
+		"trip1StartTime": trip1StartTime,
+		"trip1EndTime":   trip1EndTime,
+		"trip2StartTime": trip2StartTime,
+		"trip2EndTime":   trip2EndTime,
+		"trip1RowNumber": trip1RowNumber,
+		"trip2RowNumber": trip2RowNumber,
 	}
 	return &BlockTripsOverlapNotice{
 		BaseNotice: NewBaseNotice("block_trips_overlap", ERROR, context),
@@ -611,7 +611,7 @@ func NewInvalidCoordinateNotice(filename string, fieldName string, coordValue st
 	context := map[string]interface{}{
 		"filename":     filename,
 		"fieldName":    fieldName,
-		"coordValue":   coordValue,
+		"fieldValue":   coordValue,
 		"csvRowNumber": rowNumber,
 		"reason":       reason,
 	}
@@ -629,7 +629,7 @@ func NewSuspiciousCoordinateNotice(filename string, fieldName string, coordValue
 	context := map[string]interface{}{
 		"filename":     filename,
 		"fieldName":    fieldName,
-		"coordValue":   coordValue,
+		"fieldValue":   coordValue,
 		"csvRowNumber": rowNumber,
 		"reason":       reason,
 	}
@@ -647,7 +647,7 @@ func NewInsufficientCoordinatePrecisionNotice(filename string, fieldName string,
 	context := map[string]interface{}{
 		"filename":     filename,
 		"fieldName":    fieldName,
-		"coordValue":   coordValue,
+		"fieldValue":   coordValue,
 		"csvRowNumber": rowNumber,
 		"decimals":     decimals,
 	}
@@ -1036,13 +1036,13 @@ type OverlappingFrequencyNotice struct {
 
 func NewOverlappingFrequencyNotice(tripID string, startTime1 string, endTime1 string, rowNumber1 int, startTime2 string, endTime2 string, rowNumber2 int) *OverlappingFrequencyNotice {
 	context := map[string]interface{}{
-		"tripId":       tripID,
-		"startTime1":   startTime1,
-		"endTime1":     endTime1,
-		"rowNumber1":   rowNumber1,
-		"startTime2":   startTime2,
-		"endTime2":     endTime2,
-		"rowNumber2":   rowNumber2,
+		"tripId":     tripID,
+		"startTime1": startTime1,
+		"endTime1":   endTime1,
+		"rowNumber1": rowNumber1,
+		"startTime2": startTime2,
+		"endTime2":   endTime2,
+		"rowNumber2": rowNumber2,
 	}
 	return &OverlappingFrequencyNotice{
 		BaseNotice: NewBaseNotice("overlapping_frequency", ERROR, context),
@@ -1270,9 +1270,9 @@ type InvalidTraversalTimeNotice struct {
 
 func NewInvalidTraversalTimeNotice(pathwayID string, traversalTime int, rowNumber int) *InvalidTraversalTimeNotice {
 	context := map[string]interface{}{
-		"pathwayId":      pathwayID,
-		"traversalTime":  traversalTime,
-		"csvRowNumber":   rowNumber,
+		"pathwayId":     pathwayID,
+		"traversalTime": traversalTime,
+		"csvRowNumber":  rowNumber,
 	}
 	return &InvalidTraversalTimeNotice{
 		BaseNotice: NewBaseNotice("invalid_traversal_time", ERROR, context),
@@ -1590,7 +1590,6 @@ func NewInsufficientShapePointsNotice(shapeID string, pointCount int) *Insuffici
 	}
 }
 
-
 // NonIncreasingShapeSequenceNotice is generated when shape sequences don't increase
 type NonIncreasingShapeSequenceNotice struct {
 	*BaseNotice
@@ -1598,10 +1597,10 @@ type NonIncreasingShapeSequenceNotice struct {
 
 func NewNonIncreasingShapeSequenceNotice(shapeID string, currentSequence int, previousSequence int, rowNumber int) *NonIncreasingShapeSequenceNotice {
 	context := map[string]interface{}{
-		"shapeId":           shapeID,
-		"currentSequence":   currentSequence,
-		"previousSequence":  previousSequence,
-		"csvRowNumber":      rowNumber,
+		"shapeId":          shapeID,
+		"currentSequence":  currentSequence,
+		"previousSequence": previousSequence,
+		"csvRowNumber":     rowNumber,
 	}
 	return &NonIncreasingShapeSequenceNotice{
 		BaseNotice: NewBaseNotice("non_increasing_shape_sequence", ERROR, context),
@@ -1649,11 +1648,11 @@ type EqualShapeDistanceNotice struct {
 
 func NewEqualShapeDistanceNotice(shapeID string, currentSequence int, previousSequence int, distance float64, rowNumber int) *EqualShapeDistanceNotice {
 	context := map[string]interface{}{
-		"shapeId":           shapeID,
-		"currentSequence":   currentSequence,
-		"previousSequence":  previousSequence,
-		"distance":          distance,
-		"csvRowNumber":      rowNumber,
+		"shapeId":          shapeID,
+		"currentSequence":  currentSequence,
+		"previousSequence": previousSequence,
+		"distance":         distance,
+		"csvRowNumber":     rowNumber,
 	}
 	return &EqualShapeDistanceNotice{
 		BaseNotice: NewBaseNotice("equal_shape_distance", WARNING, context),
@@ -1667,10 +1666,10 @@ type DuplicateShapePointNotice struct {
 
 func NewDuplicateShapePointNotice(shapeID string, currentSequence int, previousSequence int, rowNumber int) *DuplicateShapePointNotice {
 	context := map[string]interface{}{
-		"shapeId":           shapeID,
-		"currentSequence":   currentSequence,
-		"previousSequence":  previousSequence,
-		"csvRowNumber":      rowNumber,
+		"shapeId":          shapeID,
+		"currentSequence":  currentSequence,
+		"previousSequence": previousSequence,
+		"csvRowNumber":     rowNumber,
 	}
 	return &DuplicateShapePointNotice{
 		BaseNotice: NewBaseNotice("duplicate_shape_point", WARNING, context),
@@ -1725,8 +1724,6 @@ func NewServiceNeverActiveNotice(serviceID string, rowNumber int) *ServiceNeverA
 		BaseNotice: NewBaseNotice("service_never_active", ERROR, context),
 	}
 }
-
-
 
 // FutureServiceNotice is generated when service period is too far in the future
 type FutureServiceNotice struct {
@@ -1807,7 +1804,6 @@ func NewUndefinedServiceNotice(serviceID string) *UndefinedServiceNotice {
 	}
 }
 
-
 // ConflictingCalendarExceptionNotice is generated when conflicting exceptions exist
 type ConflictingCalendarExceptionNotice struct {
 	*BaseNotice
@@ -1815,10 +1811,10 @@ type ConflictingCalendarExceptionNotice struct {
 
 func NewConflictingCalendarExceptionNotice(serviceID string, date string, rowNumber1 int, rowNumber2 int) *ConflictingCalendarExceptionNotice {
 	context := map[string]interface{}{
-		"serviceId":      serviceID,
-		"date":           date,
-		"csvRowNumber1":  rowNumber1,
-		"csvRowNumber2":  rowNumber2,
+		"serviceId":     serviceID,
+		"date":          date,
+		"csvRowNumber1": rowNumber1,
+		"csvRowNumber2": rowNumber2,
 	}
 	return &ConflictingCalendarExceptionNotice{
 		BaseNotice: NewBaseNotice("conflicting_calendar_exception", ERROR, context),
@@ -1832,10 +1828,10 @@ type DuplicateCalendarExceptionNotice struct {
 
 func NewDuplicateCalendarExceptionNotice(serviceID string, date string, rowNumber1 int, rowNumber2 int) *DuplicateCalendarExceptionNotice {
 	context := map[string]interface{}{
-		"serviceId":      serviceID,
-		"date":           date,
-		"csvRowNumber1":  rowNumber1,
-		"csvRowNumber2":  rowNumber2,
+		"serviceId":     serviceID,
+		"date":          date,
+		"csvRowNumber1": rowNumber1,
+		"csvRowNumber2": rowNumber2,
 	}
 	return &DuplicateCalendarExceptionNotice{
 		BaseNotice: NewBaseNotice("duplicate_calendar_exception", WARNING, context),
@@ -2120,10 +2116,10 @@ type LoopRouteNotice struct {
 
 func NewLoopRouteNotice(tripID string, stopID string, firstRowNumber int, lastRowNumber int) *LoopRouteNotice {
 	context := map[string]interface{}{
-		"tripId":          tripID,
-		"stopId":          stopID,
-		"firstRowNumber":  firstRowNumber,
-		"lastRowNumber":   lastRowNumber,
+		"tripId":         tripID,
+		"stopId":         stopID,
+		"firstRowNumber": firstRowNumber,
+		"lastRowNumber":  lastRowNumber,
 	}
 	return &LoopRouteNotice{
 		BaseNotice: NewBaseNotice("loop_route", INFO, context),
@@ -2389,7 +2385,6 @@ func NewNegativeShapeDistanceNotice(tripID string, shapeDistance float64, rowNum
 	}
 }
 
-
 // InvalidWheelchairBoardingNotice represents invalid wheelchair_boarding value
 type InvalidWheelchairBoardingNotice struct {
 	*BaseNotice
@@ -2405,7 +2400,6 @@ func NewInvalidWheelchairBoardingNotice(stopID string, wheelchairBoarding, rowNu
 		BaseNotice: NewBaseNotice("invalid_wheelchair_boarding", ERROR, context),
 	}
 }
-
 
 // InvalidDirectionIdNotice represents invalid direction_id value
 type InvalidDirectionIdNotice struct {
@@ -2487,8 +2481,6 @@ func NewNegativeShapeSequenceNotice(shapeID string, sequence, rowNumber int) *Ne
 		BaseNotice: NewBaseNotice("negative_shape_sequence", ERROR, context),
 	}
 }
-
-
 
 // LeadingWhitespaceNotice represents a field with leading whitespace
 type LeadingWhitespaceNotice struct {
@@ -2679,8 +2671,8 @@ type TripPatternSummaryNotice struct {
 
 func NewTripPatternSummaryNotice(totalPatterns, totalTrips int, avgTripsPerPattern float64) *TripPatternSummaryNotice {
 	context := map[string]interface{}{
-		"totalPatterns":       totalPatterns,
-		"totalTrips":          totalTrips,
+		"totalPatterns":      totalPatterns,
+		"totalTrips":         totalTrips,
 		"avgTripsPerPattern": avgTripsPerPattern,
 	}
 	return &TripPatternSummaryNotice{
@@ -2974,10 +2966,10 @@ type UnbalancedDirectionTripsNotice struct {
 
 func NewUnbalancedDirectionTripsNotice(routeID string, dir1, trips1, dir2, trips2 int) *UnbalancedDirectionTripsNotice {
 	context := map[string]interface{}{
-		"routeId":        routeID,
-		"direction1":     dir1,
+		"routeId":         routeID,
+		"direction1":      dir1,
 		"direction1Trips": trips1,
-		"direction2":     dir2,
+		"direction2":      dir2,
 		"direction2Trips": trips2,
 	}
 	return &UnbalancedDirectionTripsNotice{
@@ -3056,7 +3048,7 @@ type LowTimepointCoverageNotice struct {
 
 func NewLowTimepointCoverageNotice(routeID string, tripsWithTimepoints, totalTrips int, coverage float64) *LowTimepointCoverageNotice {
 	context := map[string]interface{}{
-		"routeId":              routeID,
+		"routeId":             routeID,
 		"tripsWithTimepoints": tripsWithTimepoints,
 		"totalTrips":          totalTrips,
 		"coverage":            coverage,
@@ -3073,11 +3065,11 @@ type RouteNetworkSummaryNotice struct {
 
 func NewRouteNetworkSummaryNotice(totalRoutes, totalTrips int, avgTripsPerRoute float64, routeTypes, agencies int) *RouteNetworkSummaryNotice {
 	context := map[string]interface{}{
-		"totalRoutes":       totalRoutes,
-		"totalTrips":        totalTrips,
+		"totalRoutes":      totalRoutes,
+		"totalTrips":       totalTrips,
 		"avgTripsPerRoute": avgTripsPerRoute,
-		"routeTypes":        routeTypes,
-		"agencies":          agencies,
+		"routeTypes":       routeTypes,
+		"agencies":         agencies,
 	}
 	return &RouteNetworkSummaryNotice{
 		BaseNotice: NewBaseNotice("route_network_summary", INFO, context),
@@ -3194,9 +3186,9 @@ type VeryCloseStopsNotice struct {
 
 func NewVeryCloseStopsNotice(stop1ID, stop2ID string, distance float64, row1, row2 int) *VeryCloseStopsNotice {
 	context := map[string]interface{}{
-		"stop1Id":   stop1ID,
-		"stop2Id":   stop2ID,
-		"distance":  distance,
+		"stop1Id":    stop1ID,
+		"stop2Id":    stop2ID,
+		"distance":   distance,
 		"rowNumber1": row1,
 		"rowNumber2": row2,
 	}
@@ -3314,9 +3306,9 @@ type FragmentedNetworkNotice struct {
 
 func NewFragmentedNetworkNotice(componentCount, mainComponentSize, totalStops int) *FragmentedNetworkNotice {
 	context := map[string]interface{}{
-		"componentCount":     componentCount,
-		"mainComponentSize":  mainComponentSize,
-		"totalStops":         totalStops,
+		"componentCount":    componentCount,
+		"mainComponentSize": mainComponentSize,
+		"totalStops":        totalStops,
 	}
 	return &FragmentedNetworkNotice{
 		BaseNotice: NewBaseNotice("fragmented_network", WARNING, context),
@@ -3480,9 +3472,9 @@ type FeedExpiresWithin7DaysNotice struct {
 
 func NewFeedExpiresWithin7DaysNotice(endDate, currentDate string, daysUntilExpiration int) *FeedExpiresWithin7DaysNotice {
 	context := map[string]interface{}{
-		"endDate":              endDate,
-		"currentDate":          currentDate,
-		"daysUntilExpiration":  daysUntilExpiration,
+		"endDate":             endDate,
+		"currentDate":         currentDate,
+		"daysUntilExpiration": daysUntilExpiration,
 	}
 	return &FeedExpiresWithin7DaysNotice{
 		BaseNotice: NewBaseNotice("feed_expires_within_7_days", ERROR, context),
@@ -3496,9 +3488,9 @@ type FeedExpiresWithin30DaysNotice struct {
 
 func NewFeedExpiresWithin30DaysNotice(endDate, currentDate string, daysUntilExpiration int) *FeedExpiresWithin30DaysNotice {
 	context := map[string]interface{}{
-		"endDate":              endDate,
-		"currentDate":          currentDate,
-		"daysUntilExpiration":  daysUntilExpiration,
+		"endDate":             endDate,
+		"currentDate":         currentDate,
+		"daysUntilExpiration": daysUntilExpiration,
 	}
 	return &FeedExpiresWithin30DaysNotice{
 		BaseNotice: NewBaseNotice("feed_expires_within_30_days", WARNING, context),
@@ -3528,9 +3520,9 @@ type ServiceExpiresWithin7DaysNotice struct {
 
 func NewServiceExpiresWithin7DaysNotice(lastServiceDate, currentDate string, daysUntilExpiration int) *ServiceExpiresWithin7DaysNotice {
 	context := map[string]interface{}{
-		"lastServiceDate":      lastServiceDate,
-		"currentDate":          currentDate,
-		"daysUntilExpiration":  daysUntilExpiration,
+		"lastServiceDate":     lastServiceDate,
+		"currentDate":         currentDate,
+		"daysUntilExpiration": daysUntilExpiration,
 	}
 	return &ServiceExpiresWithin7DaysNotice{
 		BaseNotice: NewBaseNotice("service_expires_within_7_days", ERROR, context),
@@ -3544,9 +3536,9 @@ type ServiceExpiresWithin30DaysNotice struct {
 
 func NewServiceExpiresWithin30DaysNotice(lastServiceDate, currentDate string, daysUntilExpiration int) *ServiceExpiresWithin30DaysNotice {
 	context := map[string]interface{}{
-		"lastServiceDate":      lastServiceDate,
-		"currentDate":          currentDate,
-		"daysUntilExpiration":  daysUntilExpiration,
+		"lastServiceDate":     lastServiceDate,
+		"currentDate":         currentDate,
+		"daysUntilExpiration": daysUntilExpiration,
 	}
 	return &ServiceExpiresWithin30DaysNotice{
 		BaseNotice: NewBaseNotice("service_expires_within_30_days", WARNING, context),
@@ -4020,11 +4012,11 @@ type BikeWheelchairAccessibilityMismatchNotice struct {
 
 func NewBikeWheelchairAccessibilityMismatchNotice(tripID, routeID string, bikesAllowed, wheelchairAccessible, rowNumber int) *BikeWheelchairAccessibilityMismatchNotice {
 	context := map[string]interface{}{
-		"tripId":              tripID,
-		"routeId":             routeID,
-		"bikesAllowed":        bikesAllowed,
+		"tripId":               tripID,
+		"routeId":              routeID,
+		"bikesAllowed":         bikesAllowed,
 		"wheelchairAccessible": wheelchairAccessible,
-		"csvRowNumber":        rowNumber,
+		"csvRowNumber":         rowNumber,
 	}
 	return &BikeWheelchairAccessibilityMismatchNotice{
 		BaseNotice: NewBaseNotice("bike_wheelchair_accessibility_mismatch", INFO, context),
@@ -4115,10 +4107,10 @@ type IncompleteShapeDistanceNotice struct {
 
 func NewIncompleteShapeDistanceNotice(shapeID string, pointsWithDistance, totalPoints, missingCount int) *IncompleteShapeDistanceNotice {
 	context := map[string]interface{}{
-		"shapeId":           shapeID,
+		"shapeId":            shapeID,
 		"pointsWithDistance": pointsWithDistance,
-		"totalPoints":       totalPoints,
-		"missingCount":      missingCount,
+		"totalPoints":        totalPoints,
+		"missingCount":       missingCount,
 	}
 	return &IncompleteShapeDistanceNotice{
 		BaseNotice: NewBaseNotice("incomplete_shape_distance", INFO, context),
@@ -4357,7 +4349,6 @@ func NewBlockTooManyTripsNotice(blockID string, tripCount int) *BlockTooManyTrip
 	}
 }
 
-
 // === STOP TIME HEADSIGN NOTICES ===
 
 // TooManyHeadsignsInTripNotice represents too many different headsigns in one trip
@@ -4383,12 +4374,12 @@ type HeadsignChangeWithinTripNotice struct {
 
 func NewHeadsignChangeWithinTripNotice(tripID string, prevSequence, currentSequence int, prevHeadsign, currentHeadsign string, rowNumber int) *HeadsignChangeWithinTripNotice {
 	context := map[string]interface{}{
-		"tripId":           tripID,
-		"prevSequence":     prevSequence,
-		"currentSequence":  currentSequence,
-		"prevHeadsign":     prevHeadsign,
-		"currentHeadsign":  currentHeadsign,
-		"csvRowNumber":     rowNumber,
+		"tripId":          tripID,
+		"prevSequence":    prevSequence,
+		"currentSequence": currentSequence,
+		"prevHeadsign":    prevHeadsign,
+		"currentHeadsign": currentHeadsign,
+		"csvRowNumber":    rowNumber,
 	}
 	return &HeadsignChangeWithinTripNotice{
 		BaseNotice: NewBaseNotice("headsign_change_within_trip", INFO, context),
@@ -4417,11 +4408,11 @@ type StopTripHeadsignMismatchNotice struct {
 
 func NewStopTripHeadsignMismatchNotice(tripID string, stopSequence int, stopHeadsign, tripHeadsign string, rowNumber int) *StopTripHeadsignMismatchNotice {
 	context := map[string]interface{}{
-		"tripId":        tripID,
-		"stopSequence":  stopSequence,
-		"stopHeadsign":  stopHeadsign,
-		"tripHeadsign":  tripHeadsign,
-		"csvRowNumber":  rowNumber,
+		"tripId":       tripID,
+		"stopSequence": stopSequence,
+		"stopHeadsign": stopHeadsign,
+		"tripHeadsign": tripHeadsign,
+		"csvRowNumber": rowNumber,
 	}
 	return &StopTripHeadsignMismatchNotice{
 		BaseNotice: NewBaseNotice("stop_trip_headsign_mismatch", WARNING, context),
@@ -4516,7 +4507,6 @@ func NewSuspiciousHeadsignPatternNotice(tripID string, stopSequence int, headsig
 }
 
 // === ROUTE TYPE NOTICES ===
-
 
 // DeprecatedRouteTypeNotice represents deprecated route_type value
 type DeprecatedRouteTypeNotice struct {
@@ -4781,17 +4771,16 @@ type VeryLongServicePeriodNotice struct {
 
 func NewVeryLongServicePeriodNotice(serviceID, startDate, endDate string, durationDays, rowNumber int) *VeryLongServicePeriodNotice {
 	context := map[string]interface{}{
-		"serviceId":     serviceID,
-		"startDate":     startDate,
-		"endDate":       endDate,
-		"durationDays":  durationDays,
-		"csvRowNumber":  rowNumber,
+		"serviceId":    serviceID,
+		"startDate":    startDate,
+		"endDate":      endDate,
+		"durationDays": durationDays,
+		"csvRowNumber": rowNumber,
 	}
 	return &VeryLongServicePeriodNotice{
 		BaseNotice: NewBaseNotice("very_long_service_period", WARNING, context),
 	}
 }
-
 
 // DuplicateCalendarDateNotice represents duplicate calendar date
 type DuplicateCalendarDateNotice struct {
@@ -4809,7 +4798,6 @@ func NewDuplicateCalendarDateNotice(serviceID, date string, firstRowNumber, dupl
 		BaseNotice: NewBaseNotice("duplicate_calendar_date", ERROR, context),
 	}
 }
-
 
 // InactiveServiceCurrentMonthNotice represents service inactive in current month
 type InactiveServiceCurrentMonthNotice struct {
@@ -4926,10 +4914,10 @@ type ValidationSummaryNotice struct {
 
 func NewValidationSummaryNotice(totalValidators, validatorsRun, validatorsFailed int) *ValidationSummaryNotice {
 	context := map[string]interface{}{
-		"totalValidators":   totalValidators,
-		"validatorsRun":     validatorsRun,
-		"validatorsFailed":  validatorsFailed,
-		"successRate":       float64(validatorsRun) / float64(totalValidators) * 100,
+		"totalValidators":  totalValidators,
+		"validatorsRun":    validatorsRun,
+		"validatorsFailed": validatorsFailed,
+		"successRate":      float64(validatorsRun) / float64(totalValidators) * 100,
 	}
 	severity := INFO
 	if validatorsFailed > 0 {

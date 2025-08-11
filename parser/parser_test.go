@@ -163,7 +163,7 @@ func TestCSVFile_UTF8BOM(t *testing.T) {
 func TestFeedLoader_FromDirectory(t *testing.T) {
 	// Create temporary directory with test files
 	tmpDir := t.TempDir()
-	
+
 	// Create test files
 	testFiles := map[string]string{
 		"agency.txt": "agency_id,agency_name\ntest_agency,Test Agency",
@@ -225,7 +225,7 @@ func TestFeedLoader_NonExistentDirectory(t *testing.T) {
 
 func TestFeedLoader_GetNonExistentFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	
+
 	loader, err := LoadFromDirectory(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to load from directory: %v", err)
@@ -310,4 +310,3 @@ func TestCSVFile_Filename(t *testing.T) {
 		t.Errorf("Expected filename 'test_filename.txt', got %s", csvFile.Filename)
 	}
 }
-

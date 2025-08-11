@@ -2,6 +2,7 @@ package core
 
 import (
 	"io"
+	"strings"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
@@ -38,10 +39,32 @@ func (v *EmptyFileValidator) validateFileNotEmpty(loader *parser.FeedLoader, con
 		return // File format issues, other validators handle this
 	}
 
-	// Try to read at least one data row
-	_, err = csvFile.ReadRow()
-	if err == io.EOF {
-		// File has headers but no data rows
+	// Iterate rows to find any non-empty data row
+	hasData := false
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			// Malformed CSV is handled by other validators; do not flag empty file here
+			return
+		}
+		// Check if any field contains non-whitespace content
+		rowHasContent := false
+		for _, val := range row.Values {
+			if strings.TrimSpace(val) != "" {
+				rowHasContent = true
+				break
+			}
+		}
+		if rowHasContent {
+			hasData = true
+			break
+		}
+	}
+
+	if !hasData {
 		container.AddNotice(notice.NewEmptyFileNotice(filename))
 	}
 }

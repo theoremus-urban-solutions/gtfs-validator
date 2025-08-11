@@ -358,7 +358,7 @@ func (v *ServiceCalendarValidator) validateCalendarDates(container *notice.Notic
 func (v *ServiceCalendarValidator) validateServiceActivity(container *notice.NoticeContainer, serviceID string, calendar *CalendarInfo, calendarDates []*CalendarDateInfo, currentDate time.Time) {
 	// Calculate service days in current month
 	activeDays := v.calculateActiveDaysInMonth(calendar, calendarDates, currentDate)
-	
+
 	if activeDays == 0 {
 		container.AddNotice(notice.NewInactiveServiceCurrentMonthNotice(
 			serviceID,
@@ -384,13 +384,27 @@ func (v *ServiceCalendarValidator) validateDayPatterns(container *notice.NoticeC
 
 	// Check for single day service
 	dayCount := 0
-	if calendar.Monday { dayCount++ }
-	if calendar.Tuesday { dayCount++ }
-	if calendar.Wednesday { dayCount++ }
-	if calendar.Thursday { dayCount++ }
-	if calendar.Friday { dayCount++ }
-	if calendar.Saturday { dayCount++ }
-	if calendar.Sunday { dayCount++ }
+	if calendar.Monday {
+		dayCount++
+	}
+	if calendar.Tuesday {
+		dayCount++
+	}
+	if calendar.Wednesday {
+		dayCount++
+	}
+	if calendar.Thursday {
+		dayCount++
+	}
+	if calendar.Friday {
+		dayCount++
+	}
+	if calendar.Saturday {
+		dayCount++
+	}
+	if calendar.Sunday {
+		dayCount++
+	}
 
 	if dayCount == 1 {
 		container.AddNotice(notice.NewSingleDayServiceNotice(
@@ -418,7 +432,7 @@ func (v *ServiceCalendarValidator) validateCalendarPatterns(container *notice.No
 	bothCount := 0
 
 	allServiceIDs := v.getAllServiceIDs(calendars, calendarDates)
-	
+
 	for serviceID := range allServiceIDs {
 		hasCalendar := calendars[serviceID] != nil
 		hasCalendarDates := len(calendarDates[serviceID]) > 0
@@ -455,7 +469,7 @@ func (v *ServiceCalendarValidator) hasAnyDaySelected(calendar *CalendarInfo) boo
 // calculateActiveDaysInMonth calculates active service days in current month
 func (v *ServiceCalendarValidator) calculateActiveDaysInMonth(calendar *CalendarInfo, calendarDates []*CalendarDateInfo, currentDate time.Time) int {
 	activeDays := 0
-	
+
 	// Get current month range
 	year, month, _ := currentDate.Date()
 	monthStart := time.Date(year, month, 1, 0, 0, 0, 0, currentDate.Location())
@@ -510,26 +524,54 @@ func (v *ServiceCalendarValidator) calculateActiveDaysInMonth(calendar *Calendar
 
 // getSingleDayName returns the name of the single active day
 func (v *ServiceCalendarValidator) getSingleDayName(calendar *CalendarInfo) string {
-	if calendar.Monday { return "Monday" }
-	if calendar.Tuesday { return "Tuesday" }
-	if calendar.Wednesday { return "Wednesday" }
-	if calendar.Thursday { return "Thursday" }
-	if calendar.Friday { return "Friday" }
-	if calendar.Saturday { return "Saturday" }
-	if calendar.Sunday { return "Sunday" }
+	if calendar.Monday {
+		return "Monday"
+	}
+	if calendar.Tuesday {
+		return "Tuesday"
+	}
+	if calendar.Wednesday {
+		return "Wednesday"
+	}
+	if calendar.Thursday {
+		return "Thursday"
+	}
+	if calendar.Friday {
+		return "Friday"
+	}
+	if calendar.Saturday {
+		return "Saturday"
+	}
+	if calendar.Sunday {
+		return "Sunday"
+	}
 	return "Unknown"
 }
 
 // getDayPattern returns a string describing the day pattern
 func (v *ServiceCalendarValidator) getDayPattern(calendar *CalendarInfo) string {
 	var days []string
-	if calendar.Monday { days = append(days, "Mon") }
-	if calendar.Tuesday { days = append(days, "Tue") }
-	if calendar.Wednesday { days = append(days, "Wed") }
-	if calendar.Thursday { days = append(days, "Thu") }
-	if calendar.Friday { days = append(days, "Fri") }
-	if calendar.Saturday { days = append(days, "Sat") }
-	if calendar.Sunday { days = append(days, "Sun") }
+	if calendar.Monday {
+		days = append(days, "Mon")
+	}
+	if calendar.Tuesday {
+		days = append(days, "Tue")
+	}
+	if calendar.Wednesday {
+		days = append(days, "Wed")
+	}
+	if calendar.Thursday {
+		days = append(days, "Thu")
+	}
+	if calendar.Friday {
+		days = append(days, "Fri")
+	}
+	if calendar.Saturday {
+		days = append(days, "Sat")
+	}
+	if calendar.Sunday {
+		days = append(days, "Sun")
+	}
 	return strings.Join(days, ",")
 }
 
@@ -542,7 +584,7 @@ func (v *ServiceCalendarValidator) hasUnusualWeekdayPattern(calendar *CalendarIn
 	if !calendar.Monday && calendar.Tuesday && !calendar.Wednesday && calendar.Thursday && !calendar.Friday {
 		return true // Tue-Thu
 	}
-	
+
 	return false
 }
 

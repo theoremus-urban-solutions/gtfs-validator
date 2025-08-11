@@ -21,19 +21,19 @@ func NewTripPatternValidator() *TripPatternValidator {
 
 // TripStopTime represents a stop time for pattern analysis
 type TripStopTime struct {
-	TripID       string
-	StopID       string
-	StopSequence int
-	ArrivalTime  string
+	TripID        string
+	StopID        string
+	StopSequence  int
+	ArrivalTime   string
 	DepartureTime string
-	RowNumber    int
+	RowNumber     int
 }
 
 // TripPattern represents a unique sequence of stops
 type TripPattern struct {
-	PatternID string
+	PatternID    string
 	StopSequence []string
-	Trips     []string
+	Trips        []string
 }
 
 // Validate checks trip patterns and stop sequences
@@ -211,7 +211,7 @@ func (v *TripPatternValidator) validateTripStopSequence(container *notice.Notice
 	if len(stopTimes) >= 3 {
 		firstStop := stopTimes[0].StopID
 		lastStop := stopTimes[len(stopTimes)-1].StopID
-		
+
 		if firstStop == lastStop {
 			// This is a loop trip - check if it's properly structured
 			container.AddNotice(notice.NewLoopRouteNotice(
@@ -239,7 +239,7 @@ func (v *TripPatternValidator) analyzeTripPatterns(tripStopTimes map[string][]*T
 		}
 
 		patternHash := strings.Join(stopSequence, "|")
-		
+
 		var patternID string
 		if existingPatternID, exists := patternMap[patternHash]; exists {
 			patternID = existingPatternID
@@ -247,11 +247,11 @@ func (v *TripPatternValidator) analyzeTripPatterns(tripStopTimes map[string][]*T
 			patternID = "pattern_" + strconv.Itoa(patternCounter)
 			patternCounter++
 			patternMap[patternHash] = patternID
-			
+
 			patterns[patternID] = &TripPattern{
-				PatternID: patternID,
+				PatternID:    patternID,
 				StopSequence: stopSequence,
-				Trips: []string{},
+				Trips:        []string{},
 			}
 		}
 

@@ -33,7 +33,7 @@ func TestNoticeContainer(t *testing.T) {
 
 	// Test adding notices
 	notice1 := NewBaseNotice("test_error", ERROR, map[string]interface{}{
-		"filename": "agency.txt",
+		"filename":  "agency.txt",
 		"rowNumber": 2,
 	})
 
@@ -69,12 +69,12 @@ func TestNoticeContainer_WithLimit(t *testing.T) {
 	}
 
 	notices := container.GetNotices()
-	
+
 	// Should be limited to 2 notices due to maxPerType limit
 	if len(notices) != 2 {
 		t.Errorf("Expected 2 notices (limited by maxPerType), got %d", len(notices))
 	}
-	
+
 	// All notices should have the same code
 	for _, notice := range notices {
 		if notice.Code() != "test_warning" {
@@ -93,7 +93,7 @@ func TestNoticeContainer_MultipleSeverities(t *testing.T) {
 	container.AddNotice(NewBaseNotice("error2", ERROR, nil))
 
 	notices := container.GetNotices()
-	
+
 	if len(notices) != 4 {
 		t.Errorf("Expected 4 notice groups, got %d", len(notices))
 	}
@@ -131,7 +131,7 @@ func TestNoticeContainer_SameCodeAggregation(t *testing.T) {
 	// Add multiple notices with the same code
 	for i := 0; i < 5; i++ {
 		notice := NewBaseNotice("duplicate_field", ERROR, map[string]interface{}{
-			"filename": "routes.txt",
+			"filename":  "routes.txt",
 			"rowNumber": i + 2,
 			"fieldName": "route_id",
 		})
@@ -139,12 +139,12 @@ func TestNoticeContainer_SameCodeAggregation(t *testing.T) {
 	}
 
 	notices := container.GetNotices()
-	
+
 	// Should have 5 notices all with the same code
 	if len(notices) != 5 {
 		t.Errorf("Expected 5 notices, got %d", len(notices))
 	}
-	
+
 	for _, notice := range notices {
 		if notice.Code() != "duplicate_field" {
 			t.Errorf("Expected code 'duplicate_field', got %s", notice.Code())
@@ -154,10 +154,10 @@ func TestNoticeContainer_SameCodeAggregation(t *testing.T) {
 
 func TestNoticeContainer_ThreadSafety(t *testing.T) {
 	container := NewNoticeContainer()
-	
+
 	// Test concurrent access
 	done := make(chan bool, 10)
-	
+
 	for i := 0; i < 10; i++ {
 		go func(id int) {
 			notice := NewBaseNotice("concurrent_test", WARNING, map[string]interface{}{
@@ -167,17 +167,17 @@ func TestNoticeContainer_ThreadSafety(t *testing.T) {
 			done <- true
 		}(i)
 	}
-	
+
 	// Wait for all goroutines
 	for i := 0; i < 10; i++ {
 		<-done
 	}
-	
+
 	notices := container.GetNotices()
 	if len(notices) != 10 {
 		t.Errorf("Expected 10 notices, got %d", len(notices))
 	}
-	
+
 	// All should have the same code
 	for _, notice := range notices {
 		if notice.Code() != "concurrent_test" {
@@ -190,7 +190,7 @@ func TestNoticeContainer_ThreadSafety(t *testing.T) {
 func TestNoticeHelpers(t *testing.T) {
 	t.Run("NewMissingRequiredFileNotice", func(t *testing.T) {
 		notice := NewMissingRequiredFileNotice("trips.txt")
-		
+
 		if notice.Code() != "missing_required_file" {
 			t.Errorf("Expected code 'missing_required_file', got %s", notice.Code())
 		}
@@ -233,7 +233,7 @@ func TestNoticeContainer_CountBySeverity(t *testing.T) {
 
 func TestNotice_Fields(t *testing.T) {
 	notice := NewBaseNotice("test_notice", WARNING, map[string]interface{}{
-		"filename": "routes.txt",
+		"filename":  "routes.txt",
 		"rowNumber": 5,
 	})
 

@@ -20,18 +20,18 @@ func NewStopNameValidator() *StopNameValidator {
 
 // StopNameInfo represents stop naming information
 type StopNameInfo struct {
-	StopID       string
-	StopName     string
-	StopDesc     string
-	LocationType int
+	StopID        string
+	StopName      string
+	StopDesc      string
+	LocationType  int
 	ParentStation string
-	RowNumber    int
+	RowNumber     int
 }
 
 // Validate checks stop names for various issues
 func (v *StopNameValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
 	stops := v.loadStops(loader)
-	
+
 	// Build parent station map for context
 	parentStations := make(map[string]*StopNameInfo)
 	for _, stop := range stops {
@@ -39,7 +39,7 @@ func (v *StopNameValidator) Validate(loader *parser.FeedLoader, container *notic
 			parentStations[stop.StopID] = stop
 		}
 	}
-	
+
 	for _, stop := range stops {
 		v.validateStopName(container, stop, parentStations)
 	}
@@ -119,7 +119,7 @@ func (v *StopNameValidator) parseStop(row *parser.CSVRow) *StopNameInfo {
 func (v *StopNameValidator) validateStopName(container *notice.NoticeContainer, stop *StopNameInfo, parentStations map[string]*StopNameInfo) {
 	// Check if stop_name is required for this location type
 	nameRequired := v.isStopNameRequired(stop.LocationType)
-	
+
 	if nameRequired && stop.StopName == "" {
 		// Check if this is a child stop that might inherit name from parent
 		if stop.ParentStation != "" {
@@ -154,19 +154,19 @@ func (v *StopNameValidator) validateStopName(container *notice.NoticeContainer, 
 	if stop.StopName != "" {
 		// Check for generic/placeholder names
 		v.checkGenericStopName(container, stop)
-		
+
 		// Check for excessive length
 		v.checkStopNameLength(container, stop)
-		
+
 		// Check for problematic characters
 		v.checkProblematicCharacters(container, stop)
-		
+
 		// Check if name and description are identical
 		v.checkNameDescriptionDuplicate(container, stop)
-		
+
 		// Check for all caps names (poor readability)
 		v.checkAllCapsName(container, stop)
-		
+
 		// Check for repeated words
 		v.checkRepeatedWords(container, stop)
 	}
@@ -204,7 +204,7 @@ func (v *StopNameValidator) checkGenericStopName(container *notice.NoticeContain
 		"xxx",
 		"???",
 	}
-	
+
 	lowerName := strings.ToLower(stop.StopName)
 	for _, generic := range genericNames {
 		if lowerName == generic || lowerName == generic+" "+generic {
@@ -222,9 +222,9 @@ func (v *StopNameValidator) checkGenericStopName(container *notice.NoticeContain
 func (v *StopNameValidator) checkStopNameLength(container *notice.NoticeContainer, stop *StopNameInfo) {
 	const maxRecommendedLength = 100
 	const maxAllowedLength = 255
-	
+
 	nameLength := len(stop.StopName)
-	
+
 	if nameLength > maxAllowedLength {
 		container.AddNotice(notice.NewStopNameTooLongNotice(
 			stop.StopID,
@@ -260,7 +260,7 @@ func (v *StopNameValidator) checkProblematicCharacters(container *notice.NoticeC
 			))
 		}
 	}
-	
+
 	// Check for HTML/XML tags
 	if strings.Contains(stop.StopName, "<") && strings.Contains(stop.StopName, ">") {
 		container.AddNotice(notice.NewStopNameContainsHTMLNotice(
@@ -269,7 +269,7 @@ func (v *StopNameValidator) checkProblematicCharacters(container *notice.NoticeC
 			stop.RowNumber,
 		))
 	}
-	
+
 	// Check for URL-like content
 	if strings.Contains(stop.StopName, "http://") || strings.Contains(stop.StopName, "https://") || strings.Contains(stop.StopName, "www.") {
 		container.AddNotice(notice.NewStopNameContainsURLNotice(
@@ -297,7 +297,7 @@ func (v *StopNameValidator) checkAllCapsName(container *notice.NoticeContainer, 
 	if len(stop.StopName) <= 3 {
 		return
 	}
-	
+
 	// Check if all letters are uppercase
 	hasLowerCase := false
 	letterCount := 0
@@ -309,7 +309,7 @@ func (v *StopNameValidator) checkAllCapsName(container *notice.NoticeContainer, 
 			}
 		}
 	}
-	
+
 	// If there are letters and none are lowercase, it's all caps
 	if letterCount > 0 && !hasLowerCase {
 		container.AddNotice(notice.NewStopNameAllCapsNotice(
@@ -327,7 +327,7 @@ func (v *StopNameValidator) checkRepeatedWords(container *notice.NoticeContainer
 	if len(words) < 2 {
 		return
 	}
-	
+
 	// Check for consecutive repeated words
 	for i := 1; i < len(words); i++ {
 		if strings.EqualFold(words[i], words[i-1]) && len(words[i]) > 2 {

@@ -44,7 +44,7 @@ func (v *OverlappingFrequencyValidator) Validate(loader *parser.FeedLoader, cont
 	}
 
 	trips := v.loadTripInfo(loader)
-	
+
 	// Group frequencies by trip
 	tripFrequencies := make(map[string][]*FrequencyEntry)
 	for _, freq := range frequencies {
@@ -301,8 +301,10 @@ func (v *OverlappingFrequencyValidator) validateFrequencyConsistency(container *
 		}
 
 		// Check for very short headways (< 1 minute) which might be errors
-		// Note: This validation is already covered by the main FrequencyValidator
-		// so we skip it here to avoid duplicate notices
+		if freq.HeadwaySecs < 60 {
+			// Need route and service info for this notice, skip for now
+			// This validation is already covered by the main FrequencyValidator
+		}
 	}
 }
 

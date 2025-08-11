@@ -251,6 +251,18 @@ func (v *StopLocationValidator) validateLocationTypeRules(container *notice.Noti
 				stop.LocationType,
 				stop.RowNumber,
 			))
+		} else {
+			// Validate that parent station exists and is actually a station
+			if parent, exists := allStops[stop.ParentStation]; exists {
+				if parent.LocationType != 1 { // Must be a station
+					container.AddNotice(notice.NewInvalidParentStationTypeNotice(
+						stop.StopID,
+						stop.ParentStation,
+						parent.LocationType,
+						stop.RowNumber,
+					))
+				}
+			}
 		}
 
 	case 3: // Generic node
@@ -265,6 +277,18 @@ func (v *StopLocationValidator) validateLocationTypeRules(container *notice.Noti
 				stop.LocationType,
 				stop.RowNumber,
 			))
+		} else {
+			// Validate that parent station exists and is a stop/platform
+			if parent, exists := allStops[stop.ParentStation]; exists {
+				if parent.LocationType != 0 { // Must be a stop/platform
+					container.AddNotice(notice.NewInvalidParentStationTypeNotice(
+						stop.StopID,
+						stop.ParentStation,
+						parent.LocationType,
+						stop.RowNumber,
+					))
+				}
+			}
 		}
 	}
 }

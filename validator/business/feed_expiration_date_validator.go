@@ -188,7 +188,7 @@ func (v *FeedExpirationDateValidator) validateFeedInfoExpiration(container *noti
 func (v *FeedExpirationDateValidator) validateCalendarBasedExpiration(loader *parser.FeedLoader, container *notice.NoticeContainer, currentDate time.Time) {
 	// Find latest service date from calendar.txt
 	latestCalendarDate := v.findLatestCalendarDate(loader)
-	
+
 	// Find latest service date from calendar_dates.txt
 	latestCalendarDatesDate := v.findLatestCalendarDatesDate(loader)
 
@@ -319,7 +319,7 @@ func (v *FeedExpirationDateValidator) findLatestCalendarDatesDate(loader *parser
 func (v *FeedExpirationDateValidator) validateServiceCoverage(loader *parser.FeedLoader, container *notice.NoticeContainer, currentDate time.Time) {
 	// Get all service IDs that are active in the next 7 days
 	activeServices := v.getActiveServices(loader, currentDate, currentDate.AddDate(0, 0, 7))
-	
+
 	if len(activeServices) == 0 {
 		container.AddNotice(notice.NewNoServiceNext7DaysNotice(
 			v.formatGTFSDate(currentDate),

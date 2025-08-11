@@ -53,7 +53,7 @@ func (v *DateTripsValidator) Validate(loader *parser.FeedLoader, container *noti
 	// Load service information
 	services := v.loadServices(loader)
 	exceptions := v.loadCalendarExceptions(loader)
-	
+
 	// Check if we have any services at all (both calendar.txt and calendar_dates.txt can define services)
 	if len(services) == 0 && len(exceptions) == 0 {
 		container.AddNotice(notice.NewNoServiceDefinedNotice())
@@ -62,7 +62,7 @@ func (v *DateTripsValidator) Validate(loader *parser.FeedLoader, container *noti
 
 	// Check service coverage for the next 7 days
 	v.validateNext7DaysService(container, services, exceptions, currentDate)
-	
+
 	// Check service coverage for the next 30 days (warning level)
 	v.validateNext30DaysService(container, services, exceptions, currentDate)
 }
@@ -261,19 +261,19 @@ func (v *DateTripsValidator) formatGTFSDate(date time.Time) string {
 func (v *DateTripsValidator) validateNext7DaysService(container *notice.NoticeContainer, services map[string]*ServiceInfo, exceptions []CalendarException, currentDate time.Time) {
 	daysWithService := 0
 	totalTrips := 0
-	
+
 	// Check each of the next 7 days
 	for i := 0; i < 7; i++ {
 		checkDate := currentDate.AddDate(0, 0, i)
 		activeServices := v.getActiveServicesForDate(services, exceptions, checkDate)
-		
+
 		dayTripCount := 0
 		for _, serviceID := range activeServices {
 			if service, exists := services[serviceID]; exists {
 				dayTripCount += service.TripCount
 			}
 		}
-		
+
 		if dayTripCount > 0 {
 			daysWithService++
 			totalTrips += dayTripCount
@@ -315,12 +315,12 @@ func (v *DateTripsValidator) validateNext7DaysService(container *notice.NoticeCo
 // validateNext30DaysService validates service coverage for next 30 days
 func (v *DateTripsValidator) validateNext30DaysService(container *notice.NoticeContainer, services map[string]*ServiceInfo, exceptions []CalendarException, currentDate time.Time) {
 	daysWithService := 0
-	
+
 	// Check each of the next 30 days
 	for i := 0; i < 30; i++ {
 		checkDate := currentDate.AddDate(0, 0, i)
 		activeServices := v.getActiveServicesForDate(services, exceptions, checkDate)
-		
+
 		if len(activeServices) > 0 {
 			daysWithService++
 		}
@@ -342,7 +342,7 @@ func (v *DateTripsValidator) validateNext30DaysService(container *notice.NoticeC
 // getActiveServicesForDate returns service IDs active on a specific date
 func (v *DateTripsValidator) getActiveServicesForDate(services map[string]*ServiceInfo, exceptions []CalendarException, date time.Time) []string {
 	activeServices := make(map[string]bool)
-	
+
 	// Check regular calendar services
 	weekday := int(date.Weekday())
 	if weekday == 0 { // Sunday in Go is 0, but we store as index 6
@@ -350,7 +350,7 @@ func (v *DateTripsValidator) getActiveServicesForDate(services map[string]*Servi
 	} else {
 		weekday = weekday - 1 // Convert to 0-based indexing (Mon=0, Tue=1, etc.)
 	}
-	
+
 	for serviceID, service := range services {
 		// Check if date is within service period
 		if service.StartDate != nil && date.Before(*service.StartDate) {
@@ -359,13 +359,13 @@ func (v *DateTripsValidator) getActiveServicesForDate(services map[string]*Servi
 		if service.EndDate != nil && date.After(*service.EndDate) {
 			continue
 		}
-		
+
 		// Check if service runs on this day of week
 		if service.DaysOfWeek[weekday] {
 			activeServices[serviceID] = true
 		}
 	}
-	
+
 	// Apply calendar exceptions
 	for _, exception := range exceptions {
 		if exception.Date.Equal(date) {
@@ -376,12 +376,12 @@ func (v *DateTripsValidator) getActiveServicesForDate(services map[string]*Servi
 			}
 		}
 	}
-	
+
 	// Convert to slice
 	result := make([]string, 0, len(activeServices))
 	for serviceID := range activeServices {
 		result = append(result, serviceID)
 	}
-	
+
 	return result
 }

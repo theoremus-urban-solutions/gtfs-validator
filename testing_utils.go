@@ -17,7 +17,7 @@ func TestDataPath(subpath string) string {
 // CreateTestZipFromDir creates a ZIP file from a directory for testing
 func CreateTestZipFromDir(t *testing.T, srcDir, zipPath string) {
 	t.Helper()
-	
+
 	zipFile, err := os.Create(zipPath)
 	if err != nil {
 		t.Fatalf("Failed to create zip file: %v", err)
@@ -169,7 +169,7 @@ func (a *AssertValidationReport) DoesNotContainNotice(code string) *AssertValida
 func (a *AssertValidationReport) FeedInfoEquals(expected FeedInfo) *AssertValidationReport {
 	a.t.Helper()
 	actual := a.report.Summary.FeedInfo
-	
+
 	if actual.AgencyCount != expected.AgencyCount {
 		a.t.Errorf("Expected AgencyCount = %d, got %d", expected.AgencyCount, actual.AgencyCount)
 	}
@@ -185,7 +185,7 @@ func (a *AssertValidationReport) FeedInfoEquals(expected FeedInfo) *AssertValida
 	if actual.StopTimeCount != expected.StopTimeCount {
 		a.t.Errorf("Expected StopTimeCount = %d, got %d", expected.StopTimeCount, actual.StopTimeCount)
 	}
-	
+
 	return a
 }
 
@@ -216,7 +216,7 @@ func (a *AssertValidationReport) logAllNoticeCodes() {
 // CreateTempZip creates a temporary ZIP file for testing
 func CreateTempZip(t *testing.T, files map[string]string) string {
 	t.Helper()
-	
+
 	tmpFile, err := os.CreateTemp("", "test-gtfs-*.zip")
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
@@ -237,7 +237,7 @@ func CreateTempZip(t *testing.T, files map[string]string) string {
 		if err != nil {
 			t.Fatalf("Failed to create zip entry %s: %v", filename, err)
 		}
-		
+
 		if _, err := writer.Write([]byte(content)); err != nil {
 			t.Fatalf("Failed to write zip entry %s: %v", filename, err)
 		}
@@ -254,12 +254,12 @@ func CreateTempZip(t *testing.T, files map[string]string) string {
 // ValidateAndAssert is a helper that validates and returns an asserter
 func ValidateAndAssert(t *testing.T, validator Validator, path string) *AssertValidationReport {
 	t.Helper()
-	
+
 	report, err := validator.ValidateFile(path)
 	if err != nil {
 		t.Fatalf("Validation failed: %v", err)
 	}
-	
+
 	return NewAssertValidationReport(t, report)
 }
 

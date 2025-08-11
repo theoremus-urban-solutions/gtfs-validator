@@ -79,7 +79,7 @@ func (v *RouteConsistencyValidator) validateRouteRecord(container *notice.Notice
 	v.validateRouteColor(container, row, routeIDTrimmed)
 
 	// Validate route URL
-	v.validateRouteURL(container, row, routeIDTrimmed)
+	v.validateRouteURL(container, row)
 }
 
 // validateRouteType validates the route_type field
@@ -158,7 +158,7 @@ func (v *RouteConsistencyValidator) validateRouteColor(container *notice.NoticeC
 }
 
 // validateRouteURL validates the route_url field
-func (v *RouteConsistencyValidator) validateRouteURL(container *notice.NoticeContainer, row *parser.CSVRow, routeID string) {
+func (v *RouteConsistencyValidator) validateRouteURL(container *notice.NoticeContainer, row *parser.CSVRow) {
 	routeURL, hasRouteURL := row.Values["route_url"]
 	if !hasRouteURL || strings.TrimSpace(routeURL) == "" {
 		return // Route URL is optional

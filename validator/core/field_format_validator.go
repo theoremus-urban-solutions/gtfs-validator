@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/mail"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -50,7 +51,8 @@ func (v *FieldFormatValidator) validateFile(loader *parser.FeedLoader, container
 			break
 		}
 		if err != nil {
-			return
+			// Malformed CSV handled elsewhere; skip
+			continue
 		}
 
 		// Validate fields based on file type
@@ -196,11 +198,18 @@ func (v *FieldFormatValidator) validateCalendarDateFields(row *parser.CSVRow, co
 
 // isValidURL checks if a string is a valid URL
 func (v *FieldFormatValidator) isValidURL(s string) bool {
+	if strings.TrimSpace(s) == "" {
+		return false
+	}
 	u, err := url.Parse(s)
 	if err != nil {
 		return false
 	}
-	return u.Scheme == "http" || u.Scheme == "https"
+	if u.Scheme != "http" && u.Scheme != "https" {
+		return false
+	}
+	// Require non-empty host for http(s)
+	return u.Host != ""
 }
 
 // isValidEmail checks if a string is a valid email address
@@ -211,6 +220,24 @@ func (v *FieldFormatValidator) isValidEmail(s string) bool {
 
 // isValidTimezone checks if a string is a valid timezone
 func (v *FieldFormatValidator) isValidTimezone(s string) bool {
+	if strings.TrimSpace(s) == "" {
+		return false
+	}
 	_, err := time.LoadLocation(s)
 	return err == nil
+}
+
+// phoneRegex is a basic international phone number regex
+var phoneRegex = regexp.MustCompile(`^[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{4,6}$`)
+
+// isValidPhoneNumber checks if a string is a valid phone number
+func (v *FieldFormatValidator) isValidPhoneNumber(s string) bool {
+	// Remove spaces and common separators
+	cleaned := strings.ReplaceAll(s, " ", "")
+	cleaned = strings.ReplaceAll(cleaned, "-", "")
+	cleaned = strings.ReplaceAll(cleaned, "(", "")
+	cleaned = strings.ReplaceAll(cleaned, ")", "")
+
+	// Basic validation
+	return phoneRegex.MatchString(cleaned)
 }

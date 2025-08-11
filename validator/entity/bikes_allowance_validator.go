@@ -20,12 +20,12 @@ func NewBikesAllowanceValidator() *BikesAllowanceValidator {
 
 // TripBikeInfo represents trip bike allowance information
 type TripBikeInfo struct {
-	TripID           string
-	RouteID          string
-	RouteType        int
-	BikesAllowed     *int // pointer to distinguish between unset and 0
+	TripID               string
+	RouteID              string
+	RouteType            int
+	BikesAllowed         *int // pointer to distinguish between unset and 0
 	WheelchairAccessible *int
-	RowNumber        int
+	RowNumber            int
 }
 
 // RouteBikeInfo represents route information for bike validation
@@ -39,10 +39,10 @@ type RouteBikeInfo struct {
 func (v *BikesAllowanceValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
 	// Load route information first
 	routes := v.loadRoutes(loader)
-	
+
 	// Load trip information
 	trips := v.loadTrips(loader, routes)
-	
+
 	// Validate bike allowance for ferry trips
 	for _, trip := range trips {
 		v.validateTripBikeAllowance(container, trip)
@@ -145,7 +145,7 @@ func (v *BikesAllowanceValidator) loadTrips(loader *parser.FeedLoader, routes ma
 func (v *BikesAllowanceValidator) parseTrip(row *parser.CSVRow, routes map[string]*RouteBikeInfo) *TripBikeInfo {
 	tripID, hasTripID := row.Values["trip_id"]
 	routeID, hasRouteID := row.Values["route_id"]
-	
+
 	if !hasTripID || !hasRouteID {
 		return nil
 	}
@@ -253,8 +253,7 @@ func (v *BikesAllowanceValidator) validateBikeAccessibilityConsistency(container
 	// Check for unusual combinations
 	if trip.BikesAllowed != nil && trip.RouteType != 4 { // Non-ferry routes
 		if *trip.BikesAllowed == 1 {
-			// Bikes allowed on non-ferry routes - this is unusual but not invalid
-			// Only report for route types where bikes are uncommon
+			// Report unusual for uncommon types only
 			if v.isBikeUncommonRouteType(trip.RouteType) {
 				container.AddNotice(notice.NewUnusualBikeAllowanceNotice(
 					trip.TripID,
@@ -273,12 +272,12 @@ func (v *BikesAllowanceValidator) isBikeUncommonRouteType(routeType int) bool {
 	// Route types where bikes are typically uncommon:
 	// 0 = Tram, 1 = Subway, 2 = Rail, 5 = Cable tram, 6 = Aerial lift, 7 = Funicular
 	uncommonTypes := []int{0, 1, 2, 5, 6, 7}
-	
+
 	for _, uncommon := range uncommonTypes {
 		if routeType == uncommon {
 			return true
 		}
 	}
-	
+
 	return false
 }

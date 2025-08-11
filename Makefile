@@ -124,13 +124,33 @@ clean: ## Clean build artifacts
 	@rm -f security-report.json
 	@$(GO) clean -cache -testcache
 
-clean-all: clean deps-clean ## Clean everything including caches
+clean-all: clean deps-clean docs-clean ## Clean everything including caches and documentation
 
 # Documentation
-docs: ## Generate documentation
+docs: .FORCE ## Generate documentation
 	@echo "Generating documentation..."
+	@mkdir -p docs/api
 	@$(GO) doc -all . > docs/api.txt
-	@echo "Documentation generated: docs/api.txt"
+	@echo "Generating package documentation..."
+	@$(GO) doc . > docs/package.txt
+	@echo "Generating HTML documentation (if godoc is available)..."
+	@which godoc >/dev/null 2>&1 && (godoc -http=:6060 & sleep 3 && curl -s http://localhost:6060/pkg/github.com/theoremus-urban-solutions/gtfs-validator/ > docs/api/index.html && pkill -f "godoc -http=:6060") || echo "godoc not found - skipping HTML generation"
+	@echo "Documentation generated:"
+	@echo "  - All APIs: docs/api.txt"
+	@echo "  - Package: docs/package.txt"
+	@echo "  - HTML: docs/api/index.html (if godoc was available)"
+
+docs-serve: ## Start documentation server
+	@echo "Starting documentation server at http://localhost:6060"
+	@echo "Visit: http://localhost:6060/pkg/github.com/theoremus-urban-solutions/gtfs-validator/"
+	@godoc -http=:6060
+
+docs-clean: ## Clean generated documentation
+	@echo "Cleaning documentation..."
+	@rm -rf docs/api/
+	@rm -f docs/api.txt docs/package.txt
+
+.FORCE: # Force target to always run
 
 # Development workflow
 dev: fmt lint test ## Quick development check

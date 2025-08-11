@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GTFS Validation Report{{if .Summary.FeedInfo.FeedPath}} - {{.Summary.FeedInfo.FeedPath}}{{end}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f7fa;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+
+        .summary-card h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+        }
+
+        .stat-label {
+            color: #666;
+        }
+
+        .stat-value {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .validation-status {
+            text-align: center;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .status-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 2px solid #c3e6cb;
+        }
+
+        .status-warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 2px solid #ffeaa7;
+        }
+
+        .status-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 2px solid #f5c6cb;
+        }
+
+        .notices-section {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .notices-header {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .notices-header h2 {
+            color: #333;
+            margin-bottom: 1rem;
+        }
+
+        .filter-controls {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-button {
+            padding: 0.5rem 1rem;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .filter-button:hover {
+            background: #f8f9fa;
+        }
+
+        .filter-button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .filter-button.error.active {
+            background: #dc3545;
+            border-color: #dc3545;
+        }
+
+        .filter-button.warning.active {
+            background: #ffc107;
+            border-color: #ffc107;
+            color: #333;
+        }
+
+        .filter-button.info.active {
+            background: #17a2b8;
+            border-color: #17a2b8;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+            padding: 0.5rem;
+            border: 2px solid #e9ecef;
+            border-radius: 5px;
+            font-size: 0.9rem;
+        }
+
+        .search-box:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .notices-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .notice-item {
+            border-bottom: 1px solid #e9ecef;
+            padding: 1.5rem;
+            transition: background-color 0.2s ease;
+        }
+
+        .notice-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        .notice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+
+        .notice-code {
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            background: #f8f9fa;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: #495057;
+        }
+
+        .notice-count {
+            background: #6c757d;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .severity-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .severity-error {
+            background: #dc3545;
+            color: white;
+        }
+
+        .severity-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .severity-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .notice-description {
+            color: #666;
+            margin: 0.5rem 0;
+        }
+
+        .notice-samples {
+            margin-top: 1rem;
+        }
+
+        .sample-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .sample-item {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            border-radius: 5px;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .sample-detail {
+            color: #666;
+            font-size: 0.8rem;
+            margin-top: 0.25rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .filter-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-box {
+                min-width: auto;
+            }
+
+            .notice-header {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 GTFS Validation Report</h1>
+            <p>{{if .Summary.FeedInfo.FeedPath}}Feed: {{.Summary.FeedInfo.FeedPath}}{{else}}Validation completed in {{printf "%.2f" .Summary.ValidationTime}}s{{end}}</p>
+        </div>
+
+        <div class="summary-grid">
+            <div class="summary-card">
+                <h3>📊 Feed Statistics</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Agencies:</span>
+                    <span class="stat-value">{{.Summary.FeedInfo.AgencyCount}}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Routes:</span>
+                    <span class="stat-value">{{.Summary.FeedInfo.RouteCount}}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Trips:</span>
+                    <span class="stat-value">{{.Summary.FeedInfo.TripCount}}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Stops:</span>
+                    <span class="stat-value">{{.Summary.FeedInfo.StopCount}}</span>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <h3>⏱️ Validation Summary</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Validation Time:</span>
+                    <span class="stat-value">{{printf "%.2f" .Summary.ValidationTime}}s</span>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <h3>🔍 Validation Results</h3>
+                <div class="stat-row">
+                    <span class="stat-label">Errors:</span>
+                    <span class="stat-value" style="color: #dc3545;">{{.Summary.Counts.Errors}}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Warnings:</span>
+                    <span class="stat-value" style="color: #ffc107;">{{.Summary.Counts.Warnings}}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Infos:</span>
+                    <span class="stat-value" style="color: #17a2b8;">{{.Summary.Counts.Infos}}</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Total:</span>
+                    <span class="stat-value">{{.Summary.Counts.Total}}</span>
+                </div>
+            </div>
+        </div>
+
+        {{if gt .Summary.Counts.Errors 0}}
+        <div class="validation-status status-error">
+            💀 Validation FAILED: {{.Summary.Counts.Errors}} error{{if ne .Summary.Counts.Errors 1}}s{{end}} found
+        </div>
+        {{else if gt .Summary.Counts.Warnings 0}}
+        <div class="validation-status status-warning">
+            ⚠️ Validation completed with {{.Summary.Counts.Warnings}} warning{{if ne .Summary.Counts.Warnings 1}}s{{end}}
+        </div>
+        {{else}}
+        <div class="validation-status status-success">
+            🎉 Validation PASSED: Feed is valid!
+        </div>
+        {{end}}
+
+        {{if .Notices}}
+        <div class="notices-section">
+            <div class="notices-header">
+                <h2>🔍 Validation Notices</h2>
+                <div class="filter-controls">
+                    <button class="filter-button active" data-filter="all">All ({{len .Notices}})</button>
+                    {{range $severity, $count := .SeverityCounts}}
+                    <button class="filter-button {{$severity}}" data-filter="{{$severity}}">
+                        {{if eq $severity "error"}}❌{{else if eq $severity "warning"}}⚠️{{else}}ℹ️{{end}} 
+                        {{title $severity}}s ({{$count}})
+                    </button>
+                    {{end}}
+                    <input type="text" class="search-box" placeholder="Search notices..." id="searchBox">
+                </div>
+            </div>
+            
+            <div class="notices-list" id="noticesList">
+                {{range .Notices}}
+                <div class="notice-item" data-severity="{{.Severity}}" data-searchable="{{.Code}} {{.Description}}">
+                    <div class="notice-header">
+                        <div>
+                            <span class="severity-badge severity-{{.Severity}}">
+                                {{if eq .Severity "ERROR"}}❌ Error{{else if eq .Severity "WARNING"}}⚠️ Warning{{else}}ℹ️ Info{{end}}
+                            </span>
+                            <span class="notice-code">{{.Code}}</span>
+                        </div>
+                        <span class="notice-count">{{.TotalNotices}} instance{{if ne .TotalNotices 1}}s{{end}}</span>
+                    </div>
+                    <div class="notice-description">{{.Description}}</div>
+                    
+                    {{if .SampleNotices}}
+                    <div class="notice-samples">
+                        <div class="sample-title">Sample occurrences:</div>
+                        {{range .SampleNotices}}
+                        <div class="sample-item">
+                            {{range $key, $value := .}}
+                            {{if and (ne $key "severity") (ne $key "code") (ne $key "description")}}
+                            <div class="sample-detail"><strong>{{$key}}:</strong> {{$value}}</div>
+                            {{end}}
+                            {{end}}
+                        </div>
+                        {{end}}
+                    </div>
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+        </div>
+        {{else}}
+        <div class="empty-state">
+            <h3>🎉 No Issues Found!</h3>
+            <p>Your GTFS feed passed all validation checks.</p>
+        </div>
+        {{end}}
+
+        <div class="footer">
+            <p>Generated by <strong>GTFS Validator</strong> • <a href="https://github.com/theoremus-urban-solutions/gtfs-validator" target="_blank">GitHub</a></p>
+            <p>Report generated on {{.GeneratedAt}}</p>
+        </div>
+    </div>
+
+    <script>
+        // Filter functionality
+        const filterButtons = document.querySelectorAll('.filter-button');
+        const noticeItems = document.querySelectorAll('.notice-item');
+        const searchBox = document.getElementById('searchBox');
+
+        filterButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                // Add active class to clicked button
+                button.classList.add('active');
+                
+                const filter = button.dataset.filter;
+                filterNotices(filter, searchBox.value);
+            });
+        });
+
+        searchBox.addEventListener('input', (e) => {
+            const activeFilter = document.querySelector('.filter-button.active').dataset.filter;
+            filterNotices(activeFilter, e.target.value);
+        });
+
+        function filterNotices(severityFilter, searchTerm) {
+            const searchLower = searchTerm.toLowerCase();
+            
+            noticeItems.forEach(item => {
+                const severity = item.dataset.severity.toLowerCase();
+                const searchable = item.dataset.searchable.toLowerCase();
+                
+                const severityMatch = severityFilter === 'all' || severity === severityFilter;
+                const searchMatch = searchTerm === '' || searchable.includes(searchLower);
+                
+                if (severityMatch && searchMatch) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
+                }
+            });
+        }
+
+        // Smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start'
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -28,16 +28,16 @@ type ColorInfo struct {
 
 // RouteColorInfo represents route color information
 type RouteColorInfo struct {
-	RouteID         string
-	RouteColor      *ColorInfo
-	RouteTextColor  *ColorInfo
-	RowNumber       int
+	RouteID        string
+	RouteColor     *ColorInfo
+	RouteTextColor *ColorInfo
+	RowNumber      int
 }
 
 // Validate checks color contrast for routes
 func (v *RouteColorContrastValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
 	routes := v.loadRouteColors(loader)
-	
+
 	for _, route := range routes {
 		v.validateRouteColors(container, route)
 	}
@@ -114,7 +114,7 @@ func (v *RouteColorContrastValidator) parseRouteColors(row *parser.CSVRow) *Rout
 func (v *RouteColorContrastValidator) parseColor(hexStr string, isDefault bool) *ColorInfo {
 	// Remove # if present
 	hexStr = strings.TrimPrefix(hexStr, "#")
-	
+
 	// Must be exactly 6 characters
 	if len(hexStr) != 6 {
 		return nil
@@ -271,9 +271,9 @@ func (v *RouteColorContrastValidator) colorsAreTooSimilar(color1, color2 *ColorI
 	dr := float64(color1.R - color2.R)
 	dg := float64(color1.G - color2.G)
 	db := float64(color1.B - color2.B)
-	
+
 	distance := math.Sqrt(dr*dr + dg*dg + db*db)
-	
+
 	// If distance is very small, colors are too similar
 	return distance < 50.0 // Threshold for "too similar"
 }
@@ -284,7 +284,7 @@ func (v *RouteColorContrastValidator) isRedGreenCombination(color1, color2 *Colo
 	isGreen1 := v.isGreenish(color1)
 	isRed2 := v.isRedish(color2)
 	isGreen2 := v.isGreenish(color2)
-	
+
 	return (isRed1 && isGreen2) || (isGreen1 && isRed2)
 }
 
@@ -293,7 +293,7 @@ func (v *RouteColorContrastValidator) isRedish(color *ColorInfo) bool {
 	return color.R > color.G+30 && color.R > color.B+30 && color.R > 100
 }
 
-// isGreenish determines if a color is greenish  
+// isGreenish determines if a color is greenish
 func (v *RouteColorContrastValidator) isGreenish(color *ColorInfo) bool {
 	return color.G > color.R+30 && color.G > color.B+30 && color.G > 100
 }

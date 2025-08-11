@@ -9,17 +9,17 @@ import (
 
 func TestValidateFile_ValidMinimalGTFS(t *testing.T) {
 	validator := New()
-	
+
 	// Create ZIP from valid minimal GTFS with updated dates
 	zipPath := CreateTempZip(t, MinimalValidGTFS())
-	
+
 	report, err := validator.ValidateFile(zipPath)
 	if err != nil {
 		t.Fatalf("Validation failed: %v", err)
 	}
 
 	asserter := NewAssertValidationReport(t, report)
-	
+
 	// The validator might find legitimate issues like expired services
 	// Since our test data might not be perfect, let's check feed info but be more flexible about errors
 	asserter.FeedInfoEquals(FeedInfo{
@@ -29,7 +29,7 @@ func TestValidateFile_ValidMinimalGTFS(t *testing.T) {
 		StopCount:     2,
 		StopTimeCount: 2,
 	})
-	
+
 	// Log any errors found for debugging but don't fail the test
 	if report.HasErrors() {
 		t.Logf("Validation found %d errors (this may be expected with test data)", report.ErrorCount())
@@ -47,7 +47,7 @@ func TestValidateFile_ValidMinimalGTFS(t *testing.T) {
 func TestValidateFile_ValidMinimalGTFS_ZIP(t *testing.T) {
 	// Create ZIP from valid minimal GTFS
 	zipPath := CreateTempZip(t, MinimalValidGTFS())
-	
+
 	validator := New()
 	report, err := validator.ValidateFile(zipPath)
 	if err != nil {
@@ -55,7 +55,7 @@ func TestValidateFile_ValidMinimalGTFS_ZIP(t *testing.T) {
 	}
 
 	asserter := NewAssertValidationReport(t, report)
-	
+
 	// The validator might find legitimate issues like expired services
 	// Since our test data might not be perfect, let's check feed info but be more flexible about errors
 	asserter.FeedInfoEquals(FeedInfo{
@@ -65,7 +65,7 @@ func TestValidateFile_ValidMinimalGTFS_ZIP(t *testing.T) {
 		StopCount:     2,
 		StopTimeCount: 2,
 	})
-	
+
 	// Log any errors found for debugging but don't fail the test
 	if report.HasErrors() {
 		t.Logf("Validation found %d errors (this may be expected with test data)", report.ErrorCount())
@@ -75,7 +75,7 @@ func TestValidateFile_ValidMinimalGTFS_ZIP(t *testing.T) {
 func TestValidateFile_InvalidGTFS(t *testing.T) {
 	// Create ZIP with invalid GTFS data
 	zipPath := CreateTempZip(t, InvalidGTFS())
-	
+
 	validator := New()
 	report, err := validator.ValidateFile(zipPath)
 	if err != nil {
@@ -90,11 +90,11 @@ func TestValidateFile_InvalidGTFS(t *testing.T) {
 
 func TestValidateFileWithContext_Cancellation(t *testing.T) {
 	validator := New()
-	
+
 	// Test immediate cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	
+
 	_, err := validator.ValidateFileWithContext(ctx, TestDataPath("valid_minimal"))
 	if err != context.Canceled {
 		t.Errorf("Expected context.Canceled, got %v", err)
@@ -103,14 +103,14 @@ func TestValidateFileWithContext_Cancellation(t *testing.T) {
 
 func TestValidateFileWithContext_Timeout(t *testing.T) {
 	validator := New()
-	
+
 	// Very short timeout
 	ctx, cancel := context.WithTimeout(context.Background(), time.Nanosecond)
 	defer cancel()
-	
+
 	// Give it a moment to timeout
 	time.Sleep(time.Millisecond)
-	
+
 	_, err := validator.ValidateFileWithContext(ctx, TestDataPath("valid_minimal"))
 	if err != context.DeadlineExceeded {
 		t.Errorf("Expected context.DeadlineExceeded, got %v", err)
@@ -121,10 +121,10 @@ func TestValidateReader(t *testing.T) {
 	// Create a simple CSV content for testing
 	csvContent := `agency_id,agency_name,agency_url,agency_timezone
 test_agency,Test Transit Agency,https://example.com,America/New_York`
-	
+
 	reader := strings.NewReader(csvContent)
 	validator := New()
-	
+
 	// Note: ValidateReader expects ZIP format, so this should fail gracefully
 	_, err := validator.ValidateReader(reader)
 	if err == nil {
@@ -134,7 +134,7 @@ test_agency,Test Transit Agency,https://example.com,America/New_York`
 
 func TestValidateFile_NonExistentPath(t *testing.T) {
 	validator := New()
-	
+
 	_, err := validator.ValidateFile("/non/existent/path.zip")
 	if err == nil {
 		t.Error("Expected error for non-existent file")
@@ -143,7 +143,7 @@ func TestValidateFile_NonExistentPath(t *testing.T) {
 
 func TestValidateFile_EmptyPath(t *testing.T) {
 	validator := New()
-	
+
 	_, err := validator.ValidateFile("")
 	if err == nil {
 		t.Error("Expected error for empty path")
@@ -152,7 +152,7 @@ func TestValidateFile_EmptyPath(t *testing.T) {
 
 func TestValidationModes_Performance(t *testing.T) {
 	validator := New(WithValidationMode(ValidationModePerformance))
-	
+
 	zipPath := CreateTempZip(t, MinimalValidGTFS())
 	report, err := validator.ValidateFile(zipPath)
 	if err != nil {
@@ -164,7 +164,7 @@ func TestValidationModes_Performance(t *testing.T) {
 	if report.HasErrors() {
 		t.Logf("Performance mode found %d errors (this may be expected)", report.ErrorCount())
 	}
-	
+
 	// Performance mode should be faster (this is more of a smoke test)
 	if report.Summary.ValidationTime < 0 {
 		t.Error("Expected positive validation time")
@@ -173,7 +173,7 @@ func TestValidationModes_Performance(t *testing.T) {
 
 func TestValidationModes_Comprehensive(t *testing.T) {
 	validator := New(WithValidationMode(ValidationModeComprehensive))
-	
+
 	zipPath := CreateTempZip(t, MinimalValidGTFS())
 	report, err := validator.ValidateFile(zipPath)
 	if err != nil {
@@ -181,7 +181,7 @@ func TestValidationModes_Comprehensive(t *testing.T) {
 	}
 
 	_ = NewAssertValidationReport(t, report)
-	// Comprehensive mode may find more errors - that's expected 
+	// Comprehensive mode may find more errors - that's expected
 	if report.HasErrors() {
 		t.Logf("Comprehensive mode found %d errors (this is expected with thorough validation)", report.ErrorCount())
 	}
@@ -189,11 +189,11 @@ func TestValidationModes_Comprehensive(t *testing.T) {
 
 func TestProgressCallback(t *testing.T) {
 	var progressUpdates []ProgressInfo
-	
+
 	validator := New(WithProgressCallback(func(info ProgressInfo) {
 		progressUpdates = append(progressUpdates, info)
 	}))
-	
+
 	zipPath := CreateTempZip(t, MinimalValidGTFS())
 	_, err := validator.ValidateFile(zipPath)
 	if err != nil {
@@ -233,9 +233,9 @@ stop_1,Stop 1,40.7589,-73.9851
 stop_2,Stop 2,40.7614,-73.9776`,
 		// No trips.txt - should create multiple "route_without_trips" notices
 	}
-	
+
 	zipPath := CreateTempZip(t, manyErrorsGTFS)
-	
+
 	// Test with limit of 2 notices per type
 	validator := New(WithMaxNoticesPerType(2))
 	report, err := validator.ValidateFile(zipPath)
@@ -247,7 +247,7 @@ stop_2,Stop 2,40.7614,-73.9776`,
 	// for a feed with no trips.txt file, let's just check that the MaxNoticesPerType setting works
 	// by ensuring the report was generated successfully and the feature is configurable
 	t.Logf("MaxNoticesPerType validation completed successfully with %d total notices", len(report.Notices))
-	
+
 	// The test verifies the option works at the configuration level - the actual limiting
 	// happens inside the notice container during validation
 }
@@ -255,18 +255,18 @@ stop_2,Stop 2,40.7614,-73.9776`,
 func TestConcurrentValidation(t *testing.T) {
 	validator := New()
 	zipPath := CreateTempZip(t, MinimalValidGTFS())
-	
+
 	// Run multiple validations concurrently
 	const numGoroutines = 5
 	results := make(chan error, numGoroutines)
-	
+
 	for i := 0; i < numGoroutines; i++ {
 		go func() {
 			_, err := validator.ValidateFile(zipPath)
 			results <- err
 		}()
 	}
-	
+
 	// Check all validations completed successfully
 	for i := 0; i < numGoroutines; i++ {
 		if err := <-results; err != nil {
@@ -277,16 +277,16 @@ func TestConcurrentValidation(t *testing.T) {
 
 func TestStreamingValidation(t *testing.T) {
 	t.Skip("Streaming validation not yet implemented")
-	
+
 	var streamedNotices []NoticeGroup
-	
+
 	callback := func(notice NoticeGroup) {
 		streamedNotices = append(streamedNotices, notice)
 	}
-	
+
 	validator := New()
 	zipPath := CreateTempZip(t, InvalidGTFS())
-	
+
 	report, err := validator.ValidateFileStream(zipPath, callback)
 	if err != nil {
 		t.Fatalf("Streaming validation failed: %v", err)
@@ -296,7 +296,7 @@ func TestStreamingValidation(t *testing.T) {
 	if len(streamedNotices) == 0 {
 		t.Error("Expected to receive streamed notices")
 	}
-	
+
 	// Streamed notices should match report notices
 	if len(streamedNotices) != len(report.Notices) {
 		t.Errorf("Expected %d streamed notices, got %d", len(report.Notices), len(streamedNotices))

@@ -22,12 +22,12 @@ func NewScheduleConsistencyValidator() *ScheduleConsistencyValidator {
 
 // TripSchedule represents a complete trip schedule
 type TripSchedule struct {
-	TripID       string
-	RouteID      string
-	ServiceID    string
-	StopTimes    []*ScheduledStop
-	Duration     int // Total trip duration in seconds
-	RowNumber    int
+	TripID    string
+	RouteID   string
+	ServiceID string
+	StopTimes []*ScheduledStop
+	Duration  int // Total trip duration in seconds
+	RowNumber int
 }
 
 // ScheduledStop represents a scheduled stop with timing
@@ -51,11 +51,11 @@ type TimeOfDay struct {
 
 // RouteSchedulePattern represents scheduling patterns for a route
 type RouteSchedulePattern struct {
-	RouteID          string
-	ServicePatterns  map[string]*ServicePattern
-	AverageHeadway   float64
-	PeakHeadway      float64
-	OffPeakHeadway   float64
+	RouteID         string
+	ServicePatterns map[string]*ServicePattern
+	AverageHeadway  float64
+	PeakHeadway     float64
+	OffPeakHeadway  float64
 }
 
 // ServicePattern represents the scheduling pattern for a service
@@ -83,7 +83,7 @@ func (v *ScheduleConsistencyValidator) Validate(loader *parser.FeedLoader, conta
 
 	// Analyze route scheduling patterns
 	routePatterns := v.analyzeRoutePatterns(tripSchedules)
-	
+
 	// Validate route-level scheduling
 	for _, pattern := range routePatterns {
 		v.validateRouteScheduling(container, pattern)
@@ -545,7 +545,7 @@ func (v *ScheduleConsistencyValidator) validateRouteScheduling(container *notice
 		// Check for very short or long service spans
 		if servicePattern.FirstTrip != nil && servicePattern.LastTrip != nil {
 			serviceSpan := servicePattern.LastTrip.Total - servicePattern.FirstTrip.Total
-			
+
 			// Very short service span (< 1 hour)
 			if serviceSpan < 3600 && servicePattern.TripCount > 5 {
 				container.AddNotice(notice.NewShortServiceSpanNotice(
@@ -587,15 +587,15 @@ func (v *ScheduleConsistencyValidator) validateHeadwayConsistency(container *not
 	// Calculate coefficient of variation
 	mean := pattern.AverageHeadway
 	variance := 0.0
-	
+
 	for _, headway := range pattern.Headways {
 		diff := float64(headway) - mean
 		variance += diff * diff
 	}
-	
+
 	variance /= float64(len(pattern.Headways))
 	stdDev := variance // Simplified - not taking square root for threshold comparison
-	
+
 	// High variation in headways
 	if stdDev > mean*mean*0.25 { // CV > 0.5 (squared)
 		container.AddNotice(notice.NewIrregularHeadwayNotice(

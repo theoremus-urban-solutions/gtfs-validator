@@ -15,7 +15,7 @@ type GTFSColor struct {
 func ParseGTFSColor(s string) (*GTFSColor, error) {
 	// Remove # if present
 	s = strings.TrimPrefix(s, "#")
-	
+
 	if len(s) != 6 {
 		return nil, fmt.Errorf("invalid GTFS color format: %s (expected 6 hex digits)", s)
 	}
@@ -49,7 +49,7 @@ func (c *GTFSColor) Luminance() float64 {
 	r := c.linearize(float64(c.R) / 255.0)
 	g := c.linearize(float64(c.G) / 255.0)
 	b := c.linearize(float64(c.B) / 255.0)
-	
+
 	// Calculate relative luminance
 	return 0.2126*r + 0.7152*g + 0.0722*b
 }
@@ -67,7 +67,7 @@ func (c *GTFSColor) linearize(channel float64) float64 {
 func (c *GTFSColor) ContrastRatio(other *GTFSColor) float64 {
 	l1 := c.Luminance()
 	l2 := other.Luminance()
-	
+
 	if l1 > l2 {
 		return (l1 + 0.05) / (l2 + 0.05)
 	}

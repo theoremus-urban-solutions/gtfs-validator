@@ -29,10 +29,10 @@ type TripBlockInfo struct {
 
 // StopTimeInfo represents stop time information for block validation
 type StopTimeInfo struct {
-	TripID       string
-	StopSequence int
-	ArrivalTime  int   // seconds from midnight
-	DepartureTime int  // seconds from midnight
+	TripID        string
+	StopSequence  int
+	ArrivalTime   int // seconds from midnight
+	DepartureTime int // seconds from midnight
 }
 
 // Validate checks block_id assignments for consistency
@@ -175,7 +175,7 @@ func (v *TripBlockIdValidator) validateBlockRouteConsistency(container *notice.N
 		for routeID := range routeCount {
 			routeIDs = append(routeIDs, routeID)
 		}
-		
+
 		container.AddNotice(notice.NewBlockMultipleRoutesNotice(
 			blockID,
 			routeIDs,
@@ -195,7 +195,7 @@ func (v *TripBlockIdValidator) validateBlockRouteConsistency(container *notice.N
 // loadStopTimesForTrips loads stop times for block validation
 func (v *TripBlockIdValidator) loadStopTimesForTrips(loader *parser.FeedLoader, trips []*TripBlockInfo) map[string][]*StopTimeInfo {
 	stopTimes := make(map[string][]*StopTimeInfo)
-	
+
 	// Create a map of trip IDs for quick lookup
 	tripIDs := make(map[string]bool)
 	for _, trip := range trips {
@@ -248,9 +248,9 @@ func (v *TripBlockIdValidator) parseStopTime(row *parser.CSVRow) *StopTimeInfo {
 	}
 
 	stopTime := &StopTimeInfo{
-		TripID:       strings.TrimSpace(tripID),
-		StopSequence: seq,
-		ArrivalTime:  -1,
+		TripID:        strings.TrimSpace(tripID),
+		StopSequence:  seq,
+		ArrivalTime:   -1,
 		DepartureTime: -1,
 	}
 
@@ -281,7 +281,7 @@ func (v *TripBlockIdValidator) validateBlockTiming(container *notice.NoticeConta
 
 		// Find first and last valid times
 		var firstTime, lastTime int = -1, -1
-		
+
 		for _, st := range times {
 			if st.DepartureTime >= 0 && (firstTime == -1 || st.DepartureTime < firstTime) {
 				firstTime = st.DepartureTime
@@ -387,11 +387,11 @@ func (v *TripBlockIdValidator) formatGTFSTime(totalSeconds int) string {
 	if totalSeconds < 0 {
 		return "unknown"
 	}
-	
+
 	hours := totalSeconds / 3600
 	minutes := (totalSeconds % 3600) / 60
 	seconds := totalSeconds % 60
-	
+
 	return strings.TrimSpace(strings.Join([]string{
 		strconv.Itoa(hours),
 		strconv.Itoa(minutes),

@@ -136,11 +136,11 @@ func TestWithOptions(t *testing.T) {
 		}
 		validator := New(WithProgressCallback(callback))
 		impl := validator.(*validatorImpl)
-		
+
 		if impl.config.ProgressCallback == nil {
 			t.Error("Expected progress callback to be set")
 		}
-		
+
 		// Test callback works
 		impl.config.ProgressCallback(ProgressInfo{})
 		if !called {
@@ -256,11 +256,11 @@ func TestValidateFileErrors(t *testing.T) {
 
 func TestContextCancellation(t *testing.T) {
 	validator := New()
-	
+
 	// Test context cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
-	
+
 	_, err := validator.ValidateFileWithContext(ctx, "/some/path.zip")
 	if err != context.Canceled {
 		t.Errorf("Expected context canceled error, got %v", err)

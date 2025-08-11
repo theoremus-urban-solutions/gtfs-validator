@@ -33,7 +33,7 @@ type ShapePointDistance struct {
 // Validate checks that shape distances increase monotonically
 func (v *ShapeIncreasingDistanceValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
 	shapes := v.loadShapePoints(loader)
-	
+
 	// Group by shape_id and validate each shape
 	for shapeID, points := range shapes {
 		v.validateShapeDistances(container, shapeID, points)
@@ -193,11 +193,11 @@ func (v *ShapeIncreasingDistanceValidator) validateDistanceRealism(container *no
 			// If both points have distance values, check consistency
 			if point.DistTraveled != nil && prevPoint.DistTraveled != nil {
 				providedDistance := *point.DistTraveled - *prevPoint.DistTraveled
-				
+
 				// Check if provided distance is unrealistically different from geographic distance
 				if segmentDistance > 0 {
 					ratio := providedDistance / segmentDistance
-					
+
 					// Flag if ratio is very unrealistic (< 0.5 or > 3.0)
 					if ratio < 0.5 || ratio > 3.0 {
 						container.AddNotice(notice.NewUnrealisticShapeDistanceNotice(
@@ -231,7 +231,7 @@ func (v *ShapeIncreasingDistanceValidator) validateDistanceCompleteness(containe
 	// If some but not all points have distance values, this might be inconsistent
 	if hasDistanceValues > 0 && hasDistanceValues < totalPoints {
 		missingCount := totalPoints - hasDistanceValues
-		
+
 		// Report if significant portion is missing (> 25%)
 		if float64(missingCount)/float64(totalPoints) > 0.25 {
 			container.AddNotice(notice.NewIncompleteShapeDistanceNotice(
@@ -279,7 +279,7 @@ func (v *ShapeIncreasingDistanceValidator) validateDistancePatterns(container *n
 		if point.DistTraveled != nil && prevDistance != nil && prevPoint != nil {
 			jump := *point.DistTraveled - *prevDistance
 			geoDistance := v.calculateDistance(prevPoint, point)
-			
+
 			// Flag jumps that are 10x larger than geographic distance
 			if geoDistance > 0 && jump > geoDistance*10 {
 				container.AddNotice(notice.NewLargeShapeDistanceJumpNotice(
@@ -292,7 +292,7 @@ func (v *ShapeIncreasingDistanceValidator) validateDistancePatterns(container *n
 				))
 			}
 		}
-		
+
 		if point.DistTraveled != nil {
 			prevDistance = point.DistTraveled
 			prevPoint = point

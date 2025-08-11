@@ -28,9 +28,9 @@ type StopTimeHeadsignInfo struct {
 
 // TripHeadsignInfo represents trip headsign information
 type TripHeadsignInfo struct {
-	TripID      string
+	TripID       string
 	TripHeadsign string
-	RouteID     string
+	RouteID      string
 }
 
 // Validate checks headsign consistency within trips and across stops
@@ -228,10 +228,10 @@ func (v *StopTimeHeadsignValidator) validateHeadsignSequence(container *notice.N
 	headsignChanges := 0
 
 	for _, sh := range stopHeadsigns {
-		if sh.StopHeadsign != "" {
+		if strings.TrimSpace(sh.StopHeadsign) != "" {
 			if prevHeadsign != "" && sh.StopHeadsign != prevHeadsign {
 				headsignChanges++
-				
+
 				// Info notice for headsign change
 				container.AddNotice(notice.NewHeadsignChangeWithinTripNotice(
 					tripID,
@@ -281,6 +281,10 @@ func (v *StopTimeHeadsignValidator) areHeadsignsConsistent(stopHeadsign, tripHea
 	// Normalize for comparison
 	stop := strings.ToLower(strings.TrimSpace(stopHeadsign))
 	trip := strings.ToLower(strings.TrimSpace(tripHeadsign))
+
+	if stop == "" || trip == "" {
+		return false
+	}
 
 	// Direct match
 	if stop == trip {
@@ -395,7 +399,7 @@ func (v *StopTimeHeadsignValidator) validateHeadsignContent(container *notice.No
 	// Check for suspicious patterns like "NULL", "N/A", "UNKNOWN"
 	suspiciousPatterns := []string{"null", "n/a", "unknown", "none", "tbd", "tba", "test"}
 	lowerHeadsign := strings.ToLower(headsign)
-	
+
 	for _, pattern := range suspiciousPatterns {
 		if lowerHeadsign == pattern || strings.Contains(lowerHeadsign, pattern) {
 			container.AddNotice(notice.NewSuspiciousHeadsignPatternNotice(

@@ -31,7 +31,7 @@ type AttributionRoleInfo struct {
 // Validate checks that attributions have at least one role assigned
 func (v *AttributionWithoutRoleValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
 	attributions := v.loadAttributions(loader)
-	
+
 	for _, attribution := range attributions {
 		v.validateAttributionRoles(container, attribution)
 	}
@@ -155,7 +155,7 @@ func (v *AttributionWithoutRoleValidator) validateRoleCombinations(container *no
 // validateRoleConsistencyWithName checks if organization name matches assigned roles
 func (v *AttributionWithoutRoleValidator) validateRoleConsistencyWithName(container *notice.NoticeContainer, attribution *AttributionRoleInfo) {
 	orgNameLower := strings.ToLower(attribution.OrganizationName)
-	
+
 	// Keywords that suggest specific roles
 	operatorKeywords := []string{"transport", "transit", "bus", "metro", "railway", "operator", "service"}
 	authorityKeywords := []string{"authority", "department", "ministry", "government", "city", "county", "state"}

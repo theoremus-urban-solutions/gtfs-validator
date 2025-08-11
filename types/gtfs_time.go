@@ -8,6 +8,7 @@ import (
 
 // GTFSTime represents a time in GTFS format (HH:MM:SS or H:MM:SS)
 // GTFS allows times beyond 24:00:00 for trips that span midnight
+// Examples: 25:30:00 = 1:30 AM next day, 26:15:00 = 2:15 AM next day
 type GTFSTime struct {
 	Hours   int
 	Minutes int
@@ -21,12 +22,17 @@ func ParseGTFSTime(s string) (*GTFSTime, error) {
 		return nil, fmt.Errorf("invalid GTFS time format: %s (expected HH:MM:SS)", s)
 	}
 
+	// Require zero-padded minutes and seconds; hours may be unpadded per GTFS
+	if len(parts[1]) != 2 || len(parts[2]) != 2 {
+		return nil, fmt.Errorf("invalid zero padding in minutes/seconds: %s", s)
+	}
+
 	hours, err := strconv.Atoi(parts[0])
 	if err != nil {
 		return nil, fmt.Errorf("invalid hours in GTFS time: %s", parts[0])
 	}
 	if hours < 0 {
-		return nil, fmt.Errorf("negative hours: %d", hours)
+		return nil, fmt.Errorf("hours out of range: %d", hours)
 	}
 
 	minutes, err := strconv.Atoi(parts[1])

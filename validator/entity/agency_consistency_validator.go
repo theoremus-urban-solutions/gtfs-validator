@@ -26,7 +26,7 @@ func (v *AgencyConsistencyValidator) Validate(loader *parser.FeedLoader, contain
 	}
 
 	// Check if agency_id is required
-	v.validateAgencyIdRequirement(loader, container, agencies)
+	v.validateAgencyIdRequirement(container, agencies)
 
 	// Check route agency references
 	v.validateRouteAgencyReferences(loader, container, agencies)
@@ -88,7 +88,7 @@ func (v *AgencyConsistencyValidator) loadAgencies(loader *parser.FeedLoader) map
 }
 
 // validateAgencyIdRequirement checks if agency_id is required
-func (v *AgencyConsistencyValidator) validateAgencyIdRequirement(loader *parser.FeedLoader, container *notice.NoticeContainer, agencies map[string]*AgencyInfo) {
+func (v *AgencyConsistencyValidator) validateAgencyIdRequirement(container *notice.NoticeContainer, agencies map[string]*AgencyInfo) {
 	// If there are multiple agencies, agency_id is required
 	if len(agencies) > 1 {
 		for _, agency := range agencies {
@@ -143,21 +143,24 @@ func (v *AgencyConsistencyValidator) validateRouteAgencyReferences(loader *parse
 			continue
 		}
 
-		// Check if referenced agency exists
-		if _, exists := agencies[expectedAgencyID]; !exists {
-			container.AddNotice(notice.NewInvalidAgencyReferenceNotice(
-				strings.TrimSpace(routeID),
-				expectedAgencyID,
-				row.RowNumber,
-			))
-		}
-
 		// If multiple agencies exist but route has no agency_id, that's an error
 		if expectedAgencyID == "" && len(agencies) > 1 {
 			container.AddNotice(notice.NewMissingRouteAgencyIdNotice(
 				strings.TrimSpace(routeID),
 				row.RowNumber,
 			))
+			continue
+		}
+
+		// Check if referenced agency exists (only when an agency_id is provided)
+		if expectedAgencyID != "" {
+			if _, exists := agencies[expectedAgencyID]; !exists {
+				container.AddNotice(notice.NewInvalidAgencyReferenceNotice(
+					strings.TrimSpace(routeID),
+					expectedAgencyID,
+					row.RowNumber,
+				))
+			}
 		}
 	}
 }

@@ -49,7 +49,7 @@ func GetCode(typeName string) string {
 	// Convert from CamelCase to snake_case
 	// Remove "Notice" suffix if present
 	name := strings.TrimSuffix(typeName, "Notice")
-	
+
 	var result []rune
 	for i, r := range name {
 		if i > 0 && r >= 'A' && r <= 'Z' {
@@ -57,16 +57,16 @@ func GetCode(typeName string) string {
 		}
 		result = append(result, r)
 	}
-	
+
 	return strings.ToLower(string(result))
 }
 
 // NoticeContainer holds all notices generated during validation
 type NoticeContainer struct {
-	notices        []Notice
-	noticeCounts   map[string]int
-	maxPerType     int
-	mutex          sync.RWMutex
+	notices      []Notice
+	noticeCounts map[string]int
+	maxPerType   int
+	mutex        sync.RWMutex
 }
 
 // NewNoticeContainer creates a new notice container
@@ -91,14 +91,14 @@ func NewNoticeContainerWithLimit(maxPerType int) *NoticeContainer {
 func (nc *NoticeContainer) AddNotice(notice Notice) {
 	nc.mutex.Lock()
 	defer nc.mutex.Unlock()
-	
+
 	code := notice.Code()
-	
+
 	// Check if we've hit the limit for this notice type
 	if nc.maxPerType > 0 && nc.noticeCounts[code] >= nc.maxPerType {
 		return // Skip adding more notices of this type
 	}
-	
+
 	nc.notices = append(nc.notices, notice)
 	nc.noticeCounts[code]++
 }

@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#375EAB">
+
+  <title>gtfsvalidator - Go Documentation Server</title>
+
+<link type="text/css" rel="stylesheet" href="/lib/godoc/style.css">
+
+<script>window.initFuncs = [];</script>
+<script src="/lib/godoc/jquery.js" defer></script>
+
+
+
+<script>var goVersion = "go1.24.5";</script>
+<script src="/lib/godoc/godocs.js" defer></script>
+</head>
+<body>
+
+<div id='lowframe' style="position: fixed; bottom: 0; left: 0; height: 0; width: 100%; border-top: thin solid grey; background-color: white; overflow: auto;">
+...
+</div><!-- #lowframe -->
+
+<div id="topbar" class="wide"><div class="container">
+<div class="top-heading" id="heading-wide"><a href="/pkg/">Go Documentation Server</a></div>
+<div class="top-heading" id="heading-narrow"><a href="/pkg/">GoDoc</a></div>
+<a href="#" id="menu-button"><span id="menu-button-arrow">&#9661;</span></a>
+<form method="GET" action="/search">
+<div id="menu">
+
+<span class="search-box"><input type="search" id="search" name="q" placeholder="Search" aria-label="Search" required><button type="submit"><span><!-- magnifying glass: --><svg width="24" height="24" viewBox="0 0 24 24"><title>submit search</title><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/><path d="M0 0h24v24H0z" fill="none"/></svg></span></button></span>
+</div>
+</form>
+
+</div></div>
+
+
+
+<div id="page" class="wide">
+<div class="container">
+
+
+  <h1>
+    Package gtfsvalidator
+    <span class="text-muted"></span>
+  </h1>
+
+
+
+
+
+
+
+<div id="nav"></div>
+
+
+<!--
+	Copyright 2009 The Go Authors. All rights reserved.
+	Use of this source code is governed by a BSD-style
+	license that can be found in the LICENSE file.
+-->
+<!--
+	Note: Static (i.e., not template-generated) href and id
+	attributes start with "pkg-" to make it impossible for
+	them to conflict with generated attributes (some of which
+	correspond to Go identifiers).
+-->
+
+	<script>
+	document.ANALYSIS_DATA = null;
+	document.CALLGRAPH = null;
+	</script>
+
+	
+		
+		<div id="short-nav">
+			<dl>
+			<dd><code>import "github.com/theoremus-urban-solutions/gtfs-validator"</code></dd>
+			</dl>
+			<dl>
+			<dd><a href="#pkg-overview" class="overviewLink">Overview</a></dd>
+			<dd><a href="#pkg-index" class="indexLink">Index</a></dd>
+			
+			
+				<dd><a href="#pkg-subdirectories">Subdirectories</a></dd>
+			
+			</dl>
+		</div>
+		<!-- The package's Name is printed as title by the top-level template -->
+		<div id="pkg-overview" class="toggleVisible">
+			<div class="collapsed">
+				<h2 class="toggleButton" title="Click to show Overview section">Overview ▹</h2>
+			</div>
+			<div class="expanded">
+				<h2 class="toggleButton" title="Click to hide Overview section">Overview ▾</h2>
+				<p>Package gtfsvalidator provides a comprehensive GTFS (General Transit Feed Specification)
+validation library for Go.
+<p>This library validates GTFS feeds against the official specification and provides
+detailed reports on errors, warnings, and informational notices. It supports both
+ZIP files and directories containing GTFS data.
+<p>Features:
+<ul>
+<li>Comprehensive validation with 294+ rules across 57 validators
+<li>Multiple validation modes (performance, default, comprehensive)
+<li>Thread-safe concurrent processing with memory pools
+<li>Context-based cancellation support
+<li>Progress reporting with structured logging
+<li>Configurable notice limits and memory management
+<li>Streaming CSV processing for massive feeds (2-4M rows/sec)
+<li>Memory-efficient processing with constant memory usage
+</ul>
+<p>Basic Usage:
+<pre>import gtfsvalidator &quot;github.com/theoremus-urban-solutions/gtfs-validator&quot;
+
+// Create a validator with default settings
+validator := gtfsvalidator.New()
+
+// Validate a GTFS ZIP file
+report, err := validator.ValidateFile(&quot;transit-feed.zip&quot;)
+if err != nil {
+	log.Fatal(err)
+}
+
+if report.HasErrors() {
+	fmt.Printf(&quot;Validation failed with %d errors\n&quot;, report.ErrorCount())
+}
+</pre>
+<p>Advanced Usage with Options:
+<pre>// Create a validator with custom configuration
+validator := gtfsvalidator.New(
+	gtfsvalidator.WithCountryCode(&quot;UK&quot;),
+	gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),
+	gtfsvalidator.WithMaxNoticesPerType(50),
+	gtfsvalidator.WithProgressCallback(func(info gtfsvalidator.ProgressInfo) {
+		fmt.Printf(&quot;Progress: %.1f%% - %s\n&quot;,
+			info.PercentComplete,
+			info.CurrentValidator)
+	}),
+)
+
+// Validate with context for cancellation
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+defer cancel()
+
+report, err := validator.ValidateFileWithContext(ctx, &quot;large-feed.zip&quot;)
+</pre>
+<p>Validation Modes:
+<p>The library supports three validation modes:
+<ul>
+<li>Performance: Runs only essential validators for fast validation (10-15s for large feeds)
+<li>Default: Runs standard validators excluding expensive ones (30-120s)
+<li>Comprehensive: Runs all validators including geospatial analysis (2+ minutes)
+</ul>
+<p>Thread Safety:
+<p>The validator is thread-safe and can be used concurrently. Each validation
+operation is independent and does not affect other concurrent validations.
+<p>Memory Management:
+<p>For large feeds, use the performance mode and set memory limits. The streaming
+CSV parser automatically handles feeds with millions of records:
+<pre>validator := gtfsvalidator.New(
+	gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),
+	gtfsvalidator.WithMaxMemory(512 * 1024 * 1024), // 512MB limit
+	gtfsvalidator.WithParallelWorkers(4), // Optimize for your CPU cores
+)
+</pre>
+<p>Streaming CSV Processing:
+<p>For processing individual CSV files efficiently:
+<pre>parser, _ := parser.NewStreamingCSVParser(file, &quot;stop_times.txt&quot;, nil)
+processor := &amp;parser.CountingProcessor{}
+parser.ProcessStream(context.Background(), processor)
+// Processes millions of rows with constant memory usage
+</pre>
+<p>Error Handling:
+<p>The library distinguishes between validation errors (issues in the GTFS data)
+and operational errors (file access, memory issues, etc.):
+<pre>report, err := validator.ValidateFile(&quot;feed.zip&quot;)
+if err != nil {
+	// Operational error - couldn&apos;t process the file
+	log.Fatal(&quot;Failed to validate:&quot;, err)
+}
+
+if report.HasErrors() {
+	// Validation errors - issues found in the GTFS data
+	for _, notice := range report.Notices {
+		if notice.Severity == &quot;ERROR&quot; {
+			fmt.Printf(&quot;Error: %s (%d instances)\n&quot;,
+				notice.Code,
+				notice.TotalNotices)
+		}
+	}
+}
+</pre>
+<p>Integration with APIs:
+<p>The library is designed for easy integration with web services:
+<pre>func validateHandler(w http.ResponseWriter, r *http.Request) {
+	// Parse multipart form for file upload
+	file, _, err := r.FormFile(&quot;gtfs&quot;)
+	if err != nil {
+		http.Error(w, &quot;Failed to read file&quot;, http.StatusBadRequest)
+		return
+	}
+	defer file.Close()
+
+	// Validate the uploaded file
+	validator := gtfsvalidator.New()
+	report, err := validator.ValidateReader(file)
+	if err != nil {
+		http.Error(w, &quot;Validation failed&quot;, http.StatusInternalServerError)
+		return
+	}
+
+	// Return JSON report
+	w.Header().Set(&quot;Content-Type&quot;, &quot;application/json&quot;)
+	json.NewEncoder(w).Encode(report)
+}
+</pre>
+<p>Notice Types:
+<p>Notices are categorized by severity:
+<ul>
+<li>ERROR: Specification violations that prevent feed usage
+<li>WARNING: Issues that may cause problems but don&apos;t break compatibility
+<li>INFO: Informational notices about feed characteristics
+</ul>
+<p>For more information about GTFS, see: <a href="https://gtfs.org/">https://gtfs.org/</a>
+<p>Package gtfsvalidator provides a comprehensive GTFS feed validation library.
+<p>The validator checks GTFS feeds against the official specification and provides
+detailed reports on errors, warnings, and informational notices.
+<p>Basic usage:
+<pre>validator := gtfsvalidator.New()
+report, err := validator.ValidateFile(&quot;feed.zip&quot;)
+if err != nil {
+    log.Fatal(err)
+}
+
+if report.HasErrors() {
+    fmt.Printf(&quot;Validation failed with %d errors\n&quot;, report.ErrorCount)
+}
+</pre>
+
+				
+			</div>
+		</div>
+
+		<div id="pkg-index" class="toggleVisible">
+		<div class="collapsed">
+			<h2 class="toggleButton" title="Click to show Index section">Index ▹</h2>
+		</div>
+		<div class="expanded">
+			<h2 class="toggleButton" title="Click to hide Index section">Index ▾</h2>
+
+		<!-- Table of contents for API; must be named manual-nav to turn off auto nav. -->
+			<div id="manual-nav">
+			<dl>
+			
+			
+			
+				
+				<dd><a href="#CreateTempZip">func CreateTempZip(t *testing.T, files map[string]string) string</a></dd>
+			
+				
+				<dd><a href="#CreateTestZipFromDir">func CreateTestZipFromDir(t *testing.T, srcDir, zipPath string)</a></dd>
+			
+				
+				<dd><a href="#InvalidGTFS">func InvalidGTFS() map[string]string</a></dd>
+			
+				
+				<dd><a href="#MinimalValidGTFS">func MinimalValidGTFS() map[string]string</a></dd>
+			
+				
+				<dd><a href="#TestDataPath">func TestDataPath(subpath string) string</a></dd>
+			
+			
+				
+				<dd><a href="#AssertValidationReport">type AssertValidationReport</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#NewAssertValidationReport">func NewAssertValidationReport(t *testing.T, report *ValidationReport) *AssertValidationReport</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#ValidateAndAssert">func ValidateAndAssert(t *testing.T, validator Validator, path string) *AssertValidationReport</a></dd>
+				
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#AssertValidationReport.ContainsNotice">func (a *AssertValidationReport) ContainsNotice(code string) *AssertValidationReport</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#AssertValidationReport.DoesNotContainNotice">func (a *AssertValidationReport) DoesNotContainNotice(code string) *AssertValidationReport</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#AssertValidationReport.ErrorCountEquals">func (a *AssertValidationReport) ErrorCountEquals(expected int) *AssertValidationReport</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#AssertValidationReport.FeedInfoEquals">func (a *AssertValidationReport) FeedInfoEquals(expected FeedInfo) *AssertValidationReport</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#AssertValidationReport.HasErrors">func (a *AssertValidationReport) HasErrors() *AssertValidationReport</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#AssertValidationReport.HasNoErrors">func (a *AssertValidationReport) HasNoErrors() *AssertValidationReport</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#AssertValidationReport.HasNoWarnings">func (a *AssertValidationReport) HasNoWarnings() *AssertValidationReport</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#AssertValidationReport.HasWarnings">func (a *AssertValidationReport) HasWarnings() *AssertValidationReport</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#AssertValidationReport.WarningCountEquals">func (a *AssertValidationReport) WarningCountEquals(expected int) *AssertValidationReport</a></dd>
+				
+			
+				
+				<dd><a href="#Config">type Config</a></dd>
+				
+				
+			
+				
+				<dd><a href="#FeedInfo">type FeedInfo</a></dd>
+				
+				
+			
+				
+				<dd><a href="#HTMLFormatter">type HTMLFormatter</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#NewHTMLFormatter">func NewHTMLFormatter() (*HTMLFormatter, error)</a></dd>
+				
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#HTMLFormatter.GenerateHTML">func (f *HTMLFormatter) GenerateHTML(report *ValidationReport, writer io.Writer) error</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#HTMLFormatter.GenerateHTMLString">func (f *HTMLFormatter) GenerateHTMLString(report *ValidationReport) (string, error)</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#HTMLFormatter.GenerateHTMLToFile">func (f *HTMLFormatter) GenerateHTMLToFile(report *ValidationReport, filename string) error</a></dd>
+				
+			
+				
+				<dd><a href="#HTMLTemplateData">type HTMLTemplateData</a></dd>
+				
+				
+			
+				
+				<dd><a href="#NoticeCallback">type NoticeCallback</a></dd>
+				
+				
+			
+				
+				<dd><a href="#NoticeCounts">type NoticeCounts</a></dd>
+				
+				
+			
+				
+				<dd><a href="#NoticeGroup">type NoticeGroup</a></dd>
+				
+				
+			
+				
+				<dd><a href="#NoticeWithDescription">type NoticeWithDescription</a></dd>
+				
+				
+			
+				
+				<dd><a href="#Option">type Option</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#WithCountryCode">func WithCountryCode(code string) Option</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#WithCurrentDate">func WithCurrentDate(date time.Time) Option</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#WithMaxMemory">func WithMaxMemory(bytes int64) Option</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#WithMaxNoticesPerType">func WithMaxNoticesPerType(max int) Option</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#WithParallelWorkers">func WithParallelWorkers(workers int) Option</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#WithProgressCallback">func WithProgressCallback(callback func(ProgressInfo)) Option</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#WithValidationMode">func WithValidationMode(mode ValidationMode) Option</a></dd>
+				
+				
+			
+				
+				<dd><a href="#ProgressInfo">type ProgressInfo</a></dd>
+				
+				
+			
+				
+				<dd><a href="#Summary">type Summary</a></dd>
+				
+				
+			
+				
+				<dd><a href="#ValidationMode">type ValidationMode</a></dd>
+				
+				
+			
+				
+				<dd><a href="#ValidationReport">type ValidationReport</a></dd>
+				
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#ValidationReport.ErrorCount">func (r *ValidationReport) ErrorCount() int</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#ValidationReport.HasErrors">func (r *ValidationReport) HasErrors() bool</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#ValidationReport.HasWarnings">func (r *ValidationReport) HasWarnings() bool</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#ValidationReport.WarningCount">func (r *ValidationReport) WarningCount() int</a></dd>
+				
+			
+				
+				<dd><a href="#Validator">type Validator</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#New">func New(opts ...Option) Validator</a></dd>
+				
+				
+			
+			
+			</dl>
+			</div><!-- #manual-nav -->
+
+		
+
+		
+			<h3>Package files</h3>
+			<p>
+			<span style="font-size:90%">
+			
+				<a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/doc.go">doc.go</a>
+			
+				<a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go">html_formatter.go</a>
+			
+				<a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/implementation.go">implementation.go</a>
+			
+				<a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go">testing_utils.go</a>
+			
+				<a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go">validator.go</a>
+			
+			</span>
+			</p>
+		
+		</div><!-- .expanded -->
+		</div><!-- #pkg-index -->
+
+		
+
+		
+		
+		
+			
+			
+			<h2 id="CreateTempZip">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=5783:5847#L207">CreateTempZip</a>
+				<a class="permalink" href="#CreateTempZip">&#xb6;</a>
+				
+				
+			</h2>
+			<pre>func CreateTempZip(t *<a href="/pkg/testing/">testing</a>.<a href="/pkg/testing/#T">T</a>, files map[<a href="/pkg/builtin/#string">string</a>]<a href="/pkg/builtin/#string">string</a>) <a href="/pkg/builtin/#string">string</a></pre>
+			<p>CreateTempZip creates a temporary ZIP file for testing
+
+			
+			
+
+		
+			
+			
+			<h2 id="CreateTestZipFromDir">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=318:381#L8">CreateTestZipFromDir</a>
+				<a class="permalink" href="#CreateTestZipFromDir">&#xb6;</a>
+				
+				
+			</h2>
+			<pre>func CreateTestZipFromDir(t *<a href="/pkg/testing/">testing</a>.<a href="/pkg/testing/#T">T</a>, srcDir, zipPath <a href="/pkg/builtin/#string">string</a>)</pre>
+			<p>CreateTestZipFromDir creates a ZIP file from a directory for testing
+
+			
+			
+
+		
+			
+			
+			<h2 id="InvalidGTFS">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=7984:8020#L279">InvalidGTFS</a>
+				<a class="permalink" href="#InvalidGTFS">&#xb6;</a>
+				
+				
+			</h2>
+			<pre>func InvalidGTFS() map[<a href="/pkg/builtin/#string">string</a>]<a href="/pkg/builtin/#string">string</a></pre>
+			<p>InvalidGTFS returns the content for an invalid GTFS feed with known errors
+
+			
+			
+
+		
+			
+			
+			<h2 id="MinimalValidGTFS">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=7050:7091#L259">MinimalValidGTFS</a>
+				<a class="permalink" href="#MinimalValidGTFS">&#xb6;</a>
+				
+				
+			</h2>
+			<pre>func MinimalValidGTFS() map[<a href="/pkg/builtin/#string">string</a>]<a href="/pkg/builtin/#string">string</a></pre>
+			<p>MinimalValidGTFS returns the content for a minimal valid GTFS feed
+
+			
+			
+
+		
+			
+			
+			<h2 id="TestDataPath">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=157:197#L3">TestDataPath</a>
+				<a class="permalink" href="#TestDataPath">&#xb6;</a>
+				
+				
+			</h2>
+			<pre>func TestDataPath(subpath <a href="/pkg/builtin/#string">string</a>) <a href="/pkg/builtin/#string">string</a></pre>
+			<p>TestDataPath returns the path to test data directory
+
+			
+			
+
+		
+		
+			
+			
+			<h2 id="AssertValidationReport">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=1195:1278#L55">AssertValidationReport</a>
+				<a class="permalink" href="#AssertValidationReport">&#xb6;</a>
+				
+				
+			</h2>
+			<p>AssertValidationReport provides assertions for validation reports
+
+			<pre>type AssertValidationReport struct {
+    <span class="comment">// contains filtered or unexported fields</span>
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+				
+				<h3 id="NewAssertValidationReport">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=1350:1444#L61">NewAssertValidationReport</a>
+					<a class="permalink" href="#NewAssertValidationReport">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func NewAssertValidationReport(t *<a href="/pkg/testing/">testing</a>.<a href="/pkg/testing/#T">T</a>, report *<a href="#ValidationReport">ValidationReport</a>) *<a href="#AssertValidationReport">AssertValidationReport</a></pre>
+				<p>NewAssertValidationReport creates a new validation report asserter
+
+				
+				
+			
+				
+				<h3 id="ValidateAndAssert">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=6680:6774#L245">ValidateAndAssert</a>
+					<a class="permalink" href="#ValidateAndAssert">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func ValidateAndAssert(t *<a href="/pkg/testing/">testing</a>.<a href="/pkg/testing/#T">T</a>, validator <a href="#Validator">Validator</a>, path <a href="/pkg/builtin/#string">string</a>) *<a href="#AssertValidationReport">AssertValidationReport</a></pre>
+				<p>ValidateAndAssert is a helper that validates and returns an asserter
+
+				
+				
+			
+
+			
+				
+				<h3 id="AssertValidationReport.ContainsNotice">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=3487:3571#L134">ContainsNotice</a>
+					<a class="permalink" href="#AssertValidationReport.ContainsNotice">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (a *<a href="#AssertValidationReport">AssertValidationReport</a>) ContainsNotice(code <a href="/pkg/builtin/#string">string</a>) *<a href="#AssertValidationReport">AssertValidationReport</a></pre>
+				<p>ContainsNotice asserts the report contains a notice with the given code
+
+				
+				
+				
+			
+				
+				<h3 id="AssertValidationReport.DoesNotContainNotice">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=3881:3971#L147">DoesNotContainNotice</a>
+					<a class="permalink" href="#AssertValidationReport.DoesNotContainNotice">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (a *<a href="#AssertValidationReport">AssertValidationReport</a>) DoesNotContainNotice(code <a href="/pkg/builtin/#string">string</a>) *<a href="#AssertValidationReport">AssertValidationReport</a></pre>
+				<p>DoesNotContainNotice asserts the report does not contain a notice with the given code
+
+				
+				
+				
+			
+				
+				<h3 id="AssertValidationReport.ErrorCountEquals">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=2751:2838#L108">ErrorCountEquals</a>
+					<a class="permalink" href="#AssertValidationReport.ErrorCountEquals">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (a *<a href="#AssertValidationReport">AssertValidationReport</a>) ErrorCountEquals(expected <a href="/pkg/builtin/#int">int</a>) *<a href="#AssertValidationReport">AssertValidationReport</a></pre>
+				<p>ErrorCountEquals asserts the error count matches expected
+
+				
+				
+				
+			
+				
+				<h3 id="AssertValidationReport.FeedInfoEquals">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=4239:4329#L159">FeedInfoEquals</a>
+					<a class="permalink" href="#AssertValidationReport.FeedInfoEquals">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (a *<a href="#AssertValidationReport">AssertValidationReport</a>) FeedInfoEquals(expected <a href="#FeedInfo">FeedInfo</a>) *<a href="#AssertValidationReport">AssertValidationReport</a></pre>
+				<p>FeedInfoEquals asserts the feed info matches expected values
+
+				
+				
+				
+			
+				
+				<h3 id="AssertValidationReport.HasErrors">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=1619:1687#L70">HasErrors</a>
+					<a class="permalink" href="#AssertValidationReport.HasErrors">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (a *<a href="#AssertValidationReport">AssertValidationReport</a>) HasErrors() *<a href="#AssertValidationReport">AssertValidationReport</a></pre>
+				<p>HasErrors asserts the report has errors
+
+				
+				
+				
+			
+				
+				<h3 id="AssertValidationReport.HasNoErrors">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=1853:1923#L79">HasNoErrors</a>
+					<a class="permalink" href="#AssertValidationReport.HasNoErrors">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (a *<a href="#AssertValidationReport">AssertValidationReport</a>) HasNoErrors() *<a href="#AssertValidationReport">AssertValidationReport</a></pre>
+				<p>HasNoErrors asserts the report has no errors
+
+				
+				
+				
+			
+				
+				<h3 id="AssertValidationReport.HasNoWarnings">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=2411:2483#L98">HasNoWarnings</a>
+					<a class="permalink" href="#AssertValidationReport.HasNoWarnings">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (a *<a href="#AssertValidationReport">AssertValidationReport</a>) HasNoWarnings() *<a href="#AssertValidationReport">AssertValidationReport</a></pre>
+				<p>HasNoWarnings asserts the report has no warnings
+
+				
+				
+				
+			
+				
+				<h3 id="AssertValidationReport.HasWarnings">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=2167:2237#L89">HasWarnings</a>
+					<a class="permalink" href="#AssertValidationReport.HasWarnings">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (a *<a href="#AssertValidationReport">AssertValidationReport</a>) HasWarnings() *<a href="#AssertValidationReport">AssertValidationReport</a></pre>
+				<p>HasWarnings asserts the report has warnings
+
+				
+				
+				
+			
+				
+				<h3 id="AssertValidationReport.WarningCountEquals">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=3110:3199#L121">WarningCountEquals</a>
+					<a class="permalink" href="#AssertValidationReport.WarningCountEquals">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (a *<a href="#AssertValidationReport">AssertValidationReport</a>) WarningCountEquals(expected <a href="/pkg/builtin/#int">int</a>) *<a href="#AssertValidationReport">AssertValidationReport</a></pre>
+				<p>WarningCountEquals asserts the warning count matches expected
+
+				
+				
+				
+			
+		
+			
+			
+			<h2 id="Config">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=1865:2558#L47">Config</a>
+				<a class="permalink" href="#Config">&#xb6;</a>
+				
+				
+			</h2>
+			<p>Config contains configuration options for the validator.
+
+			<pre>type Config struct {
+<span id="Config.CountryCode"></span>    <span class="comment">// CountryCode for phone number validation (e.g., &#34;US&#34;, &#34;GB&#34;).</span>
+    CountryCode <a href="/pkg/builtin/#string">string</a>
+
+<span id="Config.CurrentDate"></span>    <span class="comment">// CurrentDate for date validation (defaults to today).</span>
+    CurrentDate <a href="/pkg/time/">time</a>.<a href="/pkg/time/#Time">Time</a>
+
+<span id="Config.MaxMemory"></span>    <span class="comment">// MaxMemory limits memory usage in bytes (0 = no limit).</span>
+    MaxMemory <a href="/pkg/builtin/#int64">int64</a>
+
+<span id="Config.ParallelWorkers"></span>    <span class="comment">// ParallelWorkers for concurrent validation (0 = auto).</span>
+    ParallelWorkers <a href="/pkg/builtin/#int">int</a>
+
+<span id="Config.ValidatorVersion"></span>    <span class="comment">// ValidatorVersion for reports.</span>
+    ValidatorVersion <a href="/pkg/builtin/#string">string</a>
+
+<span id="Config.ProgressCallback"></span>    <span class="comment">// ProgressCallback is called during validation to report progress.</span>
+    ProgressCallback func(progress <a href="#ProgressInfo">ProgressInfo</a>)
+
+<span id="Config.ValidationMode"></span>    <span class="comment">// ValidationMode configures which validators to run.</span>
+    ValidationMode <a href="#ValidationMode">ValidationMode</a>
+
+<span id="Config.MaxNoticesPerType"></span>    <span class="comment">// MaxNoticesPerType limits notices per type (0 = no limit).</span>
+    MaxNoticesPerType <a href="/pkg/builtin/#int">int</a>
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="FeedInfo">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=4559:5333#L136">FeedInfo</a>
+				<a class="permalink" href="#FeedInfo">&#xb6;</a>
+				
+				
+			</h2>
+			<p>FeedInfo contains information about the validated GTFS feed.
+
+			<pre>type FeedInfo struct {
+<span id="FeedInfo.FeedPath"></span>    <span class="comment">// FeedPath is the path to the validated feed.</span>
+    FeedPath <a href="/pkg/builtin/#string">string</a> `json:&#34;feedPath&#34;`
+
+<span id="FeedInfo.AgencyCount"></span>    <span class="comment">// AgencyCount is the number of agencies in the feed.</span>
+    AgencyCount <a href="/pkg/builtin/#int">int</a> `json:&#34;agencyCount&#34;`
+
+<span id="FeedInfo.RouteCount"></span>    <span class="comment">// RouteCount is the number of routes in the feed.</span>
+    RouteCount <a href="/pkg/builtin/#int">int</a> `json:&#34;routeCount&#34;`
+
+<span id="FeedInfo.TripCount"></span>    <span class="comment">// TripCount is the number of trips in the feed.</span>
+    TripCount <a href="/pkg/builtin/#int">int</a> `json:&#34;tripCount&#34;`
+
+<span id="FeedInfo.StopCount"></span>    <span class="comment">// StopCount is the number of stops in the feed.</span>
+    StopCount <a href="/pkg/builtin/#int">int</a> `json:&#34;stopCount&#34;`
+
+<span id="FeedInfo.StopTimeCount"></span>    <span class="comment">// StopTimeCount is the number of stop times in the feed.</span>
+    StopTimeCount <a href="/pkg/builtin/#int">int</a> `json:&#34;stopTimeCount&#34;`
+
+<span id="FeedInfo.ServiceDateFrom"></span>    <span class="comment">// ServiceDateFrom is the start date of service.</span>
+    ServiceDateFrom <a href="/pkg/builtin/#string">string</a> `json:&#34;serviceDateFrom,omitempty&#34;`
+
+<span id="FeedInfo.ServiceDateTo"></span>    <span class="comment">// ServiceDateTo is the end date of service.</span>
+    ServiceDateTo <a href="/pkg/builtin/#string">string</a> `json:&#34;serviceDateTo,omitempty&#34;`
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="HTMLFormatter">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=651:709#L20">HTMLFormatter</a>
+				<a class="permalink" href="#HTMLFormatter">&#xb6;</a>
+				
+				
+			</h2>
+			<p>HTMLFormatter handles HTML report generation
+
+			<pre>type HTMLFormatter struct {
+    <span class="comment">// contains filtered or unexported fields</span>
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+				
+				<h3 id="NewHTMLFormatter">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=784:831#L25">NewHTMLFormatter</a>
+					<a class="permalink" href="#NewHTMLFormatter">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func NewHTMLFormatter() (*<a href="#HTMLFormatter">HTMLFormatter</a>, <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>NewHTMLFormatter creates a new HTML formatter with embedded templates
+
+				
+				
+			
+
+			
+				
+				<h3 id="HTMLFormatter.GenerateHTML">func (*HTMLFormatter) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=1168:1254#L40">GenerateHTML</a>
+					<a class="permalink" href="#HTMLFormatter.GenerateHTML">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (f *<a href="#HTMLFormatter">HTMLFormatter</a>) GenerateHTML(report *<a href="#ValidationReport">ValidationReport</a>, writer <a href="/pkg/io/">io</a>.<a href="/pkg/io/#Writer">Writer</a>) <a href="/pkg/builtin/#error">error</a></pre>
+				<p>GenerateHTML generates an HTML report from the validation results
+
+				
+				
+				
+			
+				
+				<h3 id="HTMLFormatter.GenerateHTMLString">func (*HTMLFormatter) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=2348:2432#L80">GenerateHTMLString</a>
+					<a class="permalink" href="#HTMLFormatter.GenerateHTMLString">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (f *<a href="#HTMLFormatter">HTMLFormatter</a>) GenerateHTMLString(report *<a href="#ValidationReport">ValidationReport</a>) (<a href="/pkg/builtin/#string">string</a>, <a href="/pkg/builtin/#error">error</a>)</pre>
+				<p>GenerateHTMLString generates an HTML report as a string
+
+				
+				
+				
+			
+				
+				<h3 id="HTMLFormatter.GenerateHTMLToFile">func (*HTMLFormatter) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=2067:2158#L69">GenerateHTMLToFile</a>
+					<a class="permalink" href="#HTMLFormatter.GenerateHTMLToFile">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (f *<a href="#HTMLFormatter">HTMLFormatter</a>) GenerateHTMLToFile(report *<a href="#ValidationReport">ValidationReport</a>, filename <a href="/pkg/builtin/#string">string</a>) <a href="/pkg/builtin/#error">error</a></pre>
+				<p>GenerateHTMLToFile generates an HTML report and writes it to a file
+
+				
+				
+				
+			
+		
+			
+			
+			<h2 id="HTMLTemplateData">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=392:601#L12">HTMLTemplateData</a>
+				<a class="permalink" href="#HTMLTemplateData">&#xb6;</a>
+				
+				
+			</h2>
+			<p>HTMLTemplateData represents the data structure passed to HTML templates
+
+			<pre>type HTMLTemplateData struct {
+<span id="HTMLTemplateData.Summary"></span>    Summary        <a href="#Summary">Summary</a>                 `json:&#34;summary&#34;`
+<span id="HTMLTemplateData.Notices"></span>    Notices        []<a href="#NoticeWithDescription">NoticeWithDescription</a> `json:&#34;notices&#34;`
+<span id="HTMLTemplateData.GeneratedAt"></span>    GeneratedAt    <a href="/pkg/builtin/#string">string</a>
+<span id="HTMLTemplateData.SeverityCounts"></span>    SeverityCounts map[<a href="/pkg/builtin/#string">string</a>]<a href="/pkg/builtin/#int">int</a>
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="NoticeCallback">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=745:789#L23">NoticeCallback</a>
+				<a class="permalink" href="#NoticeCallback">&#xb6;</a>
+				
+				
+			</h2>
+			<p>NoticeCallback is called for each notice group during streaming validation.
+
+			<pre>type NoticeCallback func(notice <a href="#NoticeGroup">NoticeGroup</a>)</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="NoticeCounts">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=5391:5725#L163">NoticeCounts</a>
+				<a class="permalink" href="#NoticeCounts">&#xb6;</a>
+				
+				
+			</h2>
+			<p>NoticeCounts contains counts of notices by severity.
+
+			<pre>type NoticeCounts struct {
+<span id="NoticeCounts.Errors"></span>    <span class="comment">// Errors is the count of error-level notices.</span>
+    Errors <a href="/pkg/builtin/#int">int</a> `json:&#34;errors&#34;`
+
+<span id="NoticeCounts.Warnings"></span>    <span class="comment">// Warnings is the count of warning-level notices.</span>
+    Warnings <a href="/pkg/builtin/#int">int</a> `json:&#34;warnings&#34;`
+
+<span id="NoticeCounts.Infos"></span>    <span class="comment">// Infos is the count of info-level notices.</span>
+    Infos <a href="/pkg/builtin/#int">int</a> `json:&#34;infos&#34;`
+
+<span id="NoticeCounts.Total"></span>    <span class="comment">// Total is the total count of all notices.</span>
+    Total <a href="/pkg/builtin/#int">int</a> `json:&#34;total&#34;`
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="NoticeGroup">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=5792:6231#L178">NoticeGroup</a>
+				<a class="permalink" href="#NoticeGroup">&#xb6;</a>
+				
+				
+			</h2>
+			<p>NoticeGroup represents a group of notices with the same type.
+
+			<pre>type NoticeGroup struct {
+<span id="NoticeGroup.Code"></span>    <span class="comment">// Code is the notice type code (e.g., &#34;missing_required_field&#34;).</span>
+    Code <a href="/pkg/builtin/#string">string</a> `json:&#34;code&#34;`
+
+<span id="NoticeGroup.Severity"></span>    <span class="comment">// Severity is the notice severity (ERROR, WARNING, INFO).</span>
+    Severity <a href="/pkg/builtin/#string">string</a> `json:&#34;severity&#34;`
+
+<span id="NoticeGroup.TotalNotices"></span>    <span class="comment">// TotalNotices is the total count of this notice type.</span>
+    TotalNotices <a href="/pkg/builtin/#int">int</a> `json:&#34;totalNotices&#34;`
+
+<span id="NoticeGroup.SampleNotices"></span>    <span class="comment">// SampleNotices contains sample instances of this notice.</span>
+    SampleNotices []map[<a href="/pkg/builtin/#string">string</a>]interface{} `json:&#34;sampleNotices&#34;`
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="NoticeWithDescription">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=224:315#L6">NoticeWithDescription</a>
+				<a class="permalink" href="#NoticeWithDescription">&#xb6;</a>
+				
+				
+			</h2>
+			<p>NoticeWithDescription extends NoticeGroup with a human-readable description
+
+			<pre>type NoticeWithDescription struct {
+    <a href="#NoticeGroup">NoticeGroup</a>
+<span id="NoticeWithDescription.Description"></span>    Description <a href="/pkg/builtin/#string">string</a> `json:&#34;description&#34;`
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="Option">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7027:7052#L221">Option</a>
+				<a class="permalink" href="#Option">&#xb6;</a>
+				
+				
+			</h2>
+			<p>Option is a functional option for configuring the validator.
+
+			<pre>type Option func(*<a href="#Config">Config</a>)</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+				
+				<h3 id="WithCountryCode">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7111:7151#L224">WithCountryCode</a>
+					<a class="permalink" href="#WithCountryCode">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func WithCountryCode(code <a href="/pkg/builtin/#string">string</a>) <a href="#Option">Option</a></pre>
+				<p>WithCountryCode sets the country code for validation.
+
+				
+				
+			
+				
+				<h3 id="WithCurrentDate">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7266:7309#L231">WithCurrentDate</a>
+					<a class="permalink" href="#WithCurrentDate">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func WithCurrentDate(date <a href="/pkg/time/">time</a>.<a href="/pkg/time/#Time">Time</a>) <a href="#Option">Option</a></pre>
+				<p>WithCurrentDate sets the current date for validation.
+
+				
+				
+			
+				
+				<h3 id="WithMaxMemory">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7424:7462#L238">WithMaxMemory</a>
+					<a class="permalink" href="#WithMaxMemory">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func WithMaxMemory(bytes <a href="/pkg/builtin/#int64">int64</a>) <a href="#Option">Option</a></pre>
+				<p>WithMaxMemory sets the maximum memory usage in bytes.
+
+				
+				
+			
+				
+				<h3 id="WithMaxNoticesPerType">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=8095:8137#L266">WithMaxNoticesPerType</a>
+					<a class="permalink" href="#WithMaxNoticesPerType">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func WithMaxNoticesPerType(max <a href="/pkg/builtin/#int">int</a>) <a href="#Option">Option</a></pre>
+				<p>WithMaxNoticesPerType sets the maximum notices per type.
+
+				
+				
+			
+				
+				<h3 id="WithParallelWorkers">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7579:7623#L245">WithParallelWorkers</a>
+					<a class="permalink" href="#WithParallelWorkers">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func WithParallelWorkers(workers <a href="/pkg/builtin/#int">int</a>) <a href="#Option">Option</a></pre>
+				<p>WithParallelWorkers sets the number of parallel workers.
+
+				
+				
+			
+				
+				<h3 id="WithProgressCallback">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7747:7808#L252">WithProgressCallback</a>
+					<a class="permalink" href="#WithProgressCallback">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func WithProgressCallback(callback func(<a href="#ProgressInfo">ProgressInfo</a>)) <a href="#Option">Option</a></pre>
+				<p>WithProgressCallback sets a progress callback function.
+
+				
+				
+			
+				
+				<h3 id="WithValidationMode">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7923:7974#L259">WithValidationMode</a>
+					<a class="permalink" href="#WithValidationMode">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func WithValidationMode(mode <a href="#ValidationMode">ValidationMode</a>) <a href="#Option">Option</a></pre>
+				<p>WithValidationMode sets the validation mode.
+
+				
+				
+			
+
+			
+		
+			
+			
+			<h2 id="ProgressInfo">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=3097:3566#L88">ProgressInfo</a>
+				<a class="permalink" href="#ProgressInfo">&#xb6;</a>
+				
+				
+			</h2>
+			<p>ProgressInfo contains information about validation progress.
+
+			<pre>type ProgressInfo struct {
+<span id="ProgressInfo.CurrentValidator"></span>    <span class="comment">// CurrentValidator is the name of the currently running validator.</span>
+    CurrentValidator <a href="/pkg/builtin/#string">string</a>
+
+<span id="ProgressInfo.TotalValidators"></span>    <span class="comment">// TotalValidators is the total number of validators to run.</span>
+    TotalValidators <a href="/pkg/builtin/#int">int</a>
+
+<span id="ProgressInfo.CompletedValidators"></span>    <span class="comment">// CompletedValidators is the number of validators completed.</span>
+    CompletedValidators <a href="/pkg/builtin/#int">int</a>
+
+<span id="ProgressInfo.PercentComplete"></span>    <span class="comment">// PercentComplete is the overall completion percentage.</span>
+    PercentComplete <a href="/pkg/builtin/#float64">float64</a>
+
+<span id="ProgressInfo.ElapsedTime"></span>    <span class="comment">// ElapsedTime is the time elapsed since validation started.</span>
+    ElapsedTime <a href="/pkg/time/">time</a>.<a href="/pkg/time/#Duration">Duration</a>
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="Summary">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=3995:4493#L118">Summary</a>
+				<a class="permalink" href="#Summary">&#xb6;</a>
+				
+				
+			</h2>
+			<p>Summary contains summary information about the validation.
+
+			<pre>type Summary struct {
+<span id="Summary.ValidatorVersion"></span>    <span class="comment">// ValidatorVersion is the version of the validator used.</span>
+    ValidatorVersion <a href="/pkg/builtin/#string">string</a> `json:&#34;validatorVersion&#34;`
+
+<span id="Summary.ValidationTime"></span>    <span class="comment">// ValidationTime is the total validation time in seconds.</span>
+    ValidationTime <a href="/pkg/builtin/#float64">float64</a> `json:&#34;validationTimeSeconds&#34;`
+
+<span id="Summary.Date"></span>    <span class="comment">// Date is the validation timestamp.</span>
+    Date <a href="/pkg/builtin/#string">string</a> `json:&#34;date&#34;`
+
+<span id="Summary.FeedInfo"></span>    <span class="comment">// FeedInfo contains information about the validated feed.</span>
+    FeedInfo <a href="#FeedInfo">FeedInfo</a> `json:&#34;feedInfo&#34;`
+
+<span id="Summary.Counts"></span>    <span class="comment">// Counts contains notice counts by severity.</span>
+    Counts <a href="#NoticeCounts">NoticeCounts</a> `json:&#34;counts&#34;`
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="ValidationMode">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=2620:2646#L74">ValidationMode</a>
+				<a class="permalink" href="#ValidationMode">&#xb6;</a>
+				
+				
+			</h2>
+			<p>ValidationMode defines preset validation configurations.
+
+			<pre>type ValidationMode <a href="/pkg/builtin/#string">string</a></pre>
+
+			
+				
+				<pre>const (
+    <span class="comment">// ValidationModePerformance runs only essential validators for speed.</span>
+    <span id="ValidationModePerformance">ValidationModePerformance</span> <a href="#ValidationMode">ValidationMode</a> = &#34;performance&#34;
+
+    <span class="comment">// ValidationModeDefault runs standard validators.</span>
+    <span id="ValidationModeDefault">ValidationModeDefault</span> <a href="#ValidationMode">ValidationMode</a> = &#34;default&#34;
+
+    <span class="comment">// ValidationModeComprehensive runs all validators including expensive ones.</span>
+    <span id="ValidationModeComprehensive">ValidationModeComprehensive</span> <a href="#ValidationMode">ValidationMode</a> = &#34;comprehensive&#34;
+)</pre>
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+		
+			
+			
+			<h2 id="ValidationReport">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=3630:3931#L106">ValidationReport</a>
+				<a class="permalink" href="#ValidationReport">&#xb6;</a>
+				
+				
+			</h2>
+			<p>ValidationReport contains the complete validation results.
+
+			<pre>type ValidationReport struct {
+<span id="ValidationReport.Summary"></span>    <span class="comment">// Summary contains high-level information about the validation.</span>
+    Summary <a href="#Summary">Summary</a> `json:&#34;summary&#34;`
+
+<span id="ValidationReport.Notices"></span>    <span class="comment">// Notices contains all validation notices grouped by type.</span>
+    Notices []<a href="#NoticeGroup">NoticeGroup</a> `json:&#34;notices&#34;`
+    <span class="comment">// contains filtered or unexported fields</span>
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+
+			
+				
+				<h3 id="ValidationReport.ErrorCount">func (*ValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=6663:6706#L207">ErrorCount</a>
+					<a class="permalink" href="#ValidationReport.ErrorCount">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (r *<a href="#ValidationReport">ValidationReport</a>) ErrorCount() <a href="/pkg/builtin/#int">int</a></pre>
+				<p>ErrorCount returns the number of errors in the report.
+
+				
+				
+				
+			
+				
+				<h3 id="ValidationReport.HasErrors">func (*ValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=6294:6337#L193">HasErrors</a>
+					<a class="permalink" href="#ValidationReport.HasErrors">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (r *<a href="#ValidationReport">ValidationReport</a>) HasErrors() <a href="/pkg/builtin/#bool">bool</a></pre>
+				<p>HasErrors returns true if the report contains any errors.
+
+				
+				
+				
+			
+				
+				<h3 id="ValidationReport.HasWarnings">func (*ValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=6480:6525#L200">HasWarnings</a>
+					<a class="permalink" href="#ValidationReport.HasWarnings">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (r *<a href="#ValidationReport">ValidationReport</a>) HasWarnings() <a href="/pkg/builtin/#bool">bool</a></pre>
+				<p>HasWarnings returns true if the report contains any warnings.
+
+				
+				
+				
+			
+				
+				<h3 id="ValidationReport.WarningCount">func (*ValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=6842:6887#L214">WarningCount</a>
+					<a class="permalink" href="#ValidationReport.WarningCount">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func (r *<a href="#ValidationReport">ValidationReport</a>) WarningCount() <a href="/pkg/builtin/#int">int</a></pre>
+				<p>WarningCount returns the number of warnings in the report.
+
+				
+				
+				
+			
+		
+			
+			
+			<h2 id="Validator">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=842:1803#L26">Validator</a>
+				<a class="permalink" href="#Validator">&#xb6;</a>
+				
+				
+			</h2>
+			<p>Validator is the main GTFS validator interface.
+
+			<pre>type Validator interface {
+    <span class="comment">// ValidateFile validates a GTFS feed from a file path (ZIP or directory).</span>
+    ValidateFile(path <a href="/pkg/builtin/#string">string</a>) (*<a href="#ValidationReport">ValidationReport</a>, <a href="/pkg/builtin/#error">error</a>)
+
+    <span class="comment">// ValidateFileWithContext validates with cancellation support.</span>
+    ValidateFileWithContext(ctx <a href="/pkg/context/">context</a>.<a href="/pkg/context/#Context">Context</a>, path <a href="/pkg/builtin/#string">string</a>) (*<a href="#ValidationReport">ValidationReport</a>, <a href="/pkg/builtin/#error">error</a>)
+
+    <span class="comment">// ValidateReader validates a GTFS feed from an io.Reader (ZIP format).</span>
+    ValidateReader(reader <a href="/pkg/io/">io</a>.<a href="/pkg/io/#Reader">Reader</a>) (*<a href="#ValidationReport">ValidationReport</a>, <a href="/pkg/builtin/#error">error</a>)
+
+    <span class="comment">// ValidateReaderWithContext validates a reader with cancellation support.</span>
+    ValidateReaderWithContext(ctx <a href="/pkg/context/">context</a>.<a href="/pkg/context/#Context">Context</a>, reader <a href="/pkg/io/">io</a>.<a href="/pkg/io/#Reader">Reader</a>) (*<a href="#ValidationReport">ValidationReport</a>, <a href="/pkg/builtin/#error">error</a>)
+
+    <span class="comment">// ValidateFileStream validates with streaming notice delivery.</span>
+    ValidateFileStream(path <a href="/pkg/builtin/#string">string</a>, callback <a href="#NoticeCallback">NoticeCallback</a>) (*<a href="#ValidationReport">ValidationReport</a>, <a href="/pkg/builtin/#error">error</a>)
+
+    <span class="comment">// ValidateFileStreamWithContext validates with streaming and cancellation.</span>
+    ValidateFileStreamWithContext(ctx <a href="/pkg/context/">context</a>.<a href="/pkg/context/#Context">Context</a>, path <a href="/pkg/builtin/#string">string</a>, callback <a href="#NoticeCallback">NoticeCallback</a>) (*<a href="#ValidationReport">ValidationReport</a>, <a href="/pkg/builtin/#error">error</a>)
+}</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+				
+				<h3 id="New">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=8260:8294#L273">New</a>
+					<a class="permalink" href="#New">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func New(opts ...<a href="#Option">Option</a>) <a href="#Validator">Validator</a></pre>
+				<p>New creates a new GTFS validator with the given options.
+
+				
+				
+			
+
+			
+		
+	
+
+	
+
+
+
+
+
+	
+	
+		<h2 id="pkg-subdirectories">Subdirectories</h2>
+	
+	<div class="pkg-dir">
+		<table>
+			<tr>
+				<th class="pkg-name">Name</th>
+				<th class="pkg-synopsis">Synopsis</th>
+			</tr>
+
+			
+			<tr>
+				<td colspan="2"><a href="..">..</a></td>
+			</tr>
+			
+
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 0px;">
+						<a href="cmd/">cmd</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="cmd/gtfs-validator/">gtfs-validator</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						Command-line interface for the GTFS validator library
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 0px;">
+						<a href="examples/">examples</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="examples/advanced/">advanced</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						Advanced example showing progress tracking, cancellation, and custom configuration
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="examples/api-server/">api-server</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						Example of using the GTFS validator in a web API server
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="examples/basic/">basic</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						Basic example of using the GTFS validator library
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="examples/config-validation/">config-validation</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						Configuration validation example shows how to properly configure the GTFS validator with validation and error handling
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="examples/large-feeds/">large-feeds</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						Large feeds memory optimization example shows how to validate large GTFS feeds efficiently with memory management
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="examples/streaming/">streaming</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						Streaming validation example shows how to use the streaming validation API to receive real-time feedback during GTFS validation
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="examples/streaming-csv/">streaming-csv</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						Streaming CSV example demonstrates how to process large GTFS CSV files without loading them entirely into memory using the streaming CSV parser
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 0px;">
+						<a href="logging/">logging</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						Package logging provides structured logging capabilities for the GTFS validator
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 0px;">
+						<a href="notice/">notice</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 0px;">
+						<a href="parser/">parser</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 0px;">
+						<a href="pools/">pools</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						Package pools provides memory pooling functionality to reduce garbage collection overhead during GTFS validation, especially for CSV parsing operations
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 0px;">
+						<a href="report/">report</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 0px;">
+						<a href="schema/">schema</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 0px;">
+						<a href="types/">types</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 0px;">
+						<a href="validator/">validator</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="validator/accessibility/">accessibility</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="validator/business/">business</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="validator/core/">core</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="validator/entity/">entity</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="validator/fare/">fare</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="validator/meta/">meta</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+				<tr>
+				
+					<td class="pkg-name" style="padding-left: 20px;">
+						<a href="validator/relationship/">relationship</a>
+					</td>
+				
+					<td class="pkg-synopsis">
+						
+					</td>
+				</tr>
+			
+		</table>
+	</div>
+
+
+
+<div id="footer">
+Build version go1.24.5.<br>
+Except as <a href="https://developers.google.com/site-policies#restrictions">noted</a>,
+the content of this page is licensed under the
+Creative Commons Attribution 3.0 License,
+and code is licensed under a <a href="/LICENSE">BSD license</a>.<br>
+<a href="https://golang.org/doc/tos.html">Terms of Service</a> |
+<a href="https://www.google.com/intl/en/policies/privacy/">Privacy Policy</a>
+</div>
+
+</div><!-- .container -->
+</div><!-- #page -->
+</body>
+</html>

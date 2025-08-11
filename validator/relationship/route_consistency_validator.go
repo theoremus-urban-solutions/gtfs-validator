@@ -41,22 +41,22 @@ type RouteAnalysis struct {
 
 // TripAnalysis represents trip-level analysis
 type TripAnalysis struct {
-	TripID           string
-	ServiceID        string
-	DirectionID      int
-	StopCount        int
-	StopPattern      []string
-	PatternHash      string
-	HasTimePoints    bool
-	HasCoordinates   bool
-	RowNumber        int
+	TripID         string
+	ServiceID      string
+	DirectionID    int
+	StopCount      int
+	StopPattern    []string
+	PatternHash    string
+	HasTimePoints  bool
+	HasCoordinates bool
+	RowNumber      int
 }
 
 // DirectionPattern represents direction-specific patterns
 type DirectionPattern struct {
-	DirectionID    int
-	TripCount      int
-	StopPatterns   map[string]int
+	DirectionID       int
+	TripCount         int
+	StopPatterns      map[string]int
 	MostCommonPattern string
 	PatternVariations int
 }
@@ -275,14 +275,14 @@ func (v *RouteConsistencyValidator) enhanceWithStopTimeData(loader *parser.FeedL
 		}
 
 		tripStops[stopTime.TripID] = append(tripStops[stopTime.TripID], stopTime.StopID)
-		
+
 		// Check for timepoints
 		if stopTime.ArrivalTime != "" || stopTime.DepartureTime != "" {
 			tripTimePoints[stopTime.TripID] = true
 		}
 	}
 
-	// Sort stops by sequence and update trip patterns  
+	// Sort stops by sequence and update trip patterns
 	for tripID, stops := range tripStops {
 		// Find the route for this trip
 		var routeID string
@@ -430,15 +430,15 @@ func (v *RouteConsistencyValidator) validateRouteTripPatterns(container *notice.
 
 	// Analyze patterns by direction
 	directionPatterns := make(map[int]*DirectionPattern)
-	
+
 	for _, trip := range route.Trips {
 		if directionPatterns[trip.DirectionID] == nil {
 			directionPatterns[trip.DirectionID] = &DirectionPattern{
-				DirectionID: trip.DirectionID,
+				DirectionID:  trip.DirectionID,
 				StopPatterns: make(map[string]int),
 			}
 		}
-		
+
 		pattern := directionPatterns[trip.DirectionID]
 		pattern.TripCount++
 		if trip.PatternHash != "" {
@@ -456,7 +456,7 @@ func (v *RouteConsistencyValidator) validateRouteTripPatterns(container *notice.
 				pattern.MostCommonPattern = patternHash
 			}
 		}
-		
+
 		pattern.PatternVariations = len(pattern.StopPatterns)
 
 		// Check for excessive pattern variations
@@ -488,7 +488,7 @@ func (v *RouteConsistencyValidator) validateRouteTripPatterns(container *notice.
 		for _, pattern := range directionPatterns {
 			directions = append(directions, pattern)
 		}
-		
+
 		ratio := float64(directions[0].TripCount) / float64(directions[1].TripCount)
 		if ratio > 3.0 || ratio < 0.33 {
 			container.AddNotice(notice.NewUnbalancedDirectionTripsNotice(
@@ -591,7 +591,7 @@ func (v *RouteConsistencyValidator) validateRouteNetwork(container *notice.Notic
 	// Generate network summary
 	if totalRoutes > 0 {
 		avgTripsPerRoute := float64(totalTrips) / float64(totalRoutes)
-		
+
 		// Sort route types by frequency
 		type routeTypeCount struct {
 			routeType int

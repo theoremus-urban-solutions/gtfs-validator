@@ -20,12 +20,12 @@ func NewRouteTypeValidator() *RouteTypeValidator {
 
 // RouteTypeInfo represents route type information
 type RouteTypeInfo struct {
-	RouteID     string
-	RouteType   int
+	RouteID        string
+	RouteType      int
 	RouteShortName string
 	RouteLongName  string
-	AgencyID    string
-	RowNumber   int
+	AgencyID       string
+	RowNumber      int
 }
 
 // Validate checks route_type values for validity and consistency
@@ -221,7 +221,7 @@ func (v *RouteTypeValidator) validateRouteTypeDistribution(container *notice.Not
 
 	for _, route := range routes {
 		typeCount[route.RouteType]++
-		
+
 		if route.AgencyID != "" {
 			if agencyTypes[route.AgencyID] == nil {
 				agencyTypes[route.AgencyID] = make(map[int]int)
@@ -237,7 +237,7 @@ func (v *RouteTypeValidator) validateRouteTypeDistribution(container *notice.Not
 			for routeType := range types {
 				routeTypes = append(routeTypes, routeType)
 			}
-			
+
 			container.AddNotice(notice.NewAgencyMixedRouteTypesNotice(
 				agencyID,
 				len(types),
@@ -283,14 +283,14 @@ func (v *RouteTypeValidator) validateRouteTypeCombinations(container *notice.Not
 func (v *RouteTypeValidator) isValidRouteType(routeType int) bool {
 	// Basic GTFS route types (0-12)
 	basicTypes := map[int]bool{
-		0: true,  // Tram, Streetcar, Light rail
-		1: true,  // Subway, Metro
-		2: true,  // Rail
-		3: true,  // Bus
-		4: true,  // Ferry
-		5: true,  // Cable tram
-		6: true,  // Aerial lift, suspended cable car
-		7: true,  // Funicular
+		0:  true, // Tram, Streetcar, Light rail
+		1:  true, // Subway, Metro
+		2:  true, // Rail
+		3:  true, // Bus
+		4:  true, // Ferry
+		5:  true, // Cable tram
+		6:  true, // Aerial lift, suspended cable car
+		7:  true, // Funicular
 		11: true, // Trolleybus
 		12: true, // Monorail
 	}
@@ -345,7 +345,9 @@ func (v *RouteTypeValidator) isValidExtendedRouteType(routeType int) bool {
 
 // isDeprecatedRouteType checks if route type is deprecated
 func (v *RouteTypeValidator) isDeprecatedRouteType(routeType int) bool {
-	// Currently no officially deprecated route types, but could add future deprecations
+	// Currently no officially deprecated route types in GTFS spec
+	// This function can be expanded in future if route types get deprecated
+	_ = routeType // Acknowledge parameter until implementation needed
 	return false
 }
 
@@ -358,20 +360,20 @@ func (v *RouteTypeValidator) isUncommonRouteType(routeType int) bool {
 		11: true, // Trolleybus
 		12: true, // Monorail
 	}
-	
+
 	// Extended types are generally less common
 	if routeType >= 100 {
 		return true
 	}
-	
+
 	return uncommonTypes[routeType]
 }
 
 // isUncommonAsOnlyRouteType checks if route type is unusual as the only type in feed
 func (v *RouteTypeValidator) isUncommonAsOnlyRouteType(routeType int) bool {
 	// These types are unusual as the only transit mode in a feed
-	return routeType == 4 || routeType == 5 || routeType == 6 || 
-		   routeType == 7 || routeType == 11 || routeType == 12
+	return routeType == 4 || routeType == 5 || routeType == 6 ||
+		routeType == 7 || routeType == 11 || routeType == 12
 }
 
 // getRecommendedRouteType returns recommended replacement for deprecated types
@@ -394,11 +396,11 @@ func (v *RouteTypeValidator) getRouteTypeDescription(routeType int) string {
 		11: "Trolleybus",
 		12: "Monorail",
 	}
-	
+
 	if desc, exists := descriptions[routeType]; exists {
 		return desc
 	}
-	
+
 	// Extended route types
 	switch {
 	case routeType >= 100 && routeType <= 117:

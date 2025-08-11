@@ -9,7 +9,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-	
+
 	// Import existing packages from the current implementation
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
@@ -32,23 +32,23 @@ func (v *validatorImpl) ValidateFileWithContext(ctx context.Context, path string
 		return nil, ctx.Err()
 	default:
 	}
-	
+
 	startTime := time.Now()
-	
+
 	// Create internal validator with configuration
 	internalConfig := v.createInternalConfig()
 	validationConfig := v.createValidationConfig()
 	internalValidator := newInternalValidator(internalConfig, validationConfig)
-	
+
 	// Set up progress reporting
 	if v.config.ProgressCallback != nil {
 		internalValidator.progressCallback = v.config.ProgressCallback
 	}
-	
+
 	// Validate based on file type
 	var internalReport *report.ValidationReport
 	var err error
-	
+
 	if strings.HasSuffix(strings.ToLower(path), ".zip") {
 		internalReport, err = internalValidator.ValidateZipWithContext(ctx, path)
 	} else {
@@ -62,11 +62,11 @@ func (v *validatorImpl) ValidateFileWithContext(ctx context.Context, path string
 		}
 		internalReport, err = internalValidator.ValidateDirectoryWithContext(ctx, path)
 	}
-	
+
 	if err != nil {
 		return nil, err
 	}
-	
+
 	// Convert internal report to public API format
 	return v.convertReport(internalReport, time.Since(startTime)), nil
 }
@@ -79,7 +79,7 @@ func (v *validatorImpl) ValidateReaderWithContext(ctx context.Context, reader io
 		return nil, ctx.Err()
 	default:
 	}
-	
+
 	// Create temporary file for the ZIP content
 	tmpFile, err := os.CreateTemp("", "gtfs-*.zip")
 	if err != nil {
@@ -87,18 +87,18 @@ func (v *validatorImpl) ValidateReaderWithContext(ctx context.Context, reader io
 	}
 	defer os.Remove(tmpFile.Name())
 	defer tmpFile.Close()
-	
+
 	// Copy reader content to temporary file
 	_, err = io.Copy(tmpFile, reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to write temporary file: %w", err)
 	}
-	
+
 	// Close the file to ensure all data is written
 	if err := tmpFile.Close(); err != nil {
 		return nil, fmt.Errorf("failed to close temporary file: %w", err)
 	}
-	
+
 	// Validate the temporary file
 	return v.ValidateFileWithContext(ctx, tmpFile.Name())
 }
@@ -130,7 +130,7 @@ func (v *validatorImpl) createValidationConfig() validationConfig {
 func (v *validatorImpl) convertReport(internal *report.ValidationReport, elapsed time.Duration) *ValidationReport {
 	// Group notices by code
 	noticeGroups := make(map[string]*NoticeGroup)
-	
+
 	for _, n := range internal.Notices {
 		if group, exists := noticeGroups[n.Code]; exists {
 			// This shouldn't happen with the current implementation
@@ -146,18 +146,18 @@ func (v *validatorImpl) convertReport(internal *report.ValidationReport, elapsed
 			}
 		}
 	}
-	
+
 	// Convert map to slice
 	notices := make([]NoticeGroup, 0, len(noticeGroups))
 	for _, group := range noticeGroups {
 		notices = append(notices, *group)
 	}
-	
+
 	return &ValidationReport{
 		Summary: Summary{
 			ValidatorVersion: internal.Summary.ValidatorVersion,
 			ValidationTime:   internal.Summary.ValidationTime,
-			Date:            internal.Summary.Date,
+			Date:             internal.Summary.Date,
 			FeedInfo: FeedInfo{
 				FeedPath:        internal.Summary.FeedInfo.FeedPath,
 				AgencyCount:     internal.Summary.FeedInfo.AgencyCount,
@@ -182,29 +182,29 @@ func (v *validatorImpl) convertReport(internal *report.ValidationReport, elapsed
 // Internal types that mirror the existing implementation
 
 type validationConfig struct {
-	EnableCore          bool
-	EnableEntity        bool
-	EnableRelationship  bool
-	EnableBusiness      bool
-	EnableAccessibility bool
-	EnableFare          bool
-	EnableMeta          bool
-	EnableGeospatial    bool
+	EnableCore            bool
+	EnableEntity          bool
+	EnableRelationship    bool
+	EnableBusiness        bool
+	EnableAccessibility   bool
+	EnableFare            bool
+	EnableMeta            bool
+	EnableGeospatial      bool
 	EnableNetworkTopology bool
-	EnableDateTrips     bool
-	MaxNoticesPerType   int
+	EnableDateTrips       bool
+	MaxNoticesPerType     int
 }
 
 func defaultValidationConfig() validationConfig {
 	return validationConfig{
-		EnableCore:         true,
-		EnableEntity:       true,
-		EnableRelationship: true,
-		EnableBusiness:     true,
+		EnableCore:          true,
+		EnableEntity:        true,
+		EnableRelationship:  true,
+		EnableBusiness:      true,
 		EnableAccessibility: true,
-		EnableFare:         true,
-		EnableMeta:         true,
-		MaxNoticesPerType:  100,
+		EnableFare:          true,
+		EnableMeta:          true,
+		MaxNoticesPerType:   100,
 	}
 }
 
@@ -241,6 +241,9 @@ type internalValidator struct {
 	feedLoader       *parser.FeedLoader
 	validators       []validator.Validator
 	progressCallback func(ProgressInfo)
+	noticeCallback   NoticeCallback // For streaming validation
+	streamedCount    int            // Track how many notices we've already streamed
+	streamMutex      sync.Mutex     // Protect streaming state in parallel mode
 }
 
 // newInternalValidator creates a new internal validator.
@@ -251,7 +254,7 @@ func newInternalValidator(config Config, validationConfig validationConfig) *int
 	} else {
 		noticeContainer = notice.NewNoticeContainer()
 	}
-	
+
 	return &internalValidator{
 		config:           config,
 		validationConfig: validationConfig,
@@ -259,26 +262,43 @@ func newInternalValidator(config Config, validationConfig validationConfig) *int
 	}
 }
 
+// newInternalValidatorWithStreaming creates a new internal validator with streaming support.
+func newInternalValidatorWithStreaming(config Config, validationConfig validationConfig, callback NoticeCallback) *internalValidator {
+	var noticeContainer *notice.NoticeContainer
+	if validationConfig.MaxNoticesPerType > 0 {
+		noticeContainer = newStreamingNoticeContainerWithLimit(validationConfig.MaxNoticesPerType, callback)
+	} else {
+		noticeContainer = newStreamingNoticeContainer(callback)
+	}
+
+	return &internalValidator{
+		config:           config,
+		validationConfig: validationConfig,
+		noticeContainer:  noticeContainer,
+		noticeCallback:   callback,
+	}
+}
+
 // ValidateZipWithContext validates a ZIP file with context support.
 func (v *internalValidator) ValidateZipWithContext(ctx context.Context, zipPath string) (*report.ValidationReport, error) {
 	startTime := time.Now()
-	
+
 	// Load the feed
 	loader, err := parser.LoadFromZip(zipPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load zip file: %w", err)
 	}
 	defer loader.Close()
-	
+
 	v.feedLoader = loader
-	
+
 	// Run validation with context
 	feedInfo, err := v.validateWithContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	feedInfo.FeedPath = zipPath
-	
+
 	// Generate report
 	validationTime := time.Since(startTime).Seconds()
 	reportGen := report.NewReportGenerator(v.config.ValidatorVersion)
@@ -288,23 +308,23 @@ func (v *internalValidator) ValidateZipWithContext(ctx context.Context, zipPath 
 // ValidateDirectoryWithContext validates a directory with context support.
 func (v *internalValidator) ValidateDirectoryWithContext(ctx context.Context, dirPath string) (*report.ValidationReport, error) {
 	startTime := time.Now()
-	
+
 	// Load the feed
 	loader, err := parser.LoadFromDirectory(dirPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load directory: %w", err)
 	}
 	defer loader.Close()
-	
+
 	v.feedLoader = loader
-	
+
 	// Run validation with context
 	feedInfo, err := v.validateWithContext(ctx)
 	if err != nil {
 		return nil, err
 	}
 	feedInfo.FeedPath = dirPath
-	
+
 	// Generate report
 	validationTime := time.Since(startTime).Seconds()
 	reportGen := report.NewReportGenerator(v.config.ValidatorVersion)
@@ -315,13 +335,13 @@ func (v *internalValidator) ValidateDirectoryWithContext(ctx context.Context, di
 func (v *internalValidator) validateWithContext(ctx context.Context) (report.FeedInfo, error) {
 	startTime := time.Now()
 	feedInfo := report.FeedInfo{}
-	
+
 	// Check for required files
 	v.checkRequiredFiles()
-	
+
 	// Initialize validators
 	v.initializeValidators()
-	
+
 	// Run validators with context and progress reporting
 	validatorConfig := validator.Config{
 		CountryCode:     v.config.CountryCode,
@@ -329,9 +349,9 @@ func (v *internalValidator) validateWithContext(ctx context.Context) (report.Fee
 		MaxMemory:       v.config.MaxMemory,
 		ParallelWorkers: v.config.ParallelWorkers,
 	}
-	
+
 	totalValidators := len(v.validators)
-	
+
 	// Use parallel workers if configured
 	if v.config.ParallelWorkers > 1 && totalValidators > 1 {
 		err := v.runValidatorsParallel(ctx, validatorConfig, startTime, totalValidators)
@@ -344,7 +364,7 @@ func (v *internalValidator) validateWithContext(ctx context.Context) (report.Fee
 			return feedInfo, err
 		}
 	}
-	
+
 	// Final progress report
 	if v.progressCallback != nil {
 		v.progressCallback(ProgressInfo{
@@ -355,10 +375,10 @@ func (v *internalValidator) validateWithContext(ctx context.Context) (report.Fee
 			ElapsedTime:         time.Since(startTime),
 		})
 	}
-	
+
 	// Collect feed statistics
 	feedInfo = v.collectFeedStatistics()
-	
+
 	return feedInfo, nil
 }
 
@@ -371,7 +391,7 @@ func (v *internalValidator) runValidatorsSequential(ctx context.Context, validat
 			return ctx.Err()
 		default:
 		}
-		
+
 		// Report progress if callback is set
 		if v.progressCallback != nil {
 			v.progressCallback(ProgressInfo{
@@ -382,7 +402,7 @@ func (v *internalValidator) runValidatorsSequential(ctx context.Context, validat
 				ElapsedTime:         time.Since(startTime),
 			})
 		}
-		
+
 		// Run validator with error recovery
 		func() {
 			defer func() {
@@ -394,8 +414,13 @@ func (v *internalValidator) runValidatorsSequential(ctx context.Context, validat
 					))
 				}
 			}()
-			
+
 			validatorImpl.Validate(v.feedLoader, v.noticeContainer, validatorConfig)
+
+			// Stream notice groups after each validator if streaming is enabled
+			if v.noticeCallback != nil {
+				v.streamNoticeGroups()
+			}
 		}()
 	}
 	return nil
@@ -403,30 +428,30 @@ func (v *internalValidator) runValidatorsSequential(ctx context.Context, validat
 
 // runValidatorsParallel runs validators in parallel using worker goroutines (thread-safe).
 func (v *internalValidator) runValidatorsParallel(ctx context.Context, validatorConfig validator.Config, startTime time.Time, totalValidators int) error {
-	
+
 	workers := v.config.ParallelWorkers
 	if workers > totalValidators {
 		workers = totalValidators
 	}
-	
+
 	// Create channels for work distribution
 	validatorChan := make(chan validator.Validator, totalValidators)
-	
+
 	// Populate work queue
 	for _, validatorImpl := range v.validators {
 		validatorChan <- validatorImpl
 	}
 	close(validatorChan)
-	
+
 	var wg sync.WaitGroup
 	var completed int64
-	
+
 	// Start worker goroutines
 	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			
+
 			for validatorImpl := range validatorChan {
 				// Check context cancellation
 				select {
@@ -434,7 +459,7 @@ func (v *internalValidator) runValidatorsParallel(ctx context.Context, validator
 					return
 				default:
 				}
-				
+
 				// Run validator with error recovery
 				func() {
 					defer func() {
@@ -447,10 +472,16 @@ func (v *internalValidator) runValidatorsParallel(ctx context.Context, validator
 							))
 						}
 					}()
-					
+
 					validatorImpl.Validate(v.feedLoader, v.noticeContainer, validatorConfig)
+
+					// Stream notice groups after each validator if streaming is enabled
+					// Note: In parallel mode, this will stream notices as they become available
+					if v.noticeCallback != nil {
+						v.streamNoticeGroups()
+					}
 				}()
-				
+
 				// Update progress atomically
 				completedCount := atomic.AddInt64(&completed, 1)
 				if v.progressCallback != nil {
@@ -465,14 +496,14 @@ func (v *internalValidator) runValidatorsParallel(ctx context.Context, validator
 			}
 		}()
 	}
-	
+
 	// Wait for all workers to complete or context cancellation
 	done := make(chan struct{})
 	go func() {
 		wg.Wait()
 		close(done)
 	}()
-	
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -495,37 +526,37 @@ func (v *internalValidator) checkRequiredFiles() {
 // collectFeedStatistics collects statistics about the GTFS feed.
 func (v *internalValidator) collectFeedStatistics() report.FeedInfo {
 	feedInfo := report.FeedInfo{}
-	
+
 	// Count agencies
 	if v.feedLoader.HasFile("agency.txt") {
 		feedInfo.AgencyCount = v.countRowsInFile("agency.txt")
 	}
-	
+
 	// Count routes
 	if v.feedLoader.HasFile("routes.txt") {
 		feedInfo.RouteCount = v.countRowsInFile("routes.txt")
 	}
-	
+
 	// Count trips
 	if v.feedLoader.HasFile("trips.txt") {
 		feedInfo.TripCount = v.countRowsInFile("trips.txt")
 	}
-	
+
 	// Count stops
 	if v.feedLoader.HasFile("stops.txt") {
 		feedInfo.StopCount = v.countRowsInFile("stops.txt")
 	}
-	
+
 	// Count stop times
 	if v.feedLoader.HasFile("stop_times.txt") {
 		feedInfo.StopTimeCount = v.countRowsInFile("stop_times.txt")
 	}
-	
+
 	// Extract service date range from feed_info.txt if available
 	if v.feedLoader.HasFile("feed_info.txt") {
 		v.extractServiceDates(&feedInfo)
 	}
-	
+
 	return feedInfo
 }
 
@@ -536,17 +567,17 @@ func (v *internalValidator) countRowsInFile(filename string) int {
 		return 0
 	}
 	defer reader.Close()
-	
+
 	csvFile, err := parser.NewCSVFile(reader, filename)
 	if err != nil {
 		return 0
 	}
-	
+
 	err = csvFile.ReadAll()
 	if err != nil {
 		return 0
 	}
-	
+
 	return csvFile.RowCount()
 }
 
@@ -557,24 +588,24 @@ func (v *internalValidator) extractServiceDates(feedInfo *report.FeedInfo) {
 		return
 	}
 	defer reader.Close()
-	
+
 	csvFile, err := parser.NewCSVFile(reader, "feed_info.txt")
 	if err != nil {
 		return
 	}
-	
+
 	err = csvFile.ReadAll()
 	if err != nil || len(csvFile.Rows) == 0 {
 		return
 	}
-	
+
 	// Get the first (and usually only) row
 	row := csvFile.Rows[0]
-	
+
 	if startDate, exists := row.Values["feed_start_date"]; exists {
 		feedInfo.ServiceDateFrom = startDate
 	}
-	
+
 	if endDate, exists := row.Values["feed_end_date"]; exists {
 		feedInfo.ServiceDateTo = endDate
 	}
@@ -583,7 +614,7 @@ func (v *internalValidator) extractServiceDates(feedInfo *report.FeedInfo) {
 // initializeValidators sets up validators based on configuration.
 func (v *internalValidator) initializeValidators() {
 	v.validators = []validator.Validator{}
-	
+
 	// Core validators
 	if v.validationConfig.EnableCore {
 		v.validators = append(v.validators,
@@ -603,7 +634,7 @@ func (v *internalValidator) initializeValidators() {
 			core.NewLeadingTrailingWhitespaceValidator(),
 		)
 	}
-	
+
 	// Entity validators
 	if v.validationConfig.EnableEntity {
 		v.validators = append(v.validators,
@@ -628,7 +659,7 @@ func (v *internalValidator) initializeValidators() {
 			entity.NewRouteTypeValidator(),
 		)
 	}
-	
+
 	// Relationship validators
 	if v.validationConfig.EnableRelationship {
 		v.validators = append(v.validators,
@@ -642,7 +673,7 @@ func (v *internalValidator) initializeValidators() {
 			relationship.NewShapeIncreasingDistanceValidator(),
 		)
 	}
-	
+
 	// Business validators
 	if v.validationConfig.EnableBusiness {
 		v.validators = append(v.validators,
@@ -658,7 +689,7 @@ func (v *internalValidator) initializeValidators() {
 			business.NewServiceCalendarValidator(),
 			business.NewScheduleConsistencyValidator(),
 		)
-		
+
 		// Expensive business validators (optional)
 		if v.validationConfig.EnableGeospatial {
 			v.validators = append(v.validators, business.NewGeospatialValidator())
@@ -670,7 +701,7 @@ func (v *internalValidator) initializeValidators() {
 			v.validators = append(v.validators, business.NewDateTripsValidator())
 		}
 	}
-	
+
 	// Accessibility validators
 	if v.validationConfig.EnableAccessibility {
 		v.validators = append(v.validators,
@@ -678,18 +709,88 @@ func (v *internalValidator) initializeValidators() {
 			accessibility.NewLevelValidator(),
 		)
 	}
-	
+
 	// Fare validators
 	if v.validationConfig.EnableFare {
 		v.validators = append(v.validators,
 			fare.NewFareValidator(),
 		)
 	}
-	
+
 	// Meta validators
 	if v.validationConfig.EnableMeta {
 		v.validators = append(v.validators,
 			meta.NewFeedInfoValidator(),
 		)
 	}
+}
+
+// For streaming validation, we'll implement a post-validation streaming approach
+// where we stream notice groups after each validator completes.
+
+// streamNoticeGroups converts and streams only new notice groups from the container
+func (v *internalValidator) streamNoticeGroups() {
+	if v.noticeCallback == nil {
+		return
+	}
+
+	v.streamMutex.Lock()
+	defer v.streamMutex.Unlock()
+
+	// Get all notices from the container
+	notices := v.noticeContainer.GetNotices()
+
+	// Only process new notices (those beyond our streamed count)
+	if len(notices) <= v.streamedCount {
+		return // No new notices to stream
+	}
+
+	newNotices := notices[v.streamedCount:]
+	v.streamedCount = len(notices)
+
+	// Group new notices by code for streaming
+	noticeGroups := make(map[string][]notice.Notice)
+	for _, n := range newNotices {
+		code := n.Code()
+		noticeGroups[code] = append(noticeGroups[code], n)
+	}
+
+	// Stream each notice group
+	for code, groupNotices := range noticeGroups {
+		if len(groupNotices) == 0 {
+			continue
+		}
+
+		// Create sample notices (limit to 5 samples)
+		sampleNotices := make([]map[string]interface{}, 0)
+		sampleLimit := 5
+		for i, n := range groupNotices {
+			if i >= sampleLimit {
+				break
+			}
+			sampleNotices = append(sampleNotices, n.Context())
+		}
+
+		// Create notice group for streaming
+		noticeGroup := NoticeGroup{
+			Code:          code,
+			Severity:      groupNotices[0].Severity().String(),
+			TotalNotices:  len(groupNotices),
+			SampleNotices: sampleNotices,
+		}
+
+		// Stream the notice group
+		v.noticeCallback(noticeGroup)
+	}
+}
+
+// newStreamingNoticeContainer creates a standard notice container for streaming validation
+// The streaming happens via the streamNoticeGroups method called periodically
+func newStreamingNoticeContainer(callback NoticeCallback) *notice.NoticeContainer {
+	return notice.NewNoticeContainer()
+}
+
+// newStreamingNoticeContainerWithLimit creates a standard notice container with limit for streaming
+func newStreamingNoticeContainerWithLimit(maxPerType int, callback NoticeCallback) *notice.NoticeContainer {
+	return notice.NewNoticeContainerWithLimit(maxPerType)
 }

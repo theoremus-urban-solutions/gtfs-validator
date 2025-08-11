@@ -40,24 +40,24 @@ type NetworkEdge struct {
 
 // NetworkGraph represents the complete transit network
 type NetworkGraph struct {
-	Nodes     map[string]*NetworkNode
-	Edges     map[string]*NetworkEdge
-	RouteMap  map[string][]string // route_id -> stop_ids
-	TripMap   map[string][]string // trip_id -> stop_ids
+	Nodes    map[string]*NetworkNode
+	Edges    map[string]*NetworkEdge
+	RouteMap map[string][]string // route_id -> stop_ids
+	TripMap  map[string][]string // trip_id -> stop_ids
 }
 
 // ConnectedComponent represents a connected component in the network
 type ConnectedComponent struct {
-	StopIDs   []string
-	StopCount int
-	RouteIDs  map[string]bool
+	StopIDs    []string
+	StopCount  int
+	RouteIDs   map[string]bool
 	RouteCount int
 }
 
 // TransferOpportunity represents potential transfer points
 type TransferOpportunity struct {
-	StopID        string
-	RouteCount    int
+	StopID         string
+	RouteCount     int
 	ConnectedStops []string
 	TransferValue  float64
 }
@@ -104,7 +104,7 @@ func (v *NetworkTopologyValidator) buildNetworkGraph(loader *parser.FeedLoader) 
 	// Build graph from trip patterns
 	for tripID, stopSequence := range tripPatterns {
 		graph.TripMap[tripID] = stopSequence
-		
+
 		if routeID := tripRoutes[tripID]; routeID != "" {
 			graph.RouteMap[routeID] = append(graph.RouteMap[routeID], stopSequence...)
 		}
@@ -124,9 +124,9 @@ func (v *NetworkTopologyValidator) buildNetworkGraph(loader *parser.FeedLoader) 
 		for i := 1; i < len(stopSequence); i++ {
 			fromStop := stopSequence[i-1]
 			toStop := stopSequence[i]
-			
+
 			edgeKey := fromStop + "->" + toStop
-			
+
 			if graph.Edges[edgeKey] == nil {
 				graph.Edges[edgeKey] = &NetworkEdge{
 					FromStopID: fromStop,
@@ -134,11 +134,11 @@ func (v *NetworkTopologyValidator) buildNetworkGraph(loader *parser.FeedLoader) 
 					RouteIDs:   make(map[string]bool),
 					Weight:     1.0,
 				}
-				
+
 				// Add edge to node connections
 				graph.Nodes[fromStop].Connections[toStop] = graph.Edges[edgeKey]
 			}
-			
+
 			graph.Edges[edgeKey].TripCount++
 			if routeID := tripRoutes[tripID]; routeID != "" {
 				graph.Edges[edgeKey].RouteIDs[routeID] = true
@@ -152,7 +152,7 @@ func (v *NetworkTopologyValidator) buildNetworkGraph(loader *parser.FeedLoader) 
 		for _, stopID := range stopList {
 			uniqueStops[stopID] = true
 		}
-		
+
 		for stopID := range uniqueStops {
 			if node := graph.Nodes[stopID]; node != nil {
 				node.RouteCount++
@@ -464,7 +464,7 @@ func (v *NetworkTopologyValidator) identifyTransferOpportunities(container *noti
 		if node.RouteCount >= 2 {
 			// Calculate transfer value based on route count and connectivity
 			transferValue := float64(node.RouteCount) * float64(len(node.Connections))
-			
+
 			connectedStops := make([]string, 0, len(node.Connections))
 			for connectedStop := range node.Connections {
 				connectedStops = append(connectedStops, connectedStop)
@@ -502,20 +502,20 @@ func (v *NetworkTopologyValidator) identifyTransferOpportunities(container *noti
 func (v *NetworkTopologyValidator) validateRoutingEfficiency(container *notice.NoticeContainer, graph *NetworkGraph) {
 	// Check for route overlaps (same stop sequence)
 	routePatterns := make(map[string][]string) // pattern -> route_ids
-	
+
 	for routeID, stopList := range graph.RouteMap {
 		// Create unique stop sequence
 		uniqueStops := make(map[string]bool)
 		for _, stopID := range stopList {
 			uniqueStops[stopID] = true
 		}
-		
+
 		stopSequence := make([]string, 0, len(uniqueStops))
 		for stopID := range uniqueStops {
 			stopSequence = append(stopSequence, stopID)
 		}
 		sort.Strings(stopSequence)
-		
+
 		pattern := strings.Join(stopSequence, "|")
 		routePatterns[pattern] = append(routePatterns[pattern], routeID)
 	}
@@ -536,7 +536,7 @@ func (v *NetworkTopologyValidator) validateRoutingEfficiency(container *notice.N
 		for _, stopID := range stopList {
 			uniqueStops[stopID] = true
 		}
-		
+
 		if len(uniqueStops) < 2 {
 			container.AddNotice(notice.NewVeryShortRouteNotice(
 				routeID,

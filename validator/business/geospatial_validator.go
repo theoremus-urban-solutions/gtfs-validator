@@ -22,14 +22,14 @@ func NewGeospatialValidator() *GeospatialValidator {
 
 // GeoStop represents a stop with geographic information
 type GeoStop struct {
-	StopID       string
-	StopName     string
-	Latitude     float64
-	Longitude    float64
-	LocationType int
+	StopID        string
+	StopName      string
+	Latitude      float64
+	Longitude     float64
+	LocationType  int
 	ParentStation string
-	ZoneID       string
-	RowNumber    int
+	ZoneID        string
+	RowNumber     int
 }
 
 // GeoShape represents a shape point with geographic information
@@ -52,11 +52,11 @@ type BoundingBox struct {
 
 // StopCluster represents spatially clustered stops
 type StopCluster struct {
-	CenterLat   float64
-	CenterLon   float64
-	Stops       []*GeoStop
-	Radius      float64
-	StopCount   int
+	CenterLat float64
+	CenterLon float64
+	Stops     []*GeoStop
+	Radius    float64
+	StopCount int
 }
 
 // Validate performs comprehensive geospatial validation
@@ -71,21 +71,21 @@ func (v *GeospatialValidator) Validate(loader *parser.FeedLoader, container *not
 
 	// Calculate feed bounding box
 	feedBounds := v.calculateFeedBounds(stops, shapes)
-	
+
 	// Validate geographic consistency
 	v.validateGeographicConsistency(container, stops, feedBounds)
-	
+
 	// Validate stop spatial relationships
 	v.validateStopSpatialRelationships(container, stops)
-	
+
 	// Validate shape geometry if available
 	if len(shapes) > 0 {
 		v.validateShapeGeometry(container, shapes, feedBounds)
 	}
-	
+
 	// Analyze stop clustering patterns
 	v.analyzeStopClustering(container, stops)
-	
+
 	// Validate coordinate precision and accuracy
 	v.validateCoordinateQuality(container, stops, shapes)
 }
@@ -308,8 +308,8 @@ func (v *GeospatialValidator) validateGeographicConsistency(container *notice.No
 		}
 
 		// Check for coordinates at (0,0) which are often errors
-		if v.approximatelyEqual(stop.Latitude, 0.0, 0.000001) && 
-		   v.approximatelyEqual(stop.Longitude, 0.0, 0.000001) {
+		if v.approximatelyEqual(stop.Latitude, 0.0, 0.000001) &&
+			v.approximatelyEqual(stop.Longitude, 0.0, 0.000001) {
 			container.AddNotice(notice.NewSuspiciousCoordinateNotice(
 				"stops.txt",
 				"stop_lat",
@@ -323,7 +323,7 @@ func (v *GeospatialValidator) validateGeographicConsistency(container *notice.No
 	// Calculate feed coverage area
 	latSpan := bounds.MaxLat - bounds.MinLat
 	lonSpan := bounds.MaxLon - bounds.MinLon
-	
+
 	// Very large coverage (> 1000km in any direction) might indicate data errors
 	if latSpan > 9.0 || lonSpan > 9.0 { // Roughly 1000km
 		container.AddNotice(notice.NewVeryLargeFeedCoverageNotice(
@@ -406,7 +406,7 @@ func (v *GeospatialValidator) validateShapeGeometry(container *notice.NoticeCont
 		tolerance := 0.01 // ~1km tolerance
 		for _, point := range shapePoints {
 			if point.Latitude < bounds.MinLat-tolerance || point.Latitude > bounds.MaxLat+tolerance ||
-			   point.Longitude < bounds.MinLon-tolerance || point.Longitude > bounds.MaxLon+tolerance {
+				point.Longitude < bounds.MinLon-tolerance || point.Longitude > bounds.MaxLon+tolerance {
 				container.AddNotice(notice.NewShapePointOutsideFeedBoundsNotice(
 					shapeID,
 					point.Sequence,
@@ -478,7 +478,7 @@ func (v *GeospatialValidator) validateShapeDistanceConsistency(container *notice
 		// Compare with provided distance
 		if curr.DistTraveled != nil {
 			providedDistance := *curr.DistTraveled
-			
+
 			// Allow 20% tolerance for distance differences
 			tolerance := cumulativeGeoDistance * 0.2
 			if math.Abs(providedDistance-cumulativeGeoDistance) > tolerance && tolerance > 100 {
@@ -578,7 +578,7 @@ func (v *GeospatialValidator) validateCoordinateQuality(container *notice.Notice
 	// Check coordinate precision for stops
 	for _, stop := range stops {
 		precision := v.getCoordinatePrecision(stop.Latitude, stop.Longitude)
-		
+
 		// Less than 4 decimal places (~11m precision) might be insufficient
 		if precision < 4 {
 			container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(

@@ -139,14 +139,16 @@ func (v *ZoneValidator) loadUsedZones(loader *parser.FeedLoader) map[string]bool
 func (v *ZoneValidator) validateZones(container *notice.NoticeContainer, zones map[string][]*ZoneInfo, usedZones map[string]bool) {
 	// Check for zone consistency
 	for zoneID, zoneInfos := range zones {
-		// Check if zone has multiple stops (normal)
+		// Single stop zone should be ignored if there is zone usage in fare rules
 		if len(zoneInfos) == 1 {
 			// Single stop in zone - might be a data quality issue
-			container.AddNotice(notice.NewSingleStopZoneNotice(
-				zoneID,
-				zoneInfos[0].StopID,
-				zoneInfos[0].RowNumber,
-			))
+			if !usedZones[zoneID] {
+				container.AddNotice(notice.NewSingleStopZoneNotice(
+					zoneID,
+					zoneInfos[0].StopID,
+					zoneInfos[0].RowNumber,
+				))
+			}
 		}
 	}
 

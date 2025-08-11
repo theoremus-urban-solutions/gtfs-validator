@@ -10,10 +10,10 @@ import (
 // BenchmarkValidateFile benchmarks the main validation function
 func BenchmarkValidateFile(b *testing.B) {
 	validator := New()
-	
+
 	// Create test ZIP once for all iterations
 	zipPath := createBenchmarkZip(b, MinimalValidGTFS())
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := validator.ValidateFile(zipPath)
@@ -27,7 +27,7 @@ func BenchmarkValidateFile(b *testing.B) {
 func BenchmarkValidateFile_Performance(b *testing.B) {
 	validator := New(WithValidationMode(ValidationModePerformance))
 	zipPath := createBenchmarkZip(b, MinimalValidGTFS())
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := validator.ValidateFile(zipPath)
@@ -41,7 +41,7 @@ func BenchmarkValidateFile_Performance(b *testing.B) {
 func BenchmarkValidateFile_Comprehensive(b *testing.B) {
 	validator := New(WithValidationMode(ValidationModeComprehensive))
 	zipPath := createBenchmarkZip(b, MinimalValidGTFS())
-	
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, err := validator.ValidateFile(zipPath)
@@ -54,12 +54,12 @@ func BenchmarkValidateFile_Comprehensive(b *testing.B) {
 // BenchmarkValidateFile_ParallelWorkers benchmarks different worker counts
 func BenchmarkValidateFile_ParallelWorkers(b *testing.B) {
 	workerCounts := []int{1, 2, 4, 8}
-	
+
 	for _, workers := range workerCounts {
 		b.Run(fmt.Sprintf("workers_%d", workers), func(b *testing.B) {
 			validator := New(WithParallelWorkers(workers))
 			zipPath := createBenchmarkZip(b, MinimalValidGTFS())
-			
+
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				_, err := validator.ValidateFile(zipPath)
@@ -74,7 +74,7 @@ func BenchmarkValidateFile_ParallelWorkers(b *testing.B) {
 // createBenchmarkZip creates a temporary ZIP file for benchmarking
 func createBenchmarkZip(b *testing.B, files map[string]string) string {
 	b.Helper()
-	
+
 	tmpFile, err := os.CreateTemp("", "benchmark-gtfs-*.zip")
 	if err != nil {
 		b.Fatalf("Failed to create temp file: %v", err)
@@ -95,7 +95,7 @@ func createBenchmarkZip(b *testing.B, files map[string]string) string {
 		if err != nil {
 			b.Fatalf("Failed to create zip entry %s: %v", filename, err)
 		}
-		
+
 		if _, err := writer.Write([]byte(content)); err != nil {
 			b.Fatalf("Failed to write zip entry %s: %v", filename, err)
 		}

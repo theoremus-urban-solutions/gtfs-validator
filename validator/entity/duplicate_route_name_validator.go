@@ -20,12 +20,12 @@ func NewDuplicateRouteNameValidator() *DuplicateRouteNameValidator {
 
 // RouteInfo represents route information for duplication checking
 type RouteInfo struct {
-	RouteID       string
-	RouteLongName string
+	RouteID        string
+	RouteLongName  string
 	RouteShortName string
-	AgencyID      string
-	RouteType     int
-	RowNumber     int
+	AgencyID       string
+	RouteType      int
+	RowNumber      int
 }
 
 // Validate checks for duplicate route names within same agency and route type
@@ -37,7 +37,7 @@ func (v *DuplicateRouteNameValidator) Validate(loader *parser.FeedLoader, contai
 
 	// Group routes by agency_id and route_type
 	routeGroups := make(map[string][]RouteInfo)
-	
+
 	for _, route := range routes {
 		// Create key from agency_id and route_type
 		key := route.AgencyID + "_" + strconv.Itoa(route.RouteType)
@@ -86,7 +86,7 @@ func (v *DuplicateRouteNameValidator) loadRoutes(loader *parser.FeedLoader) []Ro
 // parseRoute parses a route record
 func (v *DuplicateRouteNameValidator) parseRoute(row *parser.CSVRow) *RouteInfo {
 	routeID, hasRouteID := row.Values["route_id"]
-	if !hasRouteID {
+	if !hasRouteID || strings.TrimSpace(routeID) == "" {
 		return nil
 	}
 
@@ -158,7 +158,7 @@ func (v *DuplicateRouteNameValidator) checkDuplicateLongNames(container *notice.
 		if len(duplicateRoutes) > 1 {
 			// Get the original name from first route
 			originalName := duplicateRoutes[0].RouteLongName
-			
+
 			for i := 1; i < len(duplicateRoutes); i++ {
 				container.AddNotice(notice.NewDuplicateRouteLongNameNotice(
 					duplicateRoutes[i].RouteID,
@@ -191,7 +191,7 @@ func (v *DuplicateRouteNameValidator) checkDuplicateShortNames(container *notice
 		if len(duplicateRoutes) > 1 {
 			// Get the original name from first route
 			originalName := duplicateRoutes[0].RouteShortName
-			
+
 			for i := 1; i < len(duplicateRoutes); i++ {
 				container.AddNotice(notice.NewDuplicateRouteShortNameNotice(
 					duplicateRoutes[i].RouteID,
@@ -226,7 +226,7 @@ func (v *DuplicateRouteNameValidator) checkDuplicateNameCombinations(container *
 		if len(duplicateRoutes) > 1 {
 			// Get the original names from first route
 			firstRoute := duplicateRoutes[0]
-			
+
 			for i := 1; i < len(duplicateRoutes); i++ {
 				container.AddNotice(notice.NewDuplicateRouteNameCombinationNotice(
 					duplicateRoutes[i].RouteID,
