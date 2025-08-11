@@ -93,8 +93,8 @@ func TestFieldFormatValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,25:30:00,08:00:00,1,1",
 			},
-			expectedNoticeCodes: []string{"invalid_field_format"},
-			description:         "Invalid arrival_time format (25 hours)",
+			expectedNoticeCodes: []string{},
+			description:         "Valid arrival_time format (25 hours is valid in GTFS for next-day service)",
 		},
 		{
 			name: "stop_times.txt invalid departure time",
@@ -117,8 +117,8 @@ func TestFieldFormatValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250101,25251231",
 			},
-			expectedNoticeCodes: []string{"invalid_field_format"},
-			description:         "Invalid end_date format (invalid year)",
+			expectedNoticeCodes: []string{},
+			description:         "Valid end_date format (year 2525 is valid according to GTFS specification)",
 		},
 		{
 			name: "calendar_dates.txt invalid date",

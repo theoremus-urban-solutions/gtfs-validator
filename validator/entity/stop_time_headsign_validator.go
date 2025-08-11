@@ -229,7 +229,7 @@ func (v *StopTimeHeadsignValidator) validateHeadsignSequence(container *notice.N
 
 	for _, sh := range stopHeadsigns {
 		if strings.TrimSpace(sh.StopHeadsign) != "" {
-			if prevHeadsign != "" && sh.StopHeadsign != prevHeadsign {
+			if prevHeadsign != "" && !v.areHeadsignsConsistent(sh.StopHeadsign, prevHeadsign) {
 				headsignChanges++
 
 				// Info notice for headsign change
@@ -320,6 +320,7 @@ func (v *StopTimeHeadsignValidator) areHeadsignVariations(headsign1, headsign2 s
 		"airport":    {"apt", "airpt"},
 	}
 
+	// First check for substring matches (original logic)
 	for full, abbrevs := range abbreviations {
 		for _, abbrev := range abbrevs {
 			if (strings.Contains(headsign1, full) && strings.Contains(headsign2, abbrev)) ||
@@ -329,6 +330,49 @@ func (v *StopTimeHeadsignValidator) areHeadsignVariations(headsign1, headsign2 s
 		}
 	}
 
+	// Then check for word-by-word comparisons
+	words1 := strings.Fields(strings.ToLower(headsign1))
+	words2 := strings.Fields(strings.ToLower(headsign2))
+
+	if len(words1) != len(words2) {
+		return false
+	}
+
+	// Check if each word pair is consistent
+	for i := 0; i < len(words1); i++ {
+		word1 := words1[i]
+		word2 := words2[i]
+
+		// Direct match
+		if word1 == word2 {
+			continue
+		}
+
+		// Check if one is abbreviation of the other
+		found := false
+		for full, abbrevs := range abbreviations {
+			if (word1 == full && contains(abbrevs, word2)) ||
+				(word2 == full && contains(abbrevs, word1)) {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			return false
+		}
+	}
+
+	return true
+}
+
+// contains checks if a slice contains a string
+func contains(slice []string, item string) bool {
+	for _, s := range slice {
+		if s == item {
+			return true
+		}
+	}
 	return false
 }
 
@@ -386,7 +430,7 @@ func (v *StopTimeHeadsignValidator) validateHeadsignContent(container *notice.No
 		}
 	}
 
-	if punctuationCount > 5 {
+	if punctuationCount >= 3 {
 		container.AddNotice(notice.NewExcessivePunctuationHeadsignNotice(
 			tripID,
 			sh.StopSequence,

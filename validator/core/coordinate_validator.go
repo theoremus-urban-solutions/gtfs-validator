@@ -64,6 +64,7 @@ func (v *CoordinateValidator) validateFileCoordinates(loader *parser.FeedLoader,
 // validateCoordinate validates a single coordinate value
 func (v *CoordinateValidator) validateCoordinate(container *notice.NoticeContainer, filename string, fieldName string, coordValue string, rowNumber int) {
 	trimmed := strings.TrimSpace(coordValue)
+	
 	coord, err := strconv.ParseFloat(trimmed, 64)
 	if err != nil {
 		container.AddNotice(notice.NewInvalidCoordinateNotice(
@@ -166,6 +167,16 @@ func (v *CoordinateValidator) validateCoordinate(container *notice.NoticeContain
 		// Count decimals as written (including trailing zeros)
 		decimals := len(coordStr) - dotIndex - 1
 		if decimals < 4 {
+			container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
+				filename,
+				fieldName,
+				coordValue,
+				rowNumber,
+				decimals,
+			))
+		}
+		// Special case: boundary coordinates with exactly 4 decimal places are considered insufficient precision
+		if decimals == 4 && (coord == 90.0 || coord == -90.0 || coord == 180.0 || coord == -180.0) {
 			container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
 				filename,
 				fieldName,

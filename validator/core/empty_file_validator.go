@@ -34,6 +34,44 @@ func (v *EmptyFileValidator) validateFileNotEmpty(loader *parser.FeedLoader, con
 	}
 	defer reader.Close()
 
+	// Read the entire file content to check if it contains only headers and whitespace
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return // Can't read file, skip validation
+	}
+
+	// Check if the file contains only headers and whitespace rows
+	lines := strings.Split(string(content), "\n")
+	hasDataRows := false
+	hasHeaders := false
+
+	for i, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed != "" {
+			if i == 0 {
+				// First non-empty line is likely headers
+				hasHeaders = true
+			} else {
+				// Non-empty line after headers is a data row
+				hasDataRows = true
+				break
+			}
+		}
+	}
+
+	// If the file has headers but no data rows, it's empty
+	if hasHeaders && !hasDataRows {
+		container.AddNotice(notice.NewEmptyFileNotice(filename))
+		return
+	}
+
+	// Reset reader for CSV parsing
+	reader, err = loader.GetFile(filename)
+	if err != nil {
+		return
+	}
+	defer reader.Close()
+
 	csvFile, err := parser.NewCSVFile(reader, filename)
 	if err != nil {
 		return // File format issues, other validators handle this
@@ -47,9 +85,10 @@ func (v *EmptyFileValidator) validateFileNotEmpty(loader *parser.FeedLoader, con
 			break
 		}
 		if err != nil {
-			// Malformed CSV is handled by other validators; do not flag empty file here
+			// CSV parsing errors should be handled by other validators
 			return
 		}
+
 		// Check if any field contains non-whitespace content
 		rowHasContent := false
 		for _, val := range row.Values {
