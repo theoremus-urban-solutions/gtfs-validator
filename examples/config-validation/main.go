@@ -215,34 +215,3 @@ func formatValidatorName(validatorName string) string {
 	}
 	return name
 }
-
-// Example configurations as constants for reference
-func printConfigurationReference() {
-	fmt.Println("Configuration Reference")
-	fmt.Println("======================")
-	fmt.Println()
-	fmt.Println("Country Codes:")
-	fmt.Println("  - Must be 2-letter ISO codes (e.g., 'US', 'GB', 'CA', 'FR')")
-	fmt.Println("  - Used for phone number validation")
-	fmt.Println()
-	fmt.Println("Validation Modes:")
-	fmt.Println("  - Performance: Fast validation, essential validators only")
-	fmt.Println("  - Default: Standard validation, good balance of speed/coverage")
-	fmt.Println("  - Comprehensive: All validators including expensive ones")
-	fmt.Println()
-	fmt.Println("Parallel Workers:")
-	fmt.Println("  - Range: 1-100 workers")
-	fmt.Println("  - More workers = faster validation but more memory usage")
-	fmt.Println("  - Recommended: 4-8 for most systems")
-	fmt.Println()
-	fmt.Println("Max Memory:")
-	fmt.Println("  - 0 = no limit")
-	fmt.Println("  - Minimum: 10MB if specified")
-	fmt.Println("  - Recommended: 512MB-2GB for large feeds")
-	fmt.Println()
-	fmt.Println("Max Notices Per Type:")
-	fmt.Println("  - 0 = no limit")
-	fmt.Println("  - Maximum: 10,000 per type")
-	fmt.Println("  - Helps prevent memory issues with feeds that have many repeated errors")
-	fmt.Println()
-}

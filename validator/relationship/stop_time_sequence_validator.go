@@ -154,7 +154,6 @@ func (v *StopTimeSequenceValidator) validateShapeDistanceOrder(container *notice
 			prevStopTime.ShapeDistTraveled != nil &&
 			currentStopTime.ShapeDistTraveled != nil &&
 			*prevStopTime.ShapeDistTraveled >= *currentStopTime.ShapeDistTraveled {
-
 			container.AddNotice(notice.NewDecreasingOrEqualStopTimeDistanceNotice(
 				currentStopTime.TripID,
 				currentStopTime.StopID,

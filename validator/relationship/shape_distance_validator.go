@@ -146,7 +146,6 @@ func (v *ShapeDistanceValidator) validateIncreasingDistances(container *notice.N
 			prevPoint.ShapeDistTraveled != nil &&
 			currentPoint.ShapeDistTraveled != nil &&
 			*prevPoint.ShapeDistTraveled >= *currentPoint.ShapeDistTraveled {
-
 			container.AddNotice(notice.NewDecreasingOrEqualShapeDistanceNotice(
 				currentPoint.ShapeID,
 				currentPoint.ShapePtSequence,

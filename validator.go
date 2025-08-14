@@ -492,8 +492,6 @@ func sanitizeConfig(config *Config) {
 		config.MaxNoticesPerType = 0 // 0 means no limit
 	} else if config.MaxNoticesPerType > 10000 {
 		config.MaxNoticesPerType = 10000
-	} else if config.MaxNoticesPerType == 0 {
-		// 0 is actually valid (no limit), but if we want a default:
-		// config.MaxNoticesPerType = 100
 	}
+	// 0 is valid (no limit), no action needed
 }

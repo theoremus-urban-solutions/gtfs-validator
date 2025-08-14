@@ -112,7 +112,7 @@ func main() {
 		case "WARNING":
 			warnings = append(warnings, notice)
 		case "INFO":
-			infos = append(infos, notice)
+			_ = append(infos, notice)
 		}
 	}
 

@@ -64,7 +64,7 @@ func (v *CoordinateValidator) validateFileCoordinates(loader *parser.FeedLoader,
 // validateCoordinate validates a single coordinate value
 func (v *CoordinateValidator) validateCoordinate(container *notice.NoticeContainer, filename string, fieldName string, coordValue string, rowNumber int) {
 	trimmed := strings.TrimSpace(coordValue)
-	
+
 	coord, err := strconv.ParseFloat(trimmed, 64)
 	if err != nil {
 		container.AddNotice(notice.NewInvalidCoordinateNotice(

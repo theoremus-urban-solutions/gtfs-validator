@@ -1,14 +1,13 @@
+version: 2
+
 run:
   timeout: 5m
   go: "1.23"
 
 linters:
   enable:
-    - gofmt
-    - goimports
     - govet
     - staticcheck
-    - gosimple
     - errcheck
     - ineffassign
     - unused
@@ -20,26 +19,20 @@ linters:
     - gocritic
     - godot
     - goheader
-    - gomnd
+    - mnd
     - goprintffuncname
-    - gosec
-    - gosimple
-    - govet
-    - ineffassign
-    - misspell
     - nakedret
     - noctx
     - nolintlint
     - rowserrcheck
-    - staticcheck
-    - structcheck
-    - stylecheck
-    - typecheck
     - unconvert
     - unparam
-    - unused
-    - varcheck
     - whitespace
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
 
 linters-settings:
   gocyclo:
@@ -49,7 +42,7 @@ linters-settings:
   goconst:
     min-len: 3
     min-occurrences: 3
-  gomnd:
+  mnd:
     checks: argument,case,condition,operation,return,assign
   gocritic:
     enabled-tags:
@@ -69,19 +62,19 @@ issues:
   exclude-rules:
     - path: _test\.go
       linters:
-        - gomnd
+        - mnd
         - gocyclo
         - dupl
     - path: examples/
       linters:
-        - gomnd
+        - mnd
         - gocyclo
         - dupl
         - unused
         - gosec
     - path: cmd/
       linters:
-        - gomnd
+        - mnd
         - gocyclo
         - dupl
 

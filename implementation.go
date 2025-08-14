@@ -428,7 +428,6 @@ func (v *internalValidator) runValidatorsSequential(ctx context.Context, validat
 
 // runValidatorsParallel runs validators in parallel using worker goroutines (thread-safe).
 func (v *internalValidator) runValidatorsParallel(ctx context.Context, validatorConfig validator.Config, startTime time.Time, totalValidators int) error {
-
 	workers := v.config.ParallelWorkers
 	if workers > totalValidators {
 		workers = totalValidators
