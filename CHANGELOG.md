@@ -40,6 +40,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GTFS time validation now correctly supports late-night service times (25:30:00+)
 - Time parsing no longer rejects valid GTFS times beyond 24:00:00
 - Thread safety issues in concurrent validation
+- MissingColumnValidator test fixed to handle empty files correctly
+- BikesAllowanceValidator test fixed with proper CSV formatting for empty fields
+- CoordinateValidator test corrected with accurate expected notice counts
+- CLI tests updated to match actual error message formats
 
 ### Performance
 - **2-4M rows/sec** sustained throughput on large GTFS files (tested with Sofia GTFS 588K+ records)

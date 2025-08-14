@@ -187,7 +187,7 @@ func TestBikesAllowanceValidator_Validate(t *testing.T) {
 			name: "complex scenario with multiple route types",
 			files: map[string]string{
 				"routes.txt": "route_id,route_short_name,route_type\nF1,Ferry,4\nB1,Bus,3\nM1,Metro,1\nT1,Tram,0",
-				"trips.txt":  "route_id,service_id,trip_id,bikes_allowed,wheelchair_accessible\nF1,S1,T1,\nB1,S1,T2,1,1\nM1,S1,T3,1,0\nT1,S1,T4,2,1",
+				"trips.txt":  "route_id,service_id,trip_id,bikes_allowed,wheelchair_accessible\nF1,S1,T1,,\nB1,S1,T2,1,1\nM1,S1,T3,1,0\nT1,S1,T4,2,1",
 			},
 			expectedNoticeCodes: []string{"missing_bikes_allowed_for_ferry", "unusual_bike_allowance", "unusual_bike_allowance", "bike_wheelchair_accessibility_mismatch"},
 			description:         "Complex scenario with multiple validation cases",

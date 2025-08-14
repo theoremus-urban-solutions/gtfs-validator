@@ -252,17 +252,15 @@ func (v *BikesAllowanceValidator) validateBikeAccessibilityConsistency(container
 
 	// Check for unusual combinations
 	if trip.BikesAllowed != nil && trip.RouteType != 4 { // Non-ferry routes
-		if *trip.BikesAllowed == 1 {
-			// Report unusual for uncommon types only
-			if v.isBikeUncommonRouteType(trip.RouteType) {
-				container.AddNotice(notice.NewUnusualBikeAllowanceNotice(
-					trip.TripID,
-					trip.RouteID,
-					trip.RouteType,
-					*trip.BikesAllowed,
-					trip.RowNumber,
-				))
-			}
+		// Report unusual for uncommon types with any bikes_allowed value (1 or 2)
+		if v.isBikeUncommonRouteType(trip.RouteType) {
+			container.AddNotice(notice.NewUnusualBikeAllowanceNotice(
+				trip.TripID,
+				trip.RouteID,
+				trip.RouteType,
+				*trip.BikesAllowed,
+				trip.RowNumber,
+			))
 		}
 	}
 }

@@ -277,63 +277,63 @@ func TestAgencyConsistencyValidator_LoadAgencies(t *testing.T) {
 	tests := []struct {
 		name        string
 		content     string
-		expected    map[string]*AgencyInfo
+		expected    []*AgencyInfo
 		description string
 	}{
 		{
 			name:    "single agency with agency_id",
 			content: "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
-			expected: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+			expected: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
 			},
 			description: "Single agency should be loaded correctly",
 		},
 		{
 			name:    "single agency without agency_id",
 			content: "agency_name,agency_url,agency_timezone\nMetro,http://metro.example,America/Los_Angeles",
-			expected: map[string]*AgencyInfo{
-				"": {AgencyID: "", AgencyName: "Metro", RowNumber: 2},
+			expected: []*AgencyInfo{
+				{AgencyID: "", AgencyName: "Metro", RowNumber: 2},
 			},
-			description: "Agency without agency_id should use empty string as key",
+			description: "Agency without agency_id should use empty string",
 		},
 		{
 			name:    "multiple agencies",
 			content: "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles\n2,Bus,http://bus.example,America/Los_Angeles",
-			expected: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
-				"2": {AgencyID: "2", AgencyName: "Bus", RowNumber: 3},
+			expected: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+				{AgencyID: "2", AgencyName: "Bus", RowNumber: 3},
 			},
 			description: "Multiple agencies should be loaded correctly",
 		},
 		{
 			name:    "agency with whitespace padding",
 			content: "agency_id,agency_name,agency_url,agency_timezone\n 1 , Metro ,http://metro.example,America/Los_Angeles",
-			expected: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+			expected: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
 			},
 			description: "Whitespace should be trimmed from agency_id and agency_name",
 		},
 		{
 			name:    "agency with empty agency_id",
 			content: "agency_id,agency_name,agency_url,agency_timezone\n,Metro,http://metro.example,America/Los_Angeles",
-			expected: map[string]*AgencyInfo{
-				"": {AgencyID: "", AgencyName: "Metro", RowNumber: 2},
+			expected: []*AgencyInfo{
+				{AgencyID: "", AgencyName: "Metro", RowNumber: 2},
 			},
-			description: "Empty agency_id should use empty string as key",
+			description: "Empty agency_id should use empty string",
 		},
 		{
 			name:    "agency with missing agency_name",
 			content: "agency_id,agency_url,agency_timezone\n1,http://metro.example,America/Los_Angeles",
-			expected: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "", RowNumber: 2},
+			expected: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "", RowNumber: 2},
 			},
 			description: "Missing agency_name should result in empty name",
 		},
 		{
 			name:        "empty file",
 			content:     "agency_id,agency_name,agency_url,agency_timezone",
-			expected:    map[string]*AgencyInfo{},
-			description: "Empty file should return empty map",
+			expected:    []*AgencyInfo{},
+			description: "Empty file should return empty slice",
 		},
 	}
 
@@ -349,13 +349,13 @@ func TestAgencyConsistencyValidator_LoadAgencies(t *testing.T) {
 				t.Errorf("Expected %d agencies, got %d", len(tt.expected), len(agencies))
 			}
 
-			for key, expectedAgency := range tt.expected {
-				actualAgency, exists := agencies[key]
-				if !exists {
-					t.Errorf("Expected agency with key '%s' not found", key)
+			for i, expectedAgency := range tt.expected {
+				if i >= len(agencies) {
+					t.Errorf("Expected agency at index %d not found", i)
 					continue
 				}
 
+				actualAgency := agencies[i]
 				if actualAgency.AgencyID != expectedAgency.AgencyID {
 					t.Errorf("Expected AgencyID '%s', got '%s'", expectedAgency.AgencyID, actualAgency.AgencyID)
 				}
@@ -375,56 +375,57 @@ func TestAgencyConsistencyValidator_LoadAgencies(t *testing.T) {
 func TestAgencyConsistencyValidator_ValidateAgencyIdRequirement(t *testing.T) {
 	tests := []struct {
 		name                string
-		agencies            map[string]*AgencyInfo
+		agencies            []*AgencyInfo
 		expectedNoticeCount int
 		description         string
 	}{
 		{
 			name: "single agency without agency_id",
-			agencies: map[string]*AgencyInfo{
-				"": {AgencyID: "", AgencyName: "Metro", RowNumber: 2},
+			agencies: []*AgencyInfo{
+				{AgencyID: "", AgencyName: "Metro", RowNumber: 2},
 			},
 			expectedNoticeCount: 0,
 			description:         "Single agency without agency_id should be valid",
 		},
 		{
 			name: "single agency with agency_id",
-			agencies: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+			agencies: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
 			},
 			expectedNoticeCount: 0,
 			description:         "Single agency with agency_id should be valid",
 		},
 		{
 			name: "multiple agencies all with agency_id",
-			agencies: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
-				"2": {AgencyID: "2", AgencyName: "Bus", RowNumber: 3},
+			agencies: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+				{AgencyID: "2", AgencyName: "Bus", RowNumber: 3},
 			},
 			expectedNoticeCount: 0,
 			description:         "Multiple agencies with agency_ids should be valid",
 		},
 		{
 			name: "multiple agencies with one missing agency_id",
-			agencies: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
-				"":  {AgencyID: "", AgencyName: "Bus", RowNumber: 2},
+			agencies: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+				{AgencyID: "", AgencyName: "Bus", RowNumber: 2},
 			},
 			expectedNoticeCount: 1,
 			description:         "Multiple agencies with missing agency_id should generate notice",
 		},
 		{
 			name: "multiple agencies with multiple missing agency_ids",
-			agencies: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
-				"":  {AgencyID: "", AgencyName: "Bus", RowNumber: 2},
+			agencies: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+				{AgencyID: "", AgencyName: "Bus", RowNumber: 2},
+				{AgencyID: "", AgencyName: "Rail", RowNumber: 3},
 			},
-			expectedNoticeCount: 1,
+			expectedNoticeCount: 2,
 			description:         "Multiple agencies with missing agency_ids should generate notices",
 		},
 		{
 			name:                "no agencies",
-			agencies:            map[string]*AgencyInfo{},
+			agencies:            []*AgencyInfo{},
 			expectedNoticeCount: 0,
 			description:         "No agencies should not generate notices",
 		},
@@ -449,7 +450,7 @@ func TestAgencyConsistencyValidator_ValidateRouteAgencyReferences(t *testing.T) 
 	tests := []struct {
 		name                string
 		routesContent       string
-		agencies            map[string]*AgencyInfo
+		agencies            []*AgencyInfo
 		expectedNoticeCount int
 		expectedCodes       []string
 		description         string
@@ -457,9 +458,9 @@ func TestAgencyConsistencyValidator_ValidateRouteAgencyReferences(t *testing.T) 
 		{
 			name:          "valid route references",
 			routesContent: "route_id,agency_id,route_short_name,route_type\nR1,1,Red,3\nR2,2,Blue,3",
-			agencies: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
-				"2": {AgencyID: "2", AgencyName: "Bus", RowNumber: 3},
+			agencies: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+				{AgencyID: "2", AgencyName: "Bus", RowNumber: 3},
 			},
 			expectedNoticeCount: 0,
 			expectedCodes:       []string{},
@@ -468,8 +469,8 @@ func TestAgencyConsistencyValidator_ValidateRouteAgencyReferences(t *testing.T) 
 		{
 			name:          "invalid route reference",
 			routesContent: "route_id,agency_id,route_short_name,route_type\nR1,999,Red,3",
-			agencies: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+			agencies: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
 			},
 			expectedNoticeCount: 1,
 			expectedCodes:       []string{"invalid_agency_reference"},
@@ -478,8 +479,8 @@ func TestAgencyConsistencyValidator_ValidateRouteAgencyReferences(t *testing.T) 
 		{
 			name:          "route without agency_id with single agency",
 			routesContent: "route_id,route_short_name,route_type\nR1,Red,3",
-			agencies: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+			agencies: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
 			},
 			expectedNoticeCount: 0,
 			expectedCodes:       []string{},
@@ -488,9 +489,9 @@ func TestAgencyConsistencyValidator_ValidateRouteAgencyReferences(t *testing.T) 
 		{
 			name:          "route without agency_id with multiple agencies",
 			routesContent: "route_id,route_short_name,route_type\nR1,Red,3",
-			agencies: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
-				"2": {AgencyID: "2", AgencyName: "Bus", RowNumber: 3},
+			agencies: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+				{AgencyID: "2", AgencyName: "Bus", RowNumber: 3},
 			},
 			expectedNoticeCount: 1,
 			expectedCodes:       []string{"missing_route_agency_id"},
@@ -499,8 +500,8 @@ func TestAgencyConsistencyValidator_ValidateRouteAgencyReferences(t *testing.T) 
 		{
 			name:          "route without route_id",
 			routesContent: "route_id,agency_id,route_short_name,route_type\n,1,Red,3",
-			agencies: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+			agencies: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
 			},
 			expectedNoticeCount: 0,
 			expectedCodes:       []string{},
@@ -509,8 +510,8 @@ func TestAgencyConsistencyValidator_ValidateRouteAgencyReferences(t *testing.T) 
 		{
 			name:          "empty routes file",
 			routesContent: "route_id,agency_id,route_short_name,route_type",
-			agencies: map[string]*AgencyInfo{
-				"1": {AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
+			agencies: []*AgencyInfo{
+				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
 			},
 			expectedNoticeCount: 0,
 			expectedCodes:       []string{},

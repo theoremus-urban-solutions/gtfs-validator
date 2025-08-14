@@ -1,4 +1,4 @@
-go# GTFS Validator Performance Benchmarks
+# GTFS Validator Performance Benchmarks
 
 This document provides performance benchmarks and optimization guidelines for the GTFS validator.
 
@@ -266,5 +266,5 @@ For performance-related questions:
 
 ---
 
-*Last updated: November 2024*
+*Last updated: August 2025*
 *Benchmark results based on: MacBook Pro M2, 16GB RAM, Go 1.23*

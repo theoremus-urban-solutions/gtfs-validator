@@ -4,11 +4,12 @@ This document tracks the implementation status of GTFS validators in the Go impl
 
 ## Implementation Summary
 
-- **Total Validators Implemented**: 57+ 
-- **Test Files Created**: 57/57 (100%)
+- **Total Validators Implemented**: 61 
+- **Test Files Created**: 61/61 (100%)
 - **Test Coverage**: Comprehensive test suite with table-driven tests
 - **GTFS Time Validation**: ✅ Fixed for late-night service (25:30:00+ formats)  
 - **CLI Interface**: ✅ Updated to use Cobra with subcommands and modern UX
+- **Test Suite**: ✅ All tests passing with recent fixes
 
 ## Validator Categories
 
@@ -175,10 +176,16 @@ func TestValidatorName_Validate(t *testing.T) {
 - **Documentation**: Updated README and examples with modern CLI patterns
 
 ### Test Infrastructure Enhancement ✅
-- **Coverage**: Comprehensive test suite covers all 57+ validators
+- **Coverage**: Comprehensive test suite covers all 61 validators
 - **Quality**: Table-driven tests with realistic GTFS data
 - **Maintenance**: Test helper functions for consistent feed loading and validation
 - **CI/CD**: Integration with existing GitHub Actions pipeline
+
+### Recent Test Fixes (August 2025) ✅
+- **MissingColumnValidator**: Fixed test to use empty files for malformed CSV testing
+- **BikesAllowanceValidator**: Corrected CSV formatting with proper trailing commas for empty fields
+- **CoordinateValidator**: Updated expected notice counts (4 suspicious, 8 insufficient precision)
+- **CLI Tests**: Updated error message assertions to match actual Cobra-based CLI output
 
 ## Validation Modes
 

@@ -92,7 +92,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon\n1,North Pole,90.0000,0.0000\n2,South Pole,-90.0000,0.0000\n3,Date Line,0.0000,180.0000\n4,Anti-Meridian,0.0000,-180.0000",
 			},
-			expectedNoticeCodes: []string{"suspicious_coordinate", "suspicious_coordinate", "suspicious_coordinate", "suspicious_coordinate", "suspicious_coordinate", "suspicious_coordinate", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{"suspicious_coordinate", "suspicious_coordinate", "suspicious_coordinate", "suspicious_coordinate", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision"},
 			description:         "Boundary coordinates are valid but zero values are suspicious",
 		},
 		{

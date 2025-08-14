@@ -40,8 +40,8 @@ type AgencyInfo struct {
 }
 
 // loadAgencies loads agency information from agency.txt
-func (v *AgencyConsistencyValidator) loadAgencies(loader *parser.FeedLoader) map[string]*AgencyInfo {
-	agencies := make(map[string]*AgencyInfo)
+func (v *AgencyConsistencyValidator) loadAgencies(loader *parser.FeedLoader) []*AgencyInfo {
+	var agencies []*AgencyInfo
 
 	reader, err := loader.GetFile("agency.txt")
 	if err != nil {
@@ -66,7 +66,7 @@ func (v *AgencyConsistencyValidator) loadAgencies(loader *parser.FeedLoader) map
 		agencyID, hasAgencyID := row.Values["agency_id"]
 		agencyName, hasAgencyName := row.Values["agency_name"]
 
-		// Use empty string as key if no agency_id provided
+		// Use empty string if no agency_id provided
 		key := ""
 		if hasAgencyID {
 			key = strings.TrimSpace(agencyID)
@@ -77,18 +77,18 @@ func (v *AgencyConsistencyValidator) loadAgencies(loader *parser.FeedLoader) map
 			name = strings.TrimSpace(agencyName)
 		}
 
-		agencies[key] = &AgencyInfo{
+		agencies = append(agencies, &AgencyInfo{
 			AgencyID:   key,
 			AgencyName: name,
 			RowNumber:  row.RowNumber,
-		}
+		})
 	}
 
 	return agencies
 }
 
 // validateAgencyIdRequirement checks if agency_id is required
-func (v *AgencyConsistencyValidator) validateAgencyIdRequirement(container *notice.NoticeContainer, agencies map[string]*AgencyInfo) {
+func (v *AgencyConsistencyValidator) validateAgencyIdRequirement(container *notice.NoticeContainer, agencies []*AgencyInfo) {
 	// If there are multiple agencies, agency_id is required
 	if len(agencies) > 1 {
 		for _, agency := range agencies {
@@ -103,7 +103,7 @@ func (v *AgencyConsistencyValidator) validateAgencyIdRequirement(container *noti
 }
 
 // validateRouteAgencyReferences checks that routes reference valid agencies
-func (v *AgencyConsistencyValidator) validateRouteAgencyReferences(loader *parser.FeedLoader, container *notice.NoticeContainer, agencies map[string]*AgencyInfo) {
+func (v *AgencyConsistencyValidator) validateRouteAgencyReferences(loader *parser.FeedLoader, container *notice.NoticeContainer, agencies []*AgencyInfo) {
 	reader, err := loader.GetFile("routes.txt")
 	if err != nil {
 		return // No routes file
@@ -113,6 +113,12 @@ func (v *AgencyConsistencyValidator) validateRouteAgencyReferences(loader *parse
 	csvFile, err := parser.NewCSVFile(reader, "routes.txt")
 	if err != nil {
 		return
+	}
+
+	// Create a map for efficient agency lookups
+	agencyMap := make(map[string]*AgencyInfo)
+	for _, agency := range agencies {
+		agencyMap[agency.AgencyID] = agency
 	}
 
 	for {
@@ -154,7 +160,7 @@ func (v *AgencyConsistencyValidator) validateRouteAgencyReferences(loader *parse
 
 		// Check if referenced agency exists (only when an agency_id is provided)
 		if expectedAgencyID != "" {
-			if _, exists := agencies[expectedAgencyID]; !exists {
+			if _, exists := agencyMap[expectedAgencyID]; !exists {
 				container.AddNotice(notice.NewInvalidAgencyReferenceNotice(
 					strings.TrimSpace(routeID),
 					expectedAgencyID,

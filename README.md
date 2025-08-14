@@ -13,7 +13,7 @@ A fast, comprehensive GTFS (General Transit Feed Specification) validator librar
 ## Features
 
 - **🚀 Fast Validation**: Optimized for large feeds with parallel processing and memory pools
-- **📋 Comprehensive**: 294+ validation rules across 57 validators - more than official MobilityData validator  
+- **📋 Comprehensive**: 294+ validation rules across 61 validators - more than official MobilityData validator  
 - **🔧 Multiple Modes**: Performance, default, and comprehensive validation modes
 - **⚡ Concurrent**: Thread-safe with configurable worker pools
 - **⏰ Context Support**: Cancellation, timeouts, and progress reporting
@@ -193,7 +193,7 @@ This implementation provides **more validation rules than the official MobilityD
 | Validator | Our Implementation | Official MobilityData |
 |-----------|-------------------|----------------------|
 | **Total Rules** | **294 validation rules** | ~60 core rules |
-| **Validators** | **57 specialized validators** | ~30 validators |
+| **Validators** | **61 specialized validators** | ~30 validators |
 | **Test Coverage** | **100% - all validators tested** | Partial |
 | **Categories** | **6 comprehensive categories** | 3 basic categories |
 
