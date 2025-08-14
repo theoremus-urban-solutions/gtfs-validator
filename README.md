@@ -278,6 +278,10 @@ Tested on Sofia GTFS feed (180 routes, 588k stop times, 607k shapes):
 
 MIT License - see [LICENSE](LICENSE) file for details.
 
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for planned features and future development direction.
+
 ## Contributing
 
 Contributions welcome! Please see contributing guidelines for development setup and pull request process.
