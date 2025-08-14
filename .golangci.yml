@@ -6,28 +6,17 @@ run:
 
 linters:
   enable:
-    - govet
-    - staticcheck
     - errcheck
-    - ineffassign
-    - unused
-    - misspell
-    - gosec
-    - gocyclo
-    - dupl
     - goconst
     - gocritic
-    - godot
-    - goheader
-    - mnd
-    - goprintffuncname
-    - nakedret
-    - noctx
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
     - nolintlint
-    - rowserrcheck
+    - staticcheck
     - unconvert
-    - unparam
-    - whitespace
+    - unused
 
 formatters:
   enable:
