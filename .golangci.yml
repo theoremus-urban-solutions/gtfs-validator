@@ -1,9 +1,8 @@
-version: 2
+version: "2"
 
 run:
   timeout: 5m
   go: "1.23"
-  output-format: colored-line-number
 
 linters:
   enable:
@@ -35,49 +34,6 @@ formatters:
     - gofmt
     - goimports
 
-linters-settings:
-  gocyclo:
-    min-complexity: 15
-  dupl:
-    threshold: 100
-  goconst:
-    min-len: 3
-    min-occurrences: 3
-  mnd:
-    checks: argument,case,condition,operation,return,assign
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - dupImport
-      - ifElseChain
-      - octalLiteral
-      - whyNoLint
-      - wrapperFunc
-
 issues:
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - mnd
-        - gocyclo
-        - dupl
-    - path: examples/
-      linters:
-        - mnd
-        - gocyclo
-        - dupl
-        - unused
-        - gosec
-    - path: cmd/
-      linters:
-        - mnd
-        - gocyclo
-        - dupl
-
   max-issues-per-linter: 0
   max-same-issues: 0
