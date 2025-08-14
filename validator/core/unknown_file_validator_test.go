@@ -18,7 +18,7 @@ func TestUnknownFileValidator_Validate(t *testing.T) {
 		{
 			name: "all known GTFS files",
 			files: map[string]string{
-				"agency.txt":         "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
+				AgencyFile:           "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"stops.txt":          "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,34.05,-118.25",
 				"routes.txt":         "route_id,agency_id,route_short_name,route_long_name,route_type\n1,1,1,Main Line,3",
 				"trips.txt":          "route_id,service_id,trip_id\n1,S1,T1",
@@ -33,7 +33,7 @@ func TestUnknownFileValidator_Validate(t *testing.T) {
 		{
 			name: "single unknown file",
 			files: map[string]string{
-				"agency.txt":      "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
+				AgencyFile:        "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"custom_data.txt": "id,name,value\n1,test,123",
 			},
 			expectedNoticeCodes: []string{"unknown_file"},
@@ -42,7 +42,7 @@ func TestUnknownFileValidator_Validate(t *testing.T) {
 		{
 			name: "multiple unknown files",
 			files: map[string]string{
-				"agency.txt":      "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
+				AgencyFile:        "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"custom_data.txt": "id,name,value\n1,test,123",
 				"extra_info.txt":  "field1,field2\na,b",
 				"vendor_data.txt": "vendor_field\nvalue",
@@ -53,7 +53,7 @@ func TestUnknownFileValidator_Validate(t *testing.T) {
 		{
 			name: "unknown geojson file",
 			files: map[string]string{
-				"agency.txt":            "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
+				AgencyFile:              "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"custom_shapes.geojson": `{"type": "FeatureCollection", "features": []}`,
 			},
 			expectedNoticeCodes: []string{"unknown_file"},
@@ -62,7 +62,7 @@ func TestUnknownFileValidator_Validate(t *testing.T) {
 		{
 			name: "known geojson file",
 			files: map[string]string{
-				"agency.txt":        "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
+				AgencyFile:          "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"locations.geojson": `{"type": "FeatureCollection", "features": []}`,
 			},
 			expectedNoticeCodes: []string{},
@@ -71,11 +71,11 @@ func TestUnknownFileValidator_Validate(t *testing.T) {
 		{
 			name: "non-text files ignored",
 			files: map[string]string{
-				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
-				"readme.md":  "# GTFS Feed\nThis is a sample feed",
-				"data.json":  `{"version": "1.0"}`,
-				"image.png":  "binary image data",
-				"style.css":  "body { margin: 0; }",
+				AgencyFile:  "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
+				"readme.md": "# GTFS Feed\nThis is a sample feed",
+				"data.json": `{"version": "1.0"}`,
+				"image.png": "binary image data",
+				"style.css": "body { margin: 0; }",
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Non-text files should be ignored",
@@ -83,7 +83,7 @@ func TestUnknownFileValidator_Validate(t *testing.T) {
 		{
 			name: "hidden files ignored",
 			files: map[string]string{
-				"agency.txt":  "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
+				AgencyFile:    "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				".hidden.txt": "hidden content",
 				".DS_Store":   "mac system file",
 				".gitignore":  "*.tmp",
@@ -94,7 +94,7 @@ func TestUnknownFileValidator_Validate(t *testing.T) {
 		{
 			name: "mixed known and unknown files",
 			files: map[string]string{
-				"agency.txt":          "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
+				AgencyFile:            "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"stops.txt":           "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,34.05,-118.25",
 				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,USD,0,0",
 				"pathways.txt":        "pathway_id,from_stop_id,to_stop_id,pathway_mode\nP1,1,2,1",
@@ -107,7 +107,7 @@ func TestUnknownFileValidator_Validate(t *testing.T) {
 		{
 			name: "all GTFS fare v2 files",
 			files: map[string]string{
-				"agency.txt":              "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
+				AgencyFile:                "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"fare_media.txt":          "fare_media_id,fare_media_name,fare_media_type\nM1,Card,1",
 				"fare_products.txt":       "fare_product_id,fare_product_name,amount,currency\nP1,Regular,2.50,USD",
 				"fare_leg_rules.txt":      "leg_group_id,network_id,from_area_id,to_area_id,fare_product_id\nLG1,N1,A1,A2,P1",
@@ -119,7 +119,7 @@ func TestUnknownFileValidator_Validate(t *testing.T) {
 		{
 			name: "GTFS flex files",
 			files: map[string]string{
-				"agency.txt":               "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
+				AgencyFile:                 "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"areas.txt":                "area_id,area_name\nA1,Downtown",
 				"stop_areas.txt":           "area_id,stop_id\nA1,S1",
 				"booking_rules.txt":        "booking_rule_id,booking_type,prior_notice_duration_min\nBR1,1,60",
@@ -132,7 +132,7 @@ func TestUnknownFileValidator_Validate(t *testing.T) {
 		{
 			name: "network files",
 			files: map[string]string{
-				"agency.txt":         "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
+				AgencyFile:           "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"networks.txt":       "network_id,network_name\nN1,Metro Network",
 				"route_networks.txt": "network_id,route_id\nN1,R1",
 			},
@@ -142,7 +142,7 @@ func TestUnknownFileValidator_Validate(t *testing.T) {
 		{
 			name: "shapes geojson file",
 			files: map[string]string{
-				"agency.txt":         "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
+				AgencyFile:           "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"shapes_geojson.txt": `{"type": "FeatureCollection", "features": []}`,
 			},
 			expectedNoticeCodes: []string{},
@@ -207,9 +207,9 @@ func TestUnknownFileValidator_ValidateKnownFile(t *testing.T) {
 	}{
 		{
 			name:                "known core file",
-			filename:            "agency.txt",
+			filename:            AgencyFile,
 			expectUnknownNotice: false,
-			description:         "agency.txt is a core GTFS file",
+			description:         AgencyFile + " is a core GTFS file",
 		},
 		{
 			name:                "known optional file",
@@ -310,7 +310,7 @@ func TestUnknownFileValidator_ValidateKnownFile(t *testing.T) {
 						case "data/custom_data.txt":
 							expectedFilename = "custom_data.txt"
 						case "gtfs/agency.txt":
-							expectedFilename = "agency.txt"
+							expectedFilename = AgencyFile
 						}
 						if filename != expectedFilename {
 							t.Errorf("Expected filename '%s' in notice context, got '%v'", expectedFilename, filename)
@@ -427,11 +427,9 @@ func TestUnknownFileValidator_FileExtensions(t *testing.T) {
 				if hasNotice != expectedNotice {
 					t.Errorf("File %s: expected notice=%v, got notice=%v", tt.filename, expectedNotice, hasNotice)
 				}
-			} else {
+			} else if hasNotice {
 				// Files that shouldn't be checked should never generate notices
-				if hasNotice {
-					t.Errorf("File %s should be ignored but generated a notice", tt.filename)
-				}
+				t.Errorf("File %s should be ignored but generated a notice", tt.filename)
 			}
 		})
 	}

@@ -98,20 +98,20 @@ func TestDuplicateKeyValidator_Validate(t *testing.T) {
 			description:         "Duplicate composite key (from_stop_id + to_stop_id) should generate notice",
 		},
 		{
-			name: "multiple records in feed_info.txt",
+			name: "multiple records in FeedInfoFile",
 			files: map[string]string{
-				"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,en\nBus,http://bus.example,en", // Multiple records
+				FeedInfoFile: "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,en\nBus,http://bus.example,en", // Multiple records
 			},
 			expectedNoticeCodes: []string{"multiple_records_in_single_record_file"},
-			description:         "feed_info.txt should contain only one record",
+			description:         "FeedInfoFile should contain only one record",
 		},
 		{
-			name: "valid single record in feed_info.txt",
+			name: "valid single record in FeedInfoFile",
 			files: map[string]string{
-				"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,en", // Single record
+				FeedInfoFile: "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,en", // Single record
 			},
 			expectedNoticeCodes: []string{},
-			description:         "Single record in feed_info.txt should be valid",
+			description:         "Single record in FeedInfoFile should be valid",
 		},
 		{
 			name: "multiple duplicate keys in same file",
@@ -394,7 +394,7 @@ func TestDuplicateKeyValidator_ValidateFileKeys(t *testing.T) {
 		},
 		{
 			name:            "feed_info multiple records",
-			filename:        "feed_info.txt",
+			filename:        FeedInfoFile,
 			content:         "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,en\nBus,http://bus.example,en",
 			config:          FileKeyConfig{"feed_info.txt", []string{}, false},
 			expectedNotices: 1,
@@ -505,8 +505,8 @@ func TestDuplicateKeyValidator_FileKeyConfigs(t *testing.T) {
 		t.Run(filename, func(t *testing.T) {
 			// This test mainly ensures our file configurations are complete
 			// The actual validation logic is tested in other test cases
-			if filename == "feed_info.txt" {
-				// Special case for feed_info.txt
+			if filename == FeedInfoFile {
+				// Special case for FeedInfoFile
 				return
 			}
 			// If we get here without panicking, the configuration exists

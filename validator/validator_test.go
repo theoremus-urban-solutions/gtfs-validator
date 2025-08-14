@@ -23,7 +23,7 @@ func TestValidatorInterface_Wiring(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create loader: %v", err)
 	}
-	t.Cleanup(func() { 
+	t.Cleanup(func() {
 		if err := tmpLoader.Close(); err != nil {
 			t.Errorf("Failed to close loader: %v", err)
 		}

@@ -191,13 +191,16 @@ func runValidation(cmd *cobra.Command, args []string) error {
 	elapsed := time.Since(startTime)
 
 	if err != nil {
-		if err == context.Canceled {
+		switch err {
+		case context.Canceled:
 			fmt.Fprintf(os.Stderr, "⚠️  Validation cancelled by user\n")
-			os.Exit(1)
-		} else if err == context.DeadlineExceeded {
+			cancel()
+			os.Exit(1) //nolint:gocritic // cancel() explicitly called above
+		case context.DeadlineExceeded:
 			fmt.Fprintf(os.Stderr, "⏰ Validation timed out after %v\n", timeout)
-			os.Exit(1)
-		} else {
+			cancel()
+			os.Exit(1) //nolint:gocritic // cancel() explicitly called above
+		default:
 			return fmt.Errorf("❌ Validation Error: %v", err)
 		}
 	}
@@ -206,11 +209,13 @@ func runValidation(cmd *cobra.Command, args []string) error {
 
 	// Handle output
 	output := os.Stdout
+	var outputFileHandle *os.File
 	if outputFile != "" {
-		file, err := os.Create(outputFile)
+		file, err := os.Create(outputFile) // #nosec G304 -- User-provided output file path
 		if err != nil {
 			return fmt.Errorf("❌ Output Error: Failed to create output file '%s': %v", outputFile, err)
 		}
+		outputFileHandle = file
 		defer func() {
 			if err := file.Close(); err != nil {
 				fmt.Fprintf(os.Stderr, "Warning: Failed to close output file: %v\n", err)
@@ -239,12 +244,17 @@ func runValidation(cmd *cobra.Command, args []string) error {
 	}
 
 	// Final status and exit
-	if report.HasErrors() {
+	switch {
+	case report.HasErrors():
 		fmt.Fprintf(os.Stderr, "💀 Validation FAILED: %d errors found\n", report.ErrorCount())
+		cancel()
+		if outputFileHandle != nil {
+			_ = outputFileHandle.Close() // Ignore error on program exit
+		}
 		os.Exit(1)
-	} else if report.HasWarnings() {
+	case report.HasWarnings():
 		fmt.Fprintf(os.Stderr, "⚠️  Validation completed with %d warnings\n", report.WarningCount())
-	} else {
+	default:
 		fmt.Fprintf(os.Stderr, "🎉 Validation PASSED: Feed is valid!\n")
 	}
 
@@ -291,32 +301,65 @@ func outputSummary(output *os.File, report *gtfsvalidator.ValidationReport, inpu
 		return true
 	}
 
-	if !write("GTFS Validation Summary\n") { return }
-	if !write("======================\n\n") { return }
-	if !write("Feed: %s\n", filepath.Base(inputPath)) { return }
-	if !write("Validation Time: %.2fs\n\n", report.Summary.ValidationTime) { return }
-
-	if !write("Feed Statistics:\n") { return }
-	if !write("  Agencies: %d\n", report.Summary.FeedInfo.AgencyCount) { return }
-	if !write("  Routes: %d\n", report.Summary.FeedInfo.RouteCount) { return }
-	if !write("  Trips: %d\n", report.Summary.FeedInfo.TripCount) { return }
-	if !write("  Stops: %d\n", report.Summary.FeedInfo.StopCount) { return }
-	if !write("  Stop Times: %d\n", report.Summary.FeedInfo.StopTimeCount) { return }
-	if report.Summary.FeedInfo.ServiceDateFrom != "" && report.Summary.FeedInfo.ServiceDateTo != "" {
-		if !write("  Service Period: %s to %s\n", report.Summary.FeedInfo.ServiceDateFrom, report.Summary.FeedInfo.ServiceDateTo) { return }
+	if !write("GTFS Validation Summary\n") {
+		return
+	}
+	if !write("======================\n\n") {
+		return
+	}
+	if !write("Feed: %s\n", filepath.Base(inputPath)) {
+		return
+	}
+	if !write("Validation Time: %.2fs\n\n", report.Summary.ValidationTime) {
+		return
 	}
 
-	if !write("\nValidation Results:\n") { return }
-	if !write("  Errors: %d\n", report.Summary.Counts.Errors) { return }
-	if !write("  Warnings: %d\n", report.Summary.Counts.Warnings) { return }
-	if !write("  Infos: %d\n", report.Summary.Counts.Infos) { return }
-	if !write("  Total: %d\n", report.Summary.Counts.Total) { return }
+	if !write("Feed Statistics:\n") {
+		return
+	}
+	if !write("  Agencies: %d\n", report.Summary.FeedInfo.AgencyCount) {
+		return
+	}
+	if !write("  Routes: %d\n", report.Summary.FeedInfo.RouteCount) {
+		return
+	}
+	if !write("  Trips: %d\n", report.Summary.FeedInfo.TripCount) {
+		return
+	}
+	if !write("  Stops: %d\n", report.Summary.FeedInfo.StopCount) {
+		return
+	}
+	if !write("  Stop Times: %d\n", report.Summary.FeedInfo.StopTimeCount) {
+		return
+	}
+	if report.Summary.FeedInfo.ServiceDateFrom != "" && report.Summary.FeedInfo.ServiceDateTo != "" {
+		if !write("  Service Period: %s to %s\n", report.Summary.FeedInfo.ServiceDateFrom, report.Summary.FeedInfo.ServiceDateTo) {
+			return
+		}
+	}
 
-	if report.HasErrors() {
+	if !write("\nValidation Results:\n") {
+		return
+	}
+	if !write("  Errors: %d\n", report.Summary.Counts.Errors) {
+		return
+	}
+	if !write("  Warnings: %d\n", report.Summary.Counts.Warnings) {
+		return
+	}
+	if !write("  Infos: %d\n", report.Summary.Counts.Infos) {
+		return
+	}
+	if !write("  Total: %d\n", report.Summary.Counts.Total) {
+		return
+	}
+
+	switch {
+	case report.HasErrors():
 		write("\n❌ Validation FAILED - Feed contains errors\n")
-	} else if report.HasWarnings() {
+	case report.HasWarnings():
 		write("\n⚠️  Validation completed with warnings\n")
-	} else {
+	default:
 		write("\n✅ Validation PASSED\n")
 	}
 }

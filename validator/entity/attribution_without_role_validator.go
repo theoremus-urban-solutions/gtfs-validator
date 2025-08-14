@@ -171,21 +171,22 @@ func (v *AttributionWithoutRoleValidator) validateRoleConsistencyWithName(contai
 	hasProducerKeyword := v.containsAnyKeyword(orgNameLower, producerKeywords)
 
 	// Only report if there's a clear mismatch
-	if hasOperatorKeyword && !attribution.IsOperator && (attribution.IsAuthority || attribution.IsProducer) {
+	switch {
+	case hasOperatorKeyword && !attribution.IsOperator && (attribution.IsAuthority || attribution.IsProducer):
 		container.AddNotice(notice.NewAttributionRoleNameMismatchNotice(
 			attribution.AttributionID,
 			attribution.OrganizationName,
 			"operator",
 			attribution.RowNumber,
 		))
-	} else if hasAuthorityKeyword && !attribution.IsAuthority && (attribution.IsOperator || attribution.IsProducer) {
+	case hasAuthorityKeyword && !attribution.IsAuthority && (attribution.IsOperator || attribution.IsProducer):
 		container.AddNotice(notice.NewAttributionRoleNameMismatchNotice(
 			attribution.AttributionID,
 			attribution.OrganizationName,
 			"authority",
 			attribution.RowNumber,
 		))
-	} else if hasProducerKeyword && !attribution.IsProducer && (attribution.IsOperator || attribution.IsAuthority) {
+	case hasProducerKeyword && !attribution.IsProducer && (attribution.IsOperator || attribution.IsAuthority):
 		container.AddNotice(notice.NewAttributionRoleNameMismatchNotice(
 			attribution.AttributionID,
 			attribution.OrganizationName,

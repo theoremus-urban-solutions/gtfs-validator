@@ -323,10 +323,8 @@ func TestRouteColorContrastValidator_ParseColor(t *testing.T) {
 				if result.IsDefault != tt.isDefault {
 					t.Errorf("Expected IsDefault %v, got %v", tt.isDefault, result.IsDefault)
 				}
-			} else {
-				if result != nil {
-					t.Errorf("Expected nil for invalid color, got %+v", result)
-				}
+			} else if result != nil {
+				t.Errorf("Expected nil for invalid color, got %+v", result)
 			}
 		})
 	}

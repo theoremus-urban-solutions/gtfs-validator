@@ -199,15 +199,16 @@ func (v *FeedExpirationDateValidator) validateCalendarBasedExpiration(loader *pa
 
 	// Use the later of the two dates
 	var latestServiceDate *time.Time
-	if latestCalendarDate != nil && latestCalendarDatesDate != nil {
+	switch {
+	case latestCalendarDate != nil && latestCalendarDatesDate != nil:
 		if latestCalendarDate.After(*latestCalendarDatesDate) {
 			latestServiceDate = latestCalendarDate
 		} else {
 			latestServiceDate = latestCalendarDatesDate
 		}
-	} else if latestCalendarDate != nil {
+	case latestCalendarDate != nil:
 		latestServiceDate = latestCalendarDate
-	} else if latestCalendarDatesDate != nil {
+	case latestCalendarDatesDate != nil:
 		latestServiceDate = latestCalendarDatesDate
 	}
 

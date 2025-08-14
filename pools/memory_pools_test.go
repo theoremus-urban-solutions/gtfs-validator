@@ -6,6 +6,8 @@ import (
 	"testing"
 )
 
+const testValue = "value"
+
 func TestBufferPool(t *testing.T) {
 	pool := NewBufferPool(1024)
 
@@ -147,8 +149,8 @@ func TestMapPool(t *testing.T) {
 	}
 
 	// Should be able to use the map normally
-	m2["test"] = "value"
-	if m2["test"] != "value" {
+	m2["test"] = testValue
+	if m2["test"] != testValue {
 		t.Error("Reused map should work normally")
 	}
 }
@@ -159,7 +161,7 @@ func TestMapPoolSizeLimit(t *testing.T) {
 	m := pool.Get()
 	// Add more than 100 entries
 	for i := 0; i < 150; i++ {
-		m[string(rune(i))] = "value"
+		m[string(rune(i))] = testValue
 	}
 
 	if len(m) != 150 {

@@ -117,14 +117,15 @@ func TestStreamingValidationCancellation(t *testing.T) {
 		t.Logf("Received notice before cancellation: %s", notice.Code)
 	})
 
-	if err == nil {
+	switch err {
+	case nil:
 		t.Log("Validation completed before timeout - this is okay for small feeds")
-	} else if err == context.DeadlineExceeded {
+	case context.DeadlineExceeded:
 		t.Logf("Validation correctly cancelled due to timeout")
 		if !receivedNotices {
 			t.Log("No notices received before cancellation - this is expected for very quick cancellation")
 		}
-	} else {
+	default:
 		t.Fatalf("Unexpected error: %v", err)
 	}
 }

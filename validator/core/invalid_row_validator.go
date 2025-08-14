@@ -103,15 +103,15 @@ func (v *InvalidRowValidator) validateRowContent(container *notice.NoticeContain
 	switch filename {
 	case "stop_times.txt":
 		v.validateStopTimeRow(container, row)
-	case "stops.txt":
+	case StopsFile:
 		v.validateStopRow(container, row)
-	case "routes.txt":
+	case RoutesFile:
 		v.validateRouteRow(container, row)
-	case "trips.txt":
+	case TripsFile:
 		v.validateTripRow(container, row)
-	case "calendar.txt":
+	case CalendarFile:
 		v.validateCalendarRow(container, row)
-	case "calendar_dates.txt":
+	case CalendarDatesFile:
 		v.validateCalendarDateRow(container, row)
 	case "shapes.txt":
 		v.validateShapeRow(container, row)

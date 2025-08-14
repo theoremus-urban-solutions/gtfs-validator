@@ -89,7 +89,7 @@ func (l *FeedLoader) GetFile(filename string) (io.ReadCloser, error) {
 		if !exists {
 			return nil, fmt.Errorf("file not found: %s", filename)
 		}
-		return os.Open(filePath)
+		return os.Open(filePath) // #nosec G304 -- GTFS file path from validated directory
 	} else {
 		// For ZIP files, open a fresh reader each time
 		zipFile, exists := l.zipFiles[filename]

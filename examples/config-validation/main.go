@@ -191,11 +191,12 @@ func example5(gtfsFile string) {
 		report.Summary.Counts.Warnings,
 		report.Summary.Counts.Infos)
 
-	if report.HasErrors() {
+	switch {
+	case report.HasErrors():
 		fmt.Printf("❌ Validation FAILED with %d errors\n", report.ErrorCount())
-	} else if report.HasWarnings() {
+	case report.HasWarnings():
 		fmt.Printf("⚠️  Validation PASSED with %d warnings\n", report.WarningCount())
-	} else {
+	default:
 		fmt.Println("✅ Validation PASSED - Feed is perfect!")
 	}
 	fmt.Println()

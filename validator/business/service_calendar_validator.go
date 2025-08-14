@@ -446,11 +446,12 @@ func (v *ServiceCalendarValidator) validateCalendarPatterns(container *notice.No
 		hasCalendar := calendars[serviceID] != nil
 		hasCalendarDates := len(calendarDates[serviceID]) > 0
 
-		if hasCalendar && hasCalendarDates {
+		switch {
+		case hasCalendar && hasCalendarDates:
 			bothCount++
-		} else if hasCalendar {
+		case hasCalendar:
 			calendarOnlyCount++
-		} else if hasCalendarDates {
+		case hasCalendarDates:
 			calendarDatesOnlyCount++
 		}
 	}

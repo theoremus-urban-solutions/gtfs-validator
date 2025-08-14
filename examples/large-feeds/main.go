@@ -15,15 +15,17 @@ import (
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator"
 )
 
+const memoryOptimizedMode = "memory-optimized"
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: large-feeds <large-gtfs-file> [mode]")
-		fmt.Println("Modes: memory-optimized (default), fast, comprehensive")
+		fmt.Println("Modes: " + memoryOptimizedMode + " (default), fast, comprehensive")
 		os.Exit(1)
 	}
 
 	gtfsFile := os.Args[1]
-	mode := "memory-optimized"
+	mode := memoryOptimizedMode
 	if len(os.Args) > 2 {
 		mode = os.Args[2]
 	}
@@ -49,7 +51,7 @@ func main() {
 	var description string
 
 	switch mode {
-	case "memory-optimized":
+	case memoryOptimizedMode:
 		validator, description = createMemoryOptimizedValidator()
 	case "fast":
 		validator, description = createFastValidator()
@@ -80,7 +82,8 @@ func main() {
 	cancel() // Stop memory monitoring
 
 	if err != nil {
-		log.Fatalf("❌ Validation failed: %v", err)
+		fmt.Printf("❌ Validation failed: %v\n", err)
+		os.Exit(1) //nolint:gocritic // cancel() already called on line 82
 	}
 
 	// Final results
@@ -310,11 +313,12 @@ func printValidationSummary(report *gtfsvalidator.ValidationReport, elapsed time
 
 	// Final status
 	fmt.Println()
-	if report.HasErrors() {
+	switch {
+	case report.HasErrors():
 		fmt.Printf("❌ VALIDATION FAILED - %s errors found\n", formatNumber(counts.Errors))
-	} else if report.HasWarnings() {
+	case report.HasWarnings():
 		fmt.Printf("⚠️  VALIDATION PASSED - %s warnings\n", formatNumber(counts.Warnings))
-	} else {
+	default:
 		fmt.Println("✅ VALIDATION PASSED - Feed is valid!")
 	}
 }
@@ -334,9 +338,9 @@ func printMemoryOptimizationTips(mode string, report *gtfsvalidator.ValidationRe
 		fmt.Println("  • Set MaxMemory to appropriate limit (1-2GB)")
 	}
 
-	if mode != "memory-optimized" {
+	if mode != memoryOptimizedMode {
 		fmt.Println("🔄 Try memory-optimized mode:")
-		fmt.Printf("  go run examples/large-feeds/main.go %s memory-optimized\n", os.Args[1])
+		fmt.Printf("  go run examples/large-feeds/main.go %s "+memoryOptimizedMode+"\n", os.Args[1])
 	}
 
 	if report.Summary.Counts.Total > 10000 {

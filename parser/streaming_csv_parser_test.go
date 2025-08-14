@@ -9,10 +9,21 @@ import (
 	"time"
 )
 
-func TestNewStreamingCSVParser(t *testing.T) {
-	csvData := `id,name,type
+const (
+	testStationName = "Test Station"
+	testCSVSingle   = `id,name,type
+123,Test Station,0`
+	testCSVSmall = `id,name,type
 123,Test Station,0
 456,Another Station,1`
+	testCSVLarge = `id,name,type
+123,Test Station,0
+456,Another Station,1
+789,Third Station,2`
+)
+
+func TestNewStreamingCSVParser(t *testing.T) {
+	csvData := testCSVSmall
 
 	parser, err := NewStreamingCSVParser(strings.NewReader(csvData), "test.csv", nil)
 	if err != nil {
@@ -41,8 +52,7 @@ func TestNewStreamingCSVParser(t *testing.T) {
 }
 
 func TestStreamingCSVParserWithOptions(t *testing.T) {
-	csvData := `id,name,type
-123,Test Station,0`
+	csvData := testCSVSingle
 
 	opts := &StreamingCSVOptions{
 		BufferSize:       32 * 1024,
@@ -61,10 +71,7 @@ func TestStreamingCSVParserWithOptions(t *testing.T) {
 }
 
 func TestStreamingCSVParserReadRow(t *testing.T) {
-	csvData := `id,name,type
-123,Test Station,0
-456,Another Station,1
-789,Third Station,2`
+	csvData := testCSVLarge
 
 	parser, err := NewStreamingCSVParser(strings.NewReader(csvData), "test.csv", nil)
 	if err != nil {
@@ -83,8 +90,8 @@ func TestStreamingCSVParserReadRow(t *testing.T) {
 	if row1.Values["id"] != "123" {
 		t.Errorf("Expected id=123, got %s", row1.Values["id"])
 	}
-	if row1.Values["name"] != "Test Station" {
-		t.Errorf("Expected name=Test Station, got %s", row1.Values["name"])
+	if row1.Values["name"] != testStationName {
+		t.Errorf("Expected name=%s, got %s", testStationName, row1.Values["name"])
 	}
 	if row1.Values["type"] != "0" {
 		t.Errorf("Expected type=0, got %s", row1.Values["type"])
@@ -133,10 +140,7 @@ func TestStreamingCSVParserReadRow(t *testing.T) {
 }
 
 func TestCountingProcessor(t *testing.T) {
-	csvData := `id,name,type
-123,Test Station,0
-456,Another Station,1
-789,Third Station,2`
+	csvData := testCSVLarge
 
 	parser, err := NewStreamingCSVParser(strings.NewReader(csvData), "test.csv", nil)
 	if err != nil {
@@ -344,8 +348,7 @@ func TestDefaultStreamingCSVOptions(t *testing.T) {
 }
 
 func TestStreamingCSVStatistics(t *testing.T) {
-	csvData := `id,name,type
-123,Test Station,0`
+	csvData := testCSVSingle
 
 	parser, err := NewStreamingCSVParser(strings.NewReader(csvData), "test.csv", nil)
 	if err != nil {

@@ -463,11 +463,12 @@ func (v *ServiceConsistencyValidator) validateServicePatterns(container *notice.
 			}
 		}
 
-		if hasWeekdays && hasWeekends {
+		switch {
+		case hasWeekdays && hasWeekends:
 			mixedServices++
-		} else if hasWeekdays {
+		case hasWeekdays:
 			weekdayServices++
-		} else if hasWeekends {
+		case hasWeekends:
 			weekendServices++
 		}
 	}

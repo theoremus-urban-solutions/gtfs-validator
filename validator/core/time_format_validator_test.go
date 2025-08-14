@@ -17,24 +17,24 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "all time formats valid",
 			files: map[string]string{
-				"stop_times.txt":  "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:01:00,1,1",
+				StopTimesFile:     "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:01:00,1,1",
 				"frequencies.txt": "trip_id,start_time,end_time,headway_secs\nT1,06:00:00,22:00:00,600",
 			},
 			expectedNoticeCodes: []string{},
 			description:         "All time fields have valid HH:MM:SS format",
 		},
 		{
-			name: "stop_times.txt invalid arrival time",
+			name: "StopTimesFile invalid arrival time",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,8:00:00,08:01:00,1,1", // Not zero-padded
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,8:00:00,08:01:00,1,1", // Not zero-padded
 			},
 			expectedNoticeCodes: []string{"invalid_time_format"},
 			description:         "arrival_time missing zero-padding",
 		},
 		{
-			name: "stop_times.txt invalid departure time",
+			name: "StopTimesFile invalid departure time",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:1:00,1,1", // Minute not zero-padded
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:1:00,1,1", // Minute not zero-padded
 			},
 			expectedNoticeCodes: []string{"invalid_time_format"},
 			description:         "departure_time minute not zero-padded",
@@ -58,7 +58,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "multiple invalid time formats",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,8:0:0,08:61:00,1,1", // Multiple format errors
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,8:0:0,08:61:00,1,1", // Multiple format errors
 			},
 			expectedNoticeCodes: []string{"invalid_time_format", "invalid_time_format"},
 			description:         "Multiple time format errors in single row",
@@ -66,7 +66,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "valid next-day service times",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,24:00:00,25:30:00,1,1", // Valid next-day times
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,24:00:00,25:30:00,1,1", // Valid next-day times
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Times >= 24:00:00 are valid for next-day service",
@@ -74,7 +74,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "invalid minute values",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:60:00,08:00:00,1,1", // 60 minutes invalid
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:60:00,08:00:00,1,1", // 60 minutes invalid
 			},
 			expectedNoticeCodes: []string{"invalid_time_format"},
 			description:         "Minutes must be 0-59",
@@ -82,7 +82,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "invalid second values",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:60,08:00:00,1,1", // 60 seconds invalid
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:60,08:00:00,1,1", // 60 seconds invalid
 			},
 			expectedNoticeCodes: []string{"invalid_time_format"},
 			description:         "Seconds must be 0-59",
@@ -90,7 +90,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "invalid time format - missing colons",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,080000,08:00:00,1,1", // Missing colons
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,080000,08:00:00,1,1", // Missing colons
 			},
 			expectedNoticeCodes: []string{"invalid_time_format"},
 			description:         "Time format must include colons",
@@ -98,7 +98,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "invalid time format - too many parts",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00:00,08:00:00,1,1", // Too many parts
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00:00,08:00:00,1,1", // Too many parts
 			},
 			expectedNoticeCodes: []string{"invalid_time_format"},
 			description:         "Time format must have exactly 3 parts",
@@ -106,7 +106,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "invalid time format - non-numeric",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,AA:BB:CC,08:00:00,1,1", // Non-numeric
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,AA:BB:CC,08:00:00,1,1", // Non-numeric
 			},
 			expectedNoticeCodes: []string{"invalid_time_format"},
 			description:         "Time parts must be numeric",
@@ -114,7 +114,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "negative time values",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,-1:00:00,08:00:00,1,1", // Negative hour
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,-1:00:00,08:00:00,1,1", // Negative hour
 			},
 			expectedNoticeCodes: []string{"invalid_time_format"},
 			description:         "Time values cannot be negative",
@@ -122,7 +122,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "empty time fields ignored",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,,08:00:00,1,1", // Empty arrival_time
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,,08:00:00,1,1", // Empty arrival_time
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Empty time fields should not generate format errors",
@@ -130,7 +130,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "whitespace-only time fields ignored",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,   ,08:00:00,1,1", // Whitespace-only arrival_time
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,   ,08:00:00,1,1", // Whitespace-only arrival_time
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Whitespace-only time fields should not generate format errors",
@@ -138,7 +138,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "valid edge case times",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,00:00:00,23:59:59,1,1", // Boundary values
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,00:00:00,23:59:59,1,1", // Boundary values
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Boundary time values should be valid",
@@ -146,7 +146,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "multiple rows with time errors",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,8:00:00,08:00:00,1,1\nT1,08:00:00,8:00:00,1,2", // Errors in different rows
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,8:00:00,08:00:00,1,1\nT1,08:00:00,8:00:00,1,2", // Errors in different rows
 			},
 			expectedNoticeCodes: []string{"invalid_time_format", "invalid_time_format"},
 			description:         "Time format errors across multiple rows",
@@ -171,7 +171,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "valid high hour values",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,25:00:00,26:30:00,1,1\nT1,27:59:59,28:00:00,2,2", // High hour values
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,25:00:00,26:30:00,1,1\nT1,27:59:59,28:00:00,2,2", // High hour values
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Hour values > 24 are valid for service extending past midnight",
@@ -179,7 +179,7 @@ func TestTimeFormatValidator_Validate(t *testing.T) {
 		{
 			name: "time field with whitespace padding",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1, 08:00:00 ,08:01:00,1,1", // Whitespace around time
+				StopTimesFile: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1, 08:00:00 ,08:01:00,1,1", // Whitespace around time
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Whitespace around time values should be trimmed and validated",
@@ -326,7 +326,7 @@ func TestTimeFormatValidator_ValidateTimeFormat(t *testing.T) {
 			container := notice.NewNoticeContainer()
 			validator := NewTimeFormatValidator()
 
-			validator.validateTimeFormat(container, "stop_times.txt", "arrival_time", tt.timeValue, 1)
+			validator.validateTimeFormat(container, StopTimesFile, "arrival_time", tt.timeValue, 1)
 
 			notices := container.GetNotices()
 			hasNotice := len(notices) > 0
@@ -343,8 +343,8 @@ func TestTimeFormatValidator_ValidateTimeFormat(t *testing.T) {
 				}
 
 				context := notice.Context()
-				if filename, ok := context["filename"]; !ok || filename != "stop_times.txt" {
-					t.Errorf("Expected filename 'stop_times.txt' in context, got '%v'", filename)
+				if filename, ok := context["filename"]; !ok || filename != StopTimesFile {
+					t.Errorf("Expected filename '%s' in context, got '%v'", StopTimesFile, filename)
 				}
 				if fieldName, ok := context["fieldName"]; !ok || fieldName != "arrival_time" {
 					t.Errorf("Expected fieldName 'arrival_time' in context, got '%v'", fieldName)
@@ -363,7 +363,7 @@ func TestTimeFormatValidator_ValidateTimeFormat(t *testing.T) {
 func TestTimeFormatValidator_TimeFields(t *testing.T) {
 	// Test that timeFields map contains expected files and fields
 	expectedTimeFields := map[string][]string{
-		"stop_times.txt":  {"arrival_time", "departure_time"},
+		StopTimesFile:     {"arrival_time", "departure_time"},
 		"frequencies.txt": {"start_time", "end_time"},
 	}
 
@@ -417,7 +417,7 @@ func TestTimeFormatValidator_ValidateFileTimeFields(t *testing.T) {
 	}{
 		{
 			name:            "valid time fields",
-			filename:        "stop_times.txt",
+			filename:        StopTimesFile,
 			content:         "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:01:00,1,1",
 			timeFields:      []string{"arrival_time", "departure_time"},
 			expectedNotices: 0,
@@ -425,7 +425,7 @@ func TestTimeFormatValidator_ValidateFileTimeFields(t *testing.T) {
 		},
 		{
 			name:            "invalid time fields",
-			filename:        "stop_times.txt",
+			filename:        StopTimesFile,
 			content:         "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,8:00:00,08:1:00,1,1",
 			timeFields:      []string{"arrival_time", "departure_time"},
 			expectedNotices: 2,
@@ -433,7 +433,7 @@ func TestTimeFormatValidator_ValidateFileTimeFields(t *testing.T) {
 		},
 		{
 			name:            "missing time fields in data",
-			filename:        "stop_times.txt",
+			filename:        StopTimesFile,
 			content:         "trip_id,stop_id,stop_sequence\nT1,1,1", // Missing time fields
 			timeFields:      []string{"arrival_time", "departure_time"},
 			expectedNotices: 0,
@@ -441,7 +441,7 @@ func TestTimeFormatValidator_ValidateFileTimeFields(t *testing.T) {
 		},
 		{
 			name:            "empty time fields",
-			filename:        "stop_times.txt",
+			filename:        StopTimesFile,
 			content:         "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,,08:01:00,1,1",
 			timeFields:      []string{"arrival_time", "departure_time"},
 			expectedNotices: 0,

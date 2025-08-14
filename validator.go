@@ -465,11 +465,12 @@ func sanitizeConfig(config *Config) {
 	}
 
 	// Sanitize ParallelWorkers
-	if config.ParallelWorkers < 0 {
+	switch {
+	case config.ParallelWorkers < 0:
 		config.ParallelWorkers = 1
-	} else if config.ParallelWorkers > 100 {
+	case config.ParallelWorkers > 100:
 		config.ParallelWorkers = 100
-	} else if config.ParallelWorkers == 0 {
+	case config.ParallelWorkers == 0:
 		config.ParallelWorkers = 4 // Default
 	}
 

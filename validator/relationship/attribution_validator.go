@@ -315,13 +315,14 @@ func (v *AttributionValidator) validateAttributionUniqueness(container *notice.N
 	scopeMap := make(map[string]*AttributionInfo)
 	for _, attribution := range attributions {
 		var scopeKey string
-		if attribution.AgencyID != "" {
+		switch {
+		case attribution.AgencyID != "":
 			scopeKey = "agency:" + attribution.AgencyID
-		} else if attribution.RouteID != "" {
+		case attribution.RouteID != "":
 			scopeKey = "route:" + attribution.RouteID
-		} else if attribution.TripID != "" {
+		case attribution.TripID != "":
 			scopeKey = "trip:" + attribution.TripID
-		} else {
+		default:
 			scopeKey = "global"
 		}
 

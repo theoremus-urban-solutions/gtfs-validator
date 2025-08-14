@@ -70,7 +70,8 @@ func main() {
 	if err != nil {
 		if err == context.Canceled {
 			fmt.Println("\nValidation cancelled by user")
-			os.Exit(1)
+			cancel()
+			os.Exit(1) //nolint:gocritic // cancel() explicitly called above
 		}
 		log.Fatalf("Failed to validate: %v", err)
 	}
@@ -128,12 +129,14 @@ func main() {
 	}
 
 	// Exit code based on errors
-	if report.HasErrors() {
+	switch {
+	case report.HasErrors():
 		fmt.Printf("\n❌ Validation FAILED with %d errors\n", report.ErrorCount())
-		os.Exit(1)
-	} else if report.HasWarnings() {
+		cancel()
+		os.Exit(1) //nolint:gocritic // cancel() explicitly called above
+	case report.HasWarnings():
 		fmt.Printf("\n⚠️  Validation completed with %d warnings\n", report.WarningCount())
-	} else {
+	default:
 		fmt.Println("\n✅ Validation PASSED - Feed is valid!")
 	}
 }

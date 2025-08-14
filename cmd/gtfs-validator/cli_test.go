@@ -17,13 +17,13 @@ func runCLI(t *testing.T, args ...string) (stdout, stderr string, exitCode int) 
 
 	// Build the CLI first
 	cliPath := filepath.Join(t.TempDir(), "gtfs-validator-test")
-	cmd := exec.Command("go", "build", "-o", cliPath, ".")
+	cmd := exec.Command("go", "build", "-o", cliPath, ".") // #nosec G204 -- Test code with controlled paths
 	if err := cmd.Run(); err != nil {
 		t.Fatalf("Failed to build CLI: %v", err)
 	}
 
 	// Run with provided arguments
-	cmd = exec.Command(cliPath, args...)
+	cmd = exec.Command(cliPath, args...) // #nosec G204 -- Test code with controlled paths
 	var stdoutBuf, stderrBuf bytes.Buffer
 	cmd.Stdout = &stdoutBuf
 	cmd.Stderr = &stderrBuf

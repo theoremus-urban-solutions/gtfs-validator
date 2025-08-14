@@ -17,7 +17,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "valid currency codes",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,USD,0,0\nF2,3.00,EUR,0,0\nF3,300,JPY,0,0",
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,USD,0,0\nF2,3.00,EUR,0,0\nF3,300,JPY,0,0",
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Valid ISO 4217 currency codes should not generate notices",
@@ -25,7 +25,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "invalid currency code - too short",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,US,0,0", // Only 2 characters
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,US,0,0", // Only 2 characters
 			},
 			expectedNoticeCodes: []string{"invalid_currency_code"},
 			description:         "Currency codes must be exactly 3 characters",
@@ -33,7 +33,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "invalid currency code - too long",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,USDX,0,0", // 4 characters
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,USDX,0,0", // 4 characters
 			},
 			expectedNoticeCodes: []string{"invalid_currency_code"},
 			description:         "Currency codes must be exactly 3 characters",
@@ -41,7 +41,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "invalid currency code - unknown",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,XYZ,0,0", // Not a valid ISO code
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,XYZ,0,0", // Not a valid ISO code
 			},
 			expectedNoticeCodes: []string{"invalid_currency_code"},
 			description:         "Unknown ISO 4217 currency codes should generate notices",
@@ -49,7 +49,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "invalid currency code - lowercase",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,usd,0,0", // Lowercase
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,usd,0,0", // Lowercase
 			},
 			expectedNoticeCodes: []string{"invalid_currency_code"},
 			description:         "Currency codes should be uppercase",
@@ -57,7 +57,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "invalid currency code - mixed case",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,Usd,0,0", // Mixed case
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,Usd,0,0", // Mixed case
 			},
 			expectedNoticeCodes: []string{"invalid_currency_code"},
 			description:         "Currency codes should be uppercase",
@@ -65,7 +65,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "multiple invalid currency codes",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,US,0,0\nF2,3.00,XYZ,0,0\nF3,300,jpy,0,0", // All invalid
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,US,0,0\nF2,3.00,XYZ,0,0\nF3,300,jpy,0,0", // All invalid
 			},
 			expectedNoticeCodes: []string{"invalid_currency_code", "invalid_currency_code", "invalid_currency_code"},
 			description:         "Multiple invalid currency codes should generate multiple notices",
@@ -73,7 +73,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "mixed valid and invalid currency codes",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,USD,0,0\nF2,3.00,XYZ,0,0\nF3,300,EUR,0,0", // Mixed valid/invalid
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,USD,0,0\nF2,3.00,XYZ,0,0\nF3,300,EUR,0,0", // Mixed valid/invalid
 			},
 			expectedNoticeCodes: []string{"invalid_currency_code"},
 			description:         "Mix of valid and invalid currency codes",
@@ -81,7 +81,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "empty currency field ignored",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,,0,0", // Empty currency
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,,0,0", // Empty currency
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Empty currency fields should not generate validation errors",
@@ -89,7 +89,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "whitespace-only currency field ignored",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,   ,0,0", // Whitespace currency
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,   ,0,0", // Whitespace currency
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Whitespace-only currency fields should not generate validation errors",
@@ -97,23 +97,23 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "currency field with whitespace padding",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50, USD ,0,0", // Whitespace around currency
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50, USD ,0,0", // Whitespace around currency
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Whitespace around currency values should be trimmed",
 		},
 		{
-			name: "missing fare_attributes.txt file",
+			name: "missing FareAttributesFile file",
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 			},
 			expectedNoticeCodes: []string{},
-			description:         "Missing fare_attributes.txt should not cause validation errors",
+			description:         "Missing FareAttributesFile should not cause validation errors",
 		},
 		{
-			name: "fare_attributes.txt without currency_type field",
+			name: "FareAttributesFile without currency_type field",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,payment_method,transfers\nF1,2.50,0,0", // Missing currency_type column
+				FareAttributesFile: "fare_id,price,payment_method,transfers\nF1,2.50,0,0", // Missing currency_type column
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Missing currency_type field should not cause validation errors",
@@ -121,7 +121,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "common world currencies",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,USD,0,0\nF2,3.00,EUR,0,0\nF3,300,JPY,0,0\nF4,2.00,GBP,0,0\nF5,3.50,CAD,0,0\nF6,4.00,AUD,0,0",
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,USD,0,0\nF2,3.00,EUR,0,0\nF3,300,JPY,0,0\nF4,2.00,GBP,0,0\nF5,3.50,CAD,0,0\nF6,4.00,AUD,0,0",
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Common world currencies should all be valid",
@@ -129,7 +129,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "emerging market currencies",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,50,CNY,0,0\nF2,75,INR,0,0\nF3,5000,KRW,0,0\nF4,15,BRL,0,0\nF5,25,RUB,0,0",
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,50,CNY,0,0\nF2,75,INR,0,0\nF3,5000,KRW,0,0\nF4,15,BRL,0,0\nF5,25,RUB,0,0",
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Emerging market currencies should all be valid",
@@ -137,7 +137,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "cryptocurrency codes invalid",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,0.001,BTC,0,0\nF2,0.05,ETH,0,0", // Cryptocurrencies not in ISO 4217
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,0.001,BTC,0,0\nF2,0.05,ETH,0,0", // Cryptocurrencies not in ISO 4217
 			},
 			expectedNoticeCodes: []string{"invalid_currency_code", "invalid_currency_code"},
 			description:         "Cryptocurrency codes are not valid ISO 4217 codes",
@@ -145,7 +145,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "obsolete currency codes",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,DEM,0,0\nF2,3000,ITL,0,0", // Pre-Euro currencies
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,DEM,0,0\nF2,3000,ITL,0,0", // Pre-Euro currencies
 			},
 			expectedNoticeCodes: []string{"invalid_currency_code", "invalid_currency_code"},
 			description:         "Obsolete currency codes should be invalid",
@@ -153,7 +153,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "special drawing rights and metals",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,XDR,0,0\nF2,1800,XAU,0,0", // XDR is valid, XAU might not be
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,XDR,0,0\nF2,1800,XAU,0,0", // XDR is valid, XAU might not be
 			},
 			expectedNoticeCodes: []string{"invalid_currency_code"}, // XAU (gold) might not be in our list
 			description:         "Special currencies and precious metals",
@@ -161,7 +161,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "numeric characters in currency",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,US1,0,0", // Numbers in currency
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,US1,0,0", // Numbers in currency
 			},
 			expectedNoticeCodes: []string{"invalid_currency_code"},
 			description:         "Currency codes with numbers should be invalid",
@@ -169,7 +169,7 @@ func TestCurrencyValidator_Validate(t *testing.T) {
 		{
 			name: "special characters in currency",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,US$,0,0", // Special characters
+				FareAttributesFile: "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,US$,0,0", // Special characters
 			},
 			expectedNoticeCodes: []string{"invalid_currency_code"},
 			description:         "Currency codes with special characters should be invalid",
@@ -313,7 +313,7 @@ func TestCurrencyValidator_ValidateCurrencyCode(t *testing.T) {
 			container := notice.NewNoticeContainer()
 			validator := NewCurrencyValidator()
 
-			validator.validateCurrencyCode(container, "fare_attributes.txt", "currency_type", tt.currencyCode, 1)
+			validator.validateCurrencyCode(container, FareAttributesFile, "currency_type", tt.currencyCode, 1)
 
 			notices := container.GetNotices()
 			hasNotice := len(notices) > 0
@@ -330,8 +330,8 @@ func TestCurrencyValidator_ValidateCurrencyCode(t *testing.T) {
 				}
 
 				context := notice.Context()
-				if filename, ok := context["filename"]; !ok || filename != "fare_attributes.txt" {
-					t.Errorf("Expected filename 'fare_attributes.txt' in context, got '%v'", filename)
+				if filename, ok := context["filename"]; !ok || filename != FareAttributesFile {
+					t.Errorf("Expected filename '%s' in context, got '%v'", FareAttributesFile, filename)
 				}
 				if fieldName, ok := context["fieldName"]; !ok || fieldName != "currency_type" {
 					t.Errorf("Expected fieldName 'currency_type' in context, got '%v'", fieldName)
@@ -388,7 +388,7 @@ func TestCurrencyValidator_ValidateFileCurrency(t *testing.T) {
 	}{
 		{
 			name:                "valid currencies",
-			filename:            "fare_attributes.txt",
+			filename:            FareAttributesFile,
 			content:             "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,USD,0,0\nF2,3.00,EUR,0,0",
 			fieldName:           "currency_type",
 			expectedNoticeCount: 0,
@@ -396,7 +396,7 @@ func TestCurrencyValidator_ValidateFileCurrency(t *testing.T) {
 		},
 		{
 			name:                "invalid currencies",
-			filename:            "fare_attributes.txt",
+			filename:            FareAttributesFile,
 			content:             "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,XYZ,0,0\nF2,3.00,ABC,0,0",
 			fieldName:           "currency_type",
 			expectedNoticeCount: 2,
@@ -404,7 +404,7 @@ func TestCurrencyValidator_ValidateFileCurrency(t *testing.T) {
 		},
 		{
 			name:                "missing currency field in data",
-			filename:            "fare_attributes.txt",
+			filename:            FareAttributesFile,
 			content:             "fare_id,price,payment_method,transfers\nF1,2.50,0,0", // Missing currency_type column
 			fieldName:           "currency_type",
 			expectedNoticeCount: 0,
@@ -412,7 +412,7 @@ func TestCurrencyValidator_ValidateFileCurrency(t *testing.T) {
 		},
 		{
 			name:                "empty currency fields",
-			filename:            "fare_attributes.txt",
+			filename:            FareAttributesFile,
 			content:             "fare_id,price,currency_type,payment_method,transfers\nF1,2.50,,0,0",
 			fieldName:           "currency_type",
 			expectedNoticeCount: 0,
@@ -450,7 +450,7 @@ func TestCurrencyValidator_CaseSensitivity(t *testing.T) {
 
 	for _, tc := range testCases {
 		container := notice.NewNoticeContainer() // Reset container
-		validator.validateCurrencyCode(container, "fare_attributes.txt", "currency_type", tc.input, 1)
+		validator.validateCurrencyCode(container, FareAttributesFile, "currency_type", tc.input, 1)
 
 		notices := container.GetNotices()
 

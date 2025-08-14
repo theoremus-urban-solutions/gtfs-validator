@@ -36,7 +36,7 @@ func main() {
 	fmt.Println("  POST /validate - Upload and validate a GTFS file")
 	fmt.Println("  GET  /health  - Health check endpoint")
 
-	log.Fatal(http.ListenAndServe(port, nil))
+	log.Fatal(http.ListenAndServe(port, nil)) // #nosec G114 -- Example server, timeouts not critical
 }
 
 func validateHandler(w http.ResponseWriter, r *http.Request) {

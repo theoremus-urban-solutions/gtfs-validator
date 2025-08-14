@@ -37,7 +37,7 @@ func main() {
 	fmt.Println()
 
 	// Open file
-	file, err := os.Open(csvFile)
+	file, err := os.Open(csvFile) // #nosec G304 -- User-provided CSV file path
 	if err != nil {
 		log.Fatalf("❌ Failed to open file: %v", err)
 	}
@@ -67,7 +67,8 @@ func main() {
 	// Create streaming parser
 	streamParser, err := parser.NewStreamingCSVParser(file, csvFile, opts)
 	if err != nil {
-		log.Fatalf("❌ Failed to create streaming parser: %v", err)
+		fmt.Printf("❌ Failed to create streaming parser: %v\n", err)
+		os.Exit(1) //nolint:gocritic // only file close defer will not run, which is acceptable
 	}
 
 	fmt.Printf("📋 Headers found: %v\n", streamParser.Headers())
@@ -198,7 +199,8 @@ func demonstrateFilteringMode(ctx context.Context, streamParser *parser.Streamin
 	var filterDescription string
 
 	// Detect common GTFS file patterns and create appropriate filters
-	if contains(headers, "stop_lat") && contains(headers, "stop_lon") {
+	switch {
+	case contains(headers, "stop_lat") && contains(headers, "stop_lon"):
 		// stops.txt - filter for stops with coordinates
 		filterFunc = func(row *parser.CSVRow) bool {
 			lat := strings.TrimSpace(row.Values["stop_lat"])
@@ -206,7 +208,7 @@ func demonstrateFilteringMode(ctx context.Context, streamParser *parser.Streamin
 			return lat != "" && lon != "" && lat != "0" && lon != "0"
 		}
 		filterDescription = "stops with valid coordinates"
-	} else if contains(headers, "route_type") {
+	case contains(headers, "route_type"):
 		// routes.txt - filter for specific route types
 		filterFunc = func(row *parser.CSVRow) bool {
 			routeType := strings.TrimSpace(row.Values["route_type"])
@@ -214,14 +216,14 @@ func demonstrateFilteringMode(ctx context.Context, streamParser *parser.Streamin
 			return routeType == "1" || routeType == "2" || routeType == "3"
 		}
 		filterDescription = "bus and rail routes (types 1,2,3)"
-	} else if contains(headers, "trip_id") && contains(headers, "stop_sequence") {
+	case contains(headers, "trip_id") && contains(headers, "stop_sequence"):
 		// stop_times.txt - filter for first/last stops in trips
 		filterFunc = func(row *parser.CSVRow) bool {
 			sequence := strings.TrimSpace(row.Values["stop_sequence"])
 			return sequence == "1" || sequence == "0" // First stops
 		}
 		filterDescription = "first stops in trips (sequence 0 or 1)"
-	} else {
+	default:
 		// Generic filter - non-empty first field
 		if len(headers) > 0 {
 			firstField := headers[0]

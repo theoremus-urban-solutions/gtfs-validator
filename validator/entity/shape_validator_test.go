@@ -490,11 +490,12 @@ func TestShapeValidator_LoadShapes(t *testing.T) {
 					}
 
 					// Check distance traveled
-					if expectedPoint.ShapeDistTraveled == nil && actualPoint.ShapeDistTraveled != nil {
+					switch {
+					case expectedPoint.ShapeDistTraveled == nil && actualPoint.ShapeDistTraveled != nil:
 						t.Errorf("Point %d: expected nil distance, got %f", i, *actualPoint.ShapeDistTraveled)
-					} else if expectedPoint.ShapeDistTraveled != nil && actualPoint.ShapeDistTraveled == nil {
+					case expectedPoint.ShapeDistTraveled != nil && actualPoint.ShapeDistTraveled == nil:
 						t.Errorf("Point %d: expected distance %f, got nil", i, *expectedPoint.ShapeDistTraveled)
-					} else if expectedPoint.ShapeDistTraveled != nil && actualPoint.ShapeDistTraveled != nil {
+					case expectedPoint.ShapeDistTraveled != nil && actualPoint.ShapeDistTraveled != nil:
 						if *actualPoint.ShapeDistTraveled != *expectedPoint.ShapeDistTraveled {
 							t.Errorf("Point %d: expected distance %f, got %f", i, *expectedPoint.ShapeDistTraveled, *actualPoint.ShapeDistTraveled)
 						}

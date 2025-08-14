@@ -82,7 +82,7 @@ func (f *HTMLFormatter) GenerateHTML(report *ValidationReport, writer io.Writer)
 
 // GenerateHTMLToFile generates an HTML report and writes it to a file
 func (f *HTMLFormatter) GenerateHTMLToFile(report *ValidationReport, filename string) error {
-	file, err := os.Create(filename)
+	file, err := os.Create(filename) // #nosec G304 -- User-provided output filename
 	if err != nil {
 		return err
 	}

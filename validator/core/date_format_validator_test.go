@@ -17,7 +17,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "all date formats valid",
 			files: map[string]string{
-				"calendar.txt":       "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250101,20251231",
+				CalendarFile:         "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250101,20251231",
 				"calendar_dates.txt": "service_id,date,exception_type\nS1,20250101,1",
 				"feed_info.txt":      "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\nMetro,http://metro.example,en,20250101,20251231",
 			},
@@ -25,17 +25,17 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 			description:         "All date fields have valid YYYYMMDD format",
 		},
 		{
-			name: "calendar.txt invalid start date",
+			name: "CalendarFile invalid start date",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,2025-01-01,20251231", // Hyphenated date
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,2025-01-01,20251231", // Hyphenated date
 			},
 			expectedNoticeCodes: []string{"invalid_date_format"},
 			description:         "start_date with hyphens is invalid",
 		},
 		{
-			name: "calendar.txt invalid end date",
+			name: "CalendarFile invalid end date",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250101,20251301", // Month 13
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250101,20251301", // Month 13
 			},
 			expectedNoticeCodes: []string{"invalid_date_format"},
 			description:         "end_date with invalid month",
@@ -59,7 +59,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "multiple date format errors",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,2025-01-01,20251301", // Both dates invalid
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,2025-01-01,20251301", // Both dates invalid
 			},
 			expectedNoticeCodes: []string{"invalid_date_format", "invalid_date_format"},
 			description:         "Multiple date format errors in single row",
@@ -67,7 +67,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "valid leap year date",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20240229,20241231", // Feb 29 in leap year
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20240229,20241231", // Feb 29 in leap year
 			},
 			expectedNoticeCodes: []string{},
 			description:         "February 29th should be valid (basic validation allows up to 29)",
@@ -75,7 +75,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "invalid day values",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250132,20251231", // Day 32
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250132,20251231", // Day 32
 			},
 			expectedNoticeCodes: []string{"invalid_date_format"},
 			description:         "Day 32 is invalid",
@@ -83,7 +83,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "invalid month values",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250001,20251231", // Month 00
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250001,20251231", // Month 00
 			},
 			expectedNoticeCodes: []string{"invalid_date_format"},
 			description:         "Month 00 is invalid",
@@ -91,7 +91,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "invalid year values",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,18990101,20251231", // Year 1899
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,18990101,20251231", // Year 1899
 			},
 			expectedNoticeCodes: []string{"invalid_date_format"},
 			description:         "Year 1899 is too early",
@@ -99,7 +99,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "dates with non-numeric characters",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,202A0101,20251231", // Non-numeric character
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,202A0101,20251231", // Non-numeric character
 			},
 			expectedNoticeCodes: []string{"invalid_date_format"},
 			description:         "Dates must be all numeric",
@@ -107,7 +107,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "dates too short",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,2025101,20251231", // 7 characters instead of 8
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,2025101,20251231", // 7 characters instead of 8
 			},
 			expectedNoticeCodes: []string{"invalid_date_format"},
 			description:         "Dates must be exactly 8 characters",
@@ -115,7 +115,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "dates too long",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,202501011,20251231", // 9 characters
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,202501011,20251231", // 9 characters
 			},
 			expectedNoticeCodes: []string{"invalid_date_format"},
 			description:         "Dates must be exactly 8 characters, not longer",
@@ -123,7 +123,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "valid dates in 30-day months",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250430,20250630", // April 30, June 30
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250430,20250630", // April 30, June 30
 			},
 			expectedNoticeCodes: []string{},
 			description:         "April 30 and June 30 are valid",
@@ -131,7 +131,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "invalid dates in 30-day months",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250431,20251131", // April 31, November 31
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250431,20251131", // April 31, November 31
 			},
 			expectedNoticeCodes: []string{"invalid_date_format", "invalid_date_format"},
 			description:         "April 31 and November 31 are invalid",
@@ -139,7 +139,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "empty date fields ignored",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,,20251231", // Empty start_date
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,,20251231", // Empty start_date
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Empty date fields should not generate format errors",
@@ -147,7 +147,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "whitespace-only date fields ignored",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,   ,20251231", // Whitespace start_date
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,   ,20251231", // Whitespace start_date
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Whitespace-only date fields should not generate format errors",
@@ -155,7 +155,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "valid boundary years",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,19000101,22001231", // Year 1900 and 2200
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,19000101,22001231", // Year 1900 and 2200
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Years 1900 and 2200 should be valid boundaries",
@@ -163,7 +163,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "invalid boundary years",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,18991231,22010101", // Year 1899 and 2201
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,18991231,22010101", // Year 1899 and 2201
 			},
 			expectedNoticeCodes: []string{"invalid_date_format", "invalid_date_format"},
 			description:         "Years 1899 and 2201 should be invalid",
@@ -196,7 +196,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "date field with whitespace padding",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0, 20250101 ,20251231", // Whitespace around date
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0, 20250101 ,20251231", // Whitespace around date
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Whitespace around date values should be trimmed and validated",
@@ -204,7 +204,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "valid February dates",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250228,20250229", // Feb 28 and 29
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250228,20250229", // Feb 28 and 29
 			},
 			expectedNoticeCodes: []string{},
 			description:         "February 28 and 29 should be valid",
@@ -212,7 +212,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 		{
 			name: "invalid February dates",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250230,20250231", // Feb 30 and 31
+				CalendarFile: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250230,20250231", // Feb 30 and 31
 			},
 			expectedNoticeCodes: []string{"invalid_date_format", "invalid_date_format"},
 			description:         "February 30 and 31 should be invalid",
@@ -375,7 +375,7 @@ func TestDateFormatValidator_ValidateDateFormat(t *testing.T) {
 			container := notice.NewNoticeContainer()
 			validator := NewDateFormatValidator()
 
-			validator.validateDateFormat(container, "calendar.txt", "start_date", tt.dateValue, 1)
+			validator.validateDateFormat(container, CalendarFile, "start_date", tt.dateValue, 1)
 
 			notices := container.GetNotices()
 			hasNotice := len(notices) > 0
@@ -392,8 +392,8 @@ func TestDateFormatValidator_ValidateDateFormat(t *testing.T) {
 				}
 
 				context := notice.Context()
-				if filename, ok := context["filename"]; !ok || filename != "calendar.txt" {
-					t.Errorf("Expected filename 'calendar.txt' in context, got '%v'", filename)
+				if filename, ok := context["filename"]; !ok || filename != CalendarFile {
+					t.Errorf("Expected filename '%s' in context, got '%v'", CalendarFile, filename)
 				}
 				if fieldName, ok := context["fieldName"]; !ok || fieldName != "start_date" {
 					t.Errorf("Expected fieldName 'start_date' in context, got '%v'", fieldName)
@@ -412,7 +412,7 @@ func TestDateFormatValidator_ValidateDateFormat(t *testing.T) {
 func TestDateFormatValidator_DateFields(t *testing.T) {
 	// Test that dateFields map contains expected files and fields
 	expectedDateFields := map[string][]string{
-		"calendar.txt":       {"start_date", "end_date"},
+		CalendarFile:         {"start_date", "end_date"},
 		"calendar_dates.txt": {"date"},
 		"feed_info.txt":      {"feed_start_date", "feed_end_date"},
 	}
@@ -467,7 +467,7 @@ func TestDateFormatValidator_ValidateFileDateFields(t *testing.T) {
 	}{
 		{
 			name:            "valid date fields",
-			filename:        "calendar.txt",
+			filename:        CalendarFile,
 			content:         "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250101,20251231",
 			dateFields:      []string{"start_date", "end_date"},
 			expectedNotices: 0,
@@ -475,7 +475,7 @@ func TestDateFormatValidator_ValidateFileDateFields(t *testing.T) {
 		},
 		{
 			name:            "invalid date fields",
-			filename:        "calendar.txt",
+			filename:        CalendarFile,
 			content:         "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,2025-01-01,20251301",
 			dateFields:      []string{"start_date", "end_date"},
 			expectedNotices: 2,
@@ -483,7 +483,7 @@ func TestDateFormatValidator_ValidateFileDateFields(t *testing.T) {
 		},
 		{
 			name:            "missing date fields in data",
-			filename:        "calendar.txt",
+			filename:        CalendarFile,
 			content:         "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday\nS1,1,1,1,1,1,0,0", // Missing date fields
 			dateFields:      []string{"start_date", "end_date"},
 			expectedNotices: 0,
@@ -491,7 +491,7 @@ func TestDateFormatValidator_ValidateFileDateFields(t *testing.T) {
 		},
 		{
 			name:            "empty date fields",
-			filename:        "calendar.txt",
+			filename:        CalendarFile,
 			content:         "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,,20251231",
 			dateFields:      []string{"start_date", "end_date"},
 			expectedNotices: 0,

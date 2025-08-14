@@ -68,11 +68,11 @@ func (v *FieldFormatValidator) validateFile(loader *parser.FeedLoader, container
 			v.validateStopFields(row, container, filename)
 		case "routes.txt":
 			v.validateRouteFields(row, container, filename)
-		case "stop_times.txt":
+		case StopTimesFile:
 			v.validateStopTimeFields(row, container, filename)
-		case "calendar.txt":
+		case CalendarFile:
 			v.validateCalendarFields(row, container, filename)
-		case "calendar_dates.txt":
+		case CalendarDatesFile:
 			v.validateCalendarDateFields(row, container, filename)
 		}
 	}

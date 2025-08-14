@@ -7,6 +7,8 @@ import (
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
 
+const duplicateHeaderCode = "duplicate_header"
+
 func TestDuplicateHeaderValidator_Validate(t *testing.T) {
 	tests := []struct {
 		name                string
@@ -28,7 +30,7 @@ func TestDuplicateHeaderValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_id,agency_timezone\n1,Metro,1,America/Los_Angeles",
 			},
-			expectedNoticeCodes: []string{"duplicate_header"},
+			expectedNoticeCodes: []string{duplicateHeaderCode},
 			description:         "agency.txt has duplicate agency_id header",
 		},
 		{
@@ -37,7 +39,7 @@ func TestDuplicateHeaderValidator_Validate(t *testing.T) {
 				"agency.txt": "agency_id,agency_name,agency_id,agency_timezone\n1,Metro,1,America/Los_Angeles",
 				"stops.txt":  "stop_id,stop_name,stop_lat,stop_lat\n1,Main St,34.05,-118.25",
 			},
-			expectedNoticeCodes: []string{"duplicate_header", "duplicate_header"},
+			expectedNoticeCodes: []string{duplicateHeaderCode, duplicateHeaderCode},
 			description:         "Both files have duplicate headers",
 		},
 		{
@@ -45,7 +47,7 @@ func TestDuplicateHeaderValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"routes.txt": "route_id,route_id,agency_id,route_short_name,route_short_name,route_type\n1,1,1,Red,Red,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_header", "duplicate_header"},
+			expectedNoticeCodes: []string{duplicateHeaderCode, duplicateHeaderCode},
 			description:         "Single file with multiple duplicate header pairs",
 		},
 		{
@@ -53,7 +55,7 @@ func TestDuplicateHeaderValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"trips.txt": "trip_id,trip_id,trip_id,route_id,service_id\nT1,T1,T1,R1,S1",
 			},
-			expectedNoticeCodes: []string{"duplicate_header"},
+			expectedNoticeCodes: []string{duplicateHeaderCode},
 			description:         "Single header appears three times",
 		},
 		{
@@ -61,7 +63,7 @@ func TestDuplicateHeaderValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id, agency_id ,agency_name,agency_timezone\n1,1,Metro,America/Los_Angeles",
 			},
-			expectedNoticeCodes: []string{"duplicate_header"},
+			expectedNoticeCodes: []string{duplicateHeaderCode},
 			description:         "Duplicate headers with different whitespace should be detected",
 		},
 		{
@@ -77,7 +79,7 @@ func TestDuplicateHeaderValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"custom.txt": "field1,,field2,\nvalue1,,value2,",
 			},
-			expectedNoticeCodes: []string{"duplicate_header"},
+			expectedNoticeCodes: []string{duplicateHeaderCode},
 			description:         "Empty headers should be detected as duplicates",
 		},
 		{
@@ -87,7 +89,7 @@ func TestDuplicateHeaderValidator_Validate(t *testing.T) {
 				"stops.txt":  "stop_id,stop_name,stop_id,stop_lon\n1,Main St,1,-118.25",
 				"routes.txt": "route_id,agency_id,route_short_name,route_type\n1,1,Red,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_header"},
+			expectedNoticeCodes: []string{duplicateHeaderCode},
 			description:         "Mix of files with and without duplicate headers",
 		},
 		{
@@ -95,7 +97,7 @@ func TestDuplicateHeaderValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"test.txt": "field1,field1,field2",
 			},
-			expectedNoticeCodes: []string{"duplicate_header"},
+			expectedNoticeCodes: []string{duplicateHeaderCode},
 			description:         "File with only headers and duplicates",
 		},
 		{
@@ -103,7 +105,7 @@ func TestDuplicateHeaderValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"complex.txt": "a,b,a,c,b,d,a\nval1,val2,val3,val4,val5,val6,val7",
 			},
-			expectedNoticeCodes: []string{"duplicate_header", "duplicate_header"},
+			expectedNoticeCodes: []string{duplicateHeaderCode, duplicateHeaderCode},
 			description:         "Multiple headers with various duplication patterns",
 		},
 	}
@@ -234,7 +236,7 @@ func TestDuplicateHeaderValidator_ValidateFileHeaders(t *testing.T) {
 				// Find the duplicate header notice
 				found := false
 				for _, n := range notices {
-					if n.Code() == "duplicate_header" {
+					if n.Code() == duplicateHeaderCode {
 						found = true
 						context := n.Context()
 
@@ -271,12 +273,12 @@ func TestDuplicateHeaderValidator_ValidateFileHeaders(t *testing.T) {
 				}
 
 				if !found {
-					t.Error("Expected duplicate_header notice but didn't find one")
+					t.Error("Expected " + duplicateHeaderCode + " notice but didn't find one")
 				}
 			} else {
 				// Should not have any duplicate header notices
 				for _, n := range notices {
-					if n.Code() == "duplicate_header" {
+					if n.Code() == duplicateHeaderCode {
 						t.Error("Did not expect duplicate header notice, but got one")
 					}
 				}
@@ -322,8 +324,8 @@ func TestDuplicateHeaderValidator_MalformedCSV(t *testing.T) {
 	// Should not generate duplicate header notices (CSV parsing errors handled elsewhere)
 	notices := container.GetNotices()
 	for _, notice := range notices {
-		if notice.Code() == "duplicate_header" {
-			t.Error("Should not generate duplicate_header notice for malformed CSV")
+		if notice.Code() == duplicateHeaderCode {
+			t.Error("Should not generate " + duplicateHeaderCode + " notice for malformed CSV")
 		}
 	}
 }
@@ -379,7 +381,7 @@ func TestDuplicateHeaderValidator_WhitespaceHandling(t *testing.T) {
 			notices := container.GetNotices()
 			hasDuplicate := false
 			for _, notice := range notices {
-				if notice.Code() == "duplicate_header" {
+				if notice.Code() == duplicateHeaderCode {
 					hasDuplicate = true
 					break
 				}

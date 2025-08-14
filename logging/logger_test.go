@@ -9,12 +9,14 @@ import (
 	"time"
 )
 
+const infoLevel = "INFO"
+
 func TestTextFormatter(t *testing.T) {
 	formatter := &TextFormatter{DisableTimestamp: true, DisableColors: true}
 
 	entry := &LogEntry{
 		Timestamp: time.Now(),
-		Level:     "INFO",
+		Level:     infoLevel,
 		Message:   "test message",
 		Fields: map[string]interface{}{
 			"key1": "value1",
@@ -30,7 +32,7 @@ func TestTextFormatter(t *testing.T) {
 	outputStr := string(output)
 	t.Logf("Output: %q", outputStr)
 
-	if !strings.Contains(outputStr, "[INFO]") {
+	if !strings.Contains(outputStr, "["+infoLevel+"]") {
 		t.Errorf("Output should contain [INFO], got: %q", outputStr)
 	}
 	if !strings.Contains(outputStr, "test message") {
@@ -46,7 +48,7 @@ func TestJSONFormatter(t *testing.T) {
 
 	entry := &LogEntry{
 		Timestamp: time.Now(),
-		Level:     "INFO",
+		Level:     infoLevel,
 		Message:   "test message",
 		Fields: map[string]interface{}{
 			"key1": "value1",
@@ -65,7 +67,7 @@ func TestJSONFormatter(t *testing.T) {
 		t.Fatalf("Failed to parse JSON output: %v", err)
 	}
 
-	if parsed["level"] != "INFO" {
+	if parsed["level"] != infoLevel {
 		t.Error("JSON should contain correct level")
 	}
 	if parsed["message"] != "test message" {

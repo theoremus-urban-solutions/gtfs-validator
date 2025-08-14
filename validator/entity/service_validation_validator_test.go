@@ -591,11 +591,12 @@ func TestServiceValidationValidator_ParseGTFSDate(t *testing.T) {
 					t.Errorf("Expected error for date '%s', but got none", tt.dateStr)
 				}
 			} else {
-				if err != nil {
+				switch {
+				case err != nil:
 					t.Errorf("Expected no error for date '%s', but got: %v", tt.dateStr, err)
-				} else if result == nil {
+				case result == nil:
 					t.Errorf("Expected non-nil result for date '%s'", tt.dateStr)
-				} else if !result.Equal(tt.expected) {
+				case !result.Equal(tt.expected):
 					t.Errorf("Date '%s': expected %v, got %v", tt.dateStr, tt.expected, *result)
 				}
 			}

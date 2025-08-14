@@ -361,7 +361,7 @@ func (v *DateTripsValidator) getActiveServicesForDate(services map[string]*Servi
 	if weekday == 0 { // Sunday in Go is 0, but we store as index 6
 		weekday = 6
 	} else {
-		weekday = weekday - 1 // Convert to 0-based indexing (Mon=0, Tue=1, etc.)
+		weekday-- // Convert to 0-based indexing (Mon=0, Tue=1, etc.)
 	}
 
 	for serviceID, service := range services {

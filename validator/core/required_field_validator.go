@@ -11,6 +11,22 @@ import (
 	"github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
 
+// GTFS filename constants
+const (
+	AgencyFile         = "agency.txt"
+	RoutesFile         = "routes.txt"
+	TripsFile          = "trips.txt"
+	StopTimesFile      = "stop_times.txt"
+	StopsFile          = "stops.txt"
+	CalendarFile       = "calendar.txt"
+	CalendarDatesFile  = "calendar_dates.txt"
+	FareAttributesFile = "fare_attributes.txt"
+	ShapesFile         = "shapes.txt"
+	FrequenciesFile    = "frequencies.txt"
+	TransfersFile      = "transfers.txt"
+	FeedInfoFile       = "feed_info.txt"
+)
+
 // RequiredFieldValidator validates required fields in GTFS files
 type RequiredFieldValidator struct{}
 
@@ -63,7 +79,7 @@ func (v *RequiredFieldValidator) validateFile(loader *parser.FeedLoader, contain
 			value, exists := row.Values[field]
 			if !exists || strings.TrimSpace(value) == "" {
 				// Handle special cases for stops.txt
-				if filename == "stops.txt" && field == "stop_name" {
+				if filename == StopsFile && field == "stop_name" {
 					// Check location type - some stop types don't require names
 					if v.isStopNameOptionalForLocationType(row.Values) {
 						// Create a warning instead of error
@@ -89,33 +105,33 @@ func (v *RequiredFieldValidator) validateFile(loader *parser.FeedLoader, contain
 // getRequiredFields returns the required fields for a given file
 func (v *RequiredFieldValidator) getRequiredFields(filename string) []string {
 	switch filename {
-	case "agency.txt":
+	case AgencyFile:
 		return []string{"agency_name", "agency_url", "agency_timezone"}
-	case "stops.txt":
+	case StopsFile:
 		return []string{"stop_id", "stop_name"}
-	case "routes.txt":
+	case RoutesFile:
 		return []string{"route_id", "route_type"}
-	case "trips.txt":
+	case TripsFile:
 		return []string{"route_id", "service_id", "trip_id"}
-	case "stop_times.txt":
+	case StopTimesFile:
 		return []string{"trip_id", "stop_id", "stop_sequence"}
-	case "calendar.txt":
+	case CalendarFile:
 		return []string{"service_id", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "start_date", "end_date"}
-	case "calendar_dates.txt":
+	case CalendarDatesFile:
 		return []string{"service_id", "date", "exception_type"}
-	case "fare_attributes.txt":
+	case FareAttributesFile:
 		return []string{"fare_id", "price", "currency_type"}
-	case "shapes.txt":
+	case ShapesFile:
 		return []string{"shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"}
-	case "frequencies.txt":
+	case FrequenciesFile:
 		return []string{"trip_id", "start_time", "end_time", "headway_secs"}
-	case "transfers.txt":
+	case TransfersFile:
 		return []string{"from_stop_id", "to_stop_id", "transfer_type"}
 	case "pathways.txt":
 		return []string{"pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional"}
 	case "levels.txt":
 		return []string{"level_id", "level_index"}
-	case "feed_info.txt":
+	case FeedInfoFile:
 		return []string{"feed_publisher_name", "feed_publisher_url", "feed_lang"}
 	default:
 		return []string{}

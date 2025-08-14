@@ -71,7 +71,8 @@ func main() {
 		if err == context.Canceled {
 			fmt.Println("\nValidation was cancelled by user")
 			stats.PrintFinalSummary(time.Since(startTime), nil)
-			os.Exit(1)
+			cancel()
+			os.Exit(1) //nolint:gocritic // cancel() already called above
 		}
 		log.Fatalf("Validation failed: %v", err)
 	}
