@@ -3,6 +3,7 @@ package gtfsvalidator
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -189,8 +190,11 @@ func TestValidationModes_Comprehensive(t *testing.T) {
 
 func TestProgressCallback(t *testing.T) {
 	var progressUpdates []ProgressInfo
+	var mu sync.Mutex
 
 	validator := New(WithProgressCallback(func(info ProgressInfo) {
+		mu.Lock()
+		defer mu.Unlock()
 		progressUpdates = append(progressUpdates, info)
 	}))
 
