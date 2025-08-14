@@ -195,11 +195,11 @@ func runValidation(cmd *cobra.Command, args []string) error {
 		case context.Canceled:
 			fmt.Fprintf(os.Stderr, "⚠️  Validation cancelled by user\n")
 			cancel()
-			os.Exit(1) //nolint:gocritic // cancel() explicitly called above
+			os.Exit(1) //nolint:gocritic // cancel explicitly called above
 		case context.DeadlineExceeded:
 			fmt.Fprintf(os.Stderr, "⏰ Validation timed out after %v\n", timeout)
 			cancel()
-			os.Exit(1) //nolint:gocritic // cancel() explicitly called above
+			os.Exit(1)
 		default:
 			return fmt.Errorf("❌ Validation Error: %v", err)
 		}

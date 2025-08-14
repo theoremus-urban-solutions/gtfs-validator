@@ -71,7 +71,7 @@ func main() {
 		if err == context.Canceled {
 			fmt.Println("\nValidation cancelled by user")
 			cancel()
-			os.Exit(1) //nolint:gocritic // cancel() explicitly called above
+			os.Exit(1) //nolint:gocritic // cancel explicitly called above
 		}
 		log.Fatalf("Failed to validate: %v", err)
 	}
@@ -133,7 +133,7 @@ func main() {
 	case report.HasErrors():
 		fmt.Printf("\n❌ Validation FAILED with %d errors\n", report.ErrorCount())
 		cancel()
-		os.Exit(1) //nolint:gocritic // cancel() explicitly called above
+		os.Exit(1)
 	case report.HasWarnings():
 		fmt.Printf("\n⚠️  Validation completed with %d warnings\n", report.WarningCount())
 	default:
