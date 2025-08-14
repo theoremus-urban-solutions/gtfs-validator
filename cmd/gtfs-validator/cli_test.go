@@ -63,7 +63,7 @@ func createTestGTFS(t *testing.T, valid bool) string {
 
 	for filename, content := range files {
 		filePath := filepath.Join(testDir, filename)
-		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(content), 0600); err != nil {
 			t.Fatalf("Failed to create test file %s: %v", filename, err)
 		}
 	}

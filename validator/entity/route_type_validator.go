@@ -158,8 +158,8 @@ func (v *RouteTypeValidator) validateRouteNamingConsistency(container *notice.No
 	longName := strings.ToLower(route.RouteLongName)
 
 	// Check for naming patterns that might indicate wrong route type
-	switch {
-	case routeType == 3: // Bus
+	switch routeType {
+	case 3: // Bus
 		if v.containsTransitModeKeywords(shortName, []string{"metro", "subway", "rail", "train"}) ||
 			v.containsTransitModeKeywords(longName, []string{"metro", "subway", "rail", "train"}) {
 			container.AddNotice(notice.NewRouteTypeNameMismatchNotice(
@@ -172,7 +172,7 @@ func (v *RouteTypeValidator) validateRouteNamingConsistency(container *notice.No
 			))
 		}
 
-	case routeType == 1: // Subway/Metro
+	case 1: // Subway/Metro
 		if v.containsTransitModeKeywords(shortName, []string{"bus", "coach"}) ||
 			v.containsTransitModeKeywords(longName, []string{"bus", "coach"}) {
 			container.AddNotice(notice.NewRouteTypeNameMismatchNotice(
@@ -185,7 +185,7 @@ func (v *RouteTypeValidator) validateRouteNamingConsistency(container *notice.No
 			))
 		}
 
-	case routeType == 2: // Rail
+	case 2: // Rail
 		if v.containsTransitModeKeywords(shortName, []string{"bus", "metro", "subway"}) ||
 			v.containsTransitModeKeywords(longName, []string{"bus", "metro", "subway"}) {
 			container.AddNotice(notice.NewRouteTypeNameMismatchNotice(
@@ -198,7 +198,7 @@ func (v *RouteTypeValidator) validateRouteNamingConsistency(container *notice.No
 			))
 		}
 
-	case routeType == 4: // Ferry
+	case 4: // Ferry
 		if !v.containsTransitModeKeywords(shortName, []string{"ferry", "boat", "water"}) &&
 			!v.containsTransitModeKeywords(longName, []string{"ferry", "boat", "water"}) &&
 			(route.RouteShortName != "" || route.RouteLongName != "") {

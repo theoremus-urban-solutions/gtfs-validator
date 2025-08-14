@@ -211,7 +211,11 @@ func runValidation(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return fmt.Errorf("❌ Output Error: Failed to create output file '%s': %v", outputFile, err)
 		}
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to close output file: %v\n", err)
+			}
+		}()
 		output = file
 		fmt.Fprintf(os.Stderr, "📄 Writing output to: %s\n", outputFile)
 	}
@@ -278,33 +282,42 @@ func contains(slice []string, item string) bool {
 }
 
 func outputSummary(output *os.File, report *gtfsvalidator.ValidationReport, inputPath string) {
-	fmt.Fprintf(output, "GTFS Validation Summary\n")
-	fmt.Fprintf(output, "======================\n\n")
-	fmt.Fprintf(output, "Feed: %s\n", filepath.Base(inputPath))
-	fmt.Fprintf(output, "Validation Time: %.2fs\n\n", report.Summary.ValidationTime)
-
-	fmt.Fprintf(output, "Feed Statistics:\n")
-	fmt.Fprintf(output, "  Agencies: %d\n", report.Summary.FeedInfo.AgencyCount)
-	fmt.Fprintf(output, "  Routes: %d\n", report.Summary.FeedInfo.RouteCount)
-	fmt.Fprintf(output, "  Trips: %d\n", report.Summary.FeedInfo.TripCount)
-	fmt.Fprintf(output, "  Stops: %d\n", report.Summary.FeedInfo.StopCount)
-	fmt.Fprintf(output, "  Stop Times: %d\n", report.Summary.FeedInfo.StopTimeCount)
-	if report.Summary.FeedInfo.ServiceDateFrom != "" && report.Summary.FeedInfo.ServiceDateTo != "" {
-		fmt.Fprintf(output, "  Service Period: %s to %s\n", report.Summary.FeedInfo.ServiceDateFrom, report.Summary.FeedInfo.ServiceDateTo)
+	// Helper function to write output with error checking
+	write := func(format string, args ...interface{}) bool {
+		if _, err := fmt.Fprintf(output, format, args...); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to write output: %v\n", err)
+			return false
+		}
+		return true
 	}
 
-	fmt.Fprintf(output, "\nValidation Results:\n")
-	fmt.Fprintf(output, "  Errors: %d\n", report.Summary.Counts.Errors)
-	fmt.Fprintf(output, "  Warnings: %d\n", report.Summary.Counts.Warnings)
-	fmt.Fprintf(output, "  Infos: %d\n", report.Summary.Counts.Infos)
-	fmt.Fprintf(output, "  Total: %d\n", report.Summary.Counts.Total)
+	if !write("GTFS Validation Summary\n") { return }
+	if !write("======================\n\n") { return }
+	if !write("Feed: %s\n", filepath.Base(inputPath)) { return }
+	if !write("Validation Time: %.2fs\n\n", report.Summary.ValidationTime) { return }
+
+	if !write("Feed Statistics:\n") { return }
+	if !write("  Agencies: %d\n", report.Summary.FeedInfo.AgencyCount) { return }
+	if !write("  Routes: %d\n", report.Summary.FeedInfo.RouteCount) { return }
+	if !write("  Trips: %d\n", report.Summary.FeedInfo.TripCount) { return }
+	if !write("  Stops: %d\n", report.Summary.FeedInfo.StopCount) { return }
+	if !write("  Stop Times: %d\n", report.Summary.FeedInfo.StopTimeCount) { return }
+	if report.Summary.FeedInfo.ServiceDateFrom != "" && report.Summary.FeedInfo.ServiceDateTo != "" {
+		if !write("  Service Period: %s to %s\n", report.Summary.FeedInfo.ServiceDateFrom, report.Summary.FeedInfo.ServiceDateTo) { return }
+	}
+
+	if !write("\nValidation Results:\n") { return }
+	if !write("  Errors: %d\n", report.Summary.Counts.Errors) { return }
+	if !write("  Warnings: %d\n", report.Summary.Counts.Warnings) { return }
+	if !write("  Infos: %d\n", report.Summary.Counts.Infos) { return }
+	if !write("  Total: %d\n", report.Summary.Counts.Total) { return }
 
 	if report.HasErrors() {
-		fmt.Fprintf(output, "\n❌ Validation FAILED - Feed contains errors\n")
+		write("\n❌ Validation FAILED - Feed contains errors\n")
 	} else if report.HasWarnings() {
-		fmt.Fprintf(output, "\n⚠️  Validation completed with warnings\n")
+		write("\n⚠️  Validation completed with warnings\n")
 	} else {
-		fmt.Fprintf(output, "\n✅ Validation PASSED\n")
+		write("\n✅ Validation PASSED\n")
 	}
 }
 

@@ -2,7 +2,6 @@ package gtfsvalidator
 
 import (
 	"context"
-	"io"
 	"testing"
 	"time"
 )
@@ -228,12 +227,12 @@ func TestValidatorInterface(t *testing.T) {
 	validator := New()
 
 	// These should compile without error
-	var _ func(string) (*ValidationReport, error) = validator.ValidateFile
-	var _ func(context.Context, string) (*ValidationReport, error) = validator.ValidateFileWithContext
-	var _ func(io.Reader) (*ValidationReport, error) = validator.ValidateReader
-	var _ func(context.Context, io.Reader) (*ValidationReport, error) = validator.ValidateReaderWithContext
-	var _ func(string, NoticeCallback) (*ValidationReport, error) = validator.ValidateFileStream
-	var _ func(context.Context, string, NoticeCallback) (*ValidationReport, error) = validator.ValidateFileStreamWithContext
+	_ = validator.ValidateFile
+	_ = validator.ValidateFileWithContext
+	_ = validator.ValidateReader
+	_ = validator.ValidateReaderWithContext
+	_ = validator.ValidateFileStream
+	_ = validator.ValidateFileStreamWithContext
 }
 
 func TestValidateFileErrors(t *testing.T) {

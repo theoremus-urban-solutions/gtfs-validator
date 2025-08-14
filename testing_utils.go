@@ -18,7 +18,7 @@ func TestDataPath(subpath string) string {
 func CreateTestZipFromDir(t *testing.T, srcDir, zipPath string) {
 	t.Helper()
 
-	zipFile, err := os.Create(zipPath)
+	zipFile, err := os.Create(zipPath) // #nosec G304 -- This is test code with controlled paths
 	if err != nil {
 		t.Fatalf("Failed to create zip file: %v", err)
 	}
@@ -46,7 +46,7 @@ func CreateTestZipFromDir(t *testing.T, srcDir, zipPath string) {
 			return err
 		}
 
-		file, err := os.Open(path)
+		file, err := os.Open(path) // #nosec G304 -- This is test code with controlled paths
 		if err != nil {
 			return err
 		}

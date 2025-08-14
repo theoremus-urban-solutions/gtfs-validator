@@ -280,7 +280,7 @@ func (v *TripBlockIdValidator) validateBlockTiming(container *notice.NoticeConta
 		}
 
 		// Find first and last valid times
-		var firstTime, lastTime int = -1, -1
+		firstTime, lastTime := -1, -1
 
 		for _, st := range times {
 			if st.DepartureTime >= 0 && (firstTime == -1 || st.DepartureTime < firstTime) {

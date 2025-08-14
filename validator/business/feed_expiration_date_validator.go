@@ -458,9 +458,10 @@ func (v *FeedExpirationDateValidator) addCalendarDatesServices(loader *parser.Fe
 		}
 
 		// 1 = service added, 2 = service removed
-		if exceptionType == 1 {
+		switch exceptionType {
+		case 1:
 			activeServices[strings.TrimSpace(serviceID)] = true
-		} else if exceptionType == 2 {
+		case 2:
 			delete(activeServices, strings.TrimSpace(serviceID))
 		}
 	}

@@ -26,9 +26,9 @@ func ParseGTFSColor(s string) (*GTFSColor, error) {
 	}
 
 	return &GTFSColor{
-		R: uint8(rgb >> 16),
-		G: uint8(rgb >> 8),
-		B: uint8(rgb),
+		R: uint8(rgb >> 16 & 0xFF), // #nosec G115 -- RGB values are guaranteed to fit in uint8 after masking
+		G: uint8(rgb >> 8 & 0xFF),  // #nosec G115 -- RGB values are guaranteed to fit in uint8 after masking
+		B: uint8(rgb & 0xFF),       // #nosec G115 -- RGB values are guaranteed to fit in uint8 after masking
 	}, nil
 }
 

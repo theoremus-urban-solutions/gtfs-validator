@@ -172,7 +172,7 @@ func TestFeedLoader_FromDirectory(t *testing.T) {
 
 	for filename, content := range testFiles {
 		filePath := filepath.Join(tmpDir, filename)
-		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(content), 0600); err != nil {
 			t.Fatalf("Failed to create test file %s: %v", filename, err)
 		}
 	}

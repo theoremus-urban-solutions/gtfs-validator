@@ -505,9 +505,10 @@ func (v *ServiceCalendarValidator) calculateActiveDaysInMonth(calendar *Calendar
 		// Check calendar_dates exceptions
 		for _, calendarDate := range calendarDates {
 			if calendarDate.Date.Equal(d) {
-				if calendarDate.ExceptionType == 1 {
+				switch calendarDate.ExceptionType {
+				case 1:
 					isActive = true // Service added
-				} else if calendarDate.ExceptionType == 2 {
+				case 2:
 					isActive = false // Service removed
 				}
 				break

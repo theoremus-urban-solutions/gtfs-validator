@@ -27,7 +27,7 @@ func CreateTestFeedLoader(t *testing.T, files map[string]string) *parser.FeedLoa
 	// Write test files to the temporary directory
 	for filename, content := range files {
 		filePath := filepath.Join(tmpDir, filename)
-		if err := os.WriteFile(filePath, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(filePath, []byte(content), 0600); err != nil {
 			t.Fatalf("Failed to write test file %s: %v", filename, err)
 		}
 	}

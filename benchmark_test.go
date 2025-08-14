@@ -79,16 +79,26 @@ func createBenchmarkZip(b *testing.B, files map[string]string) string {
 	if err != nil {
 		b.Fatalf("Failed to create temp file: %v", err)
 	}
-	tmpFile.Close()
+	if err := tmpFile.Close(); err != nil {
+		b.Fatalf("Failed to close temp file: %v", err)
+	}
 
 	zipFile, err := os.Create(tmpFile.Name())
 	if err != nil {
 		b.Fatalf("Failed to create zip file: %v", err)
 	}
-	defer zipFile.Close()
+	defer func() {
+		if err := zipFile.Close(); err != nil {
+			b.Errorf("Failed to close zip file: %v", err)
+		}
+	}()
 
 	zipWriter := zip.NewWriter(zipFile)
-	defer zipWriter.Close()
+	defer func() {
+		if err := zipWriter.Close(); err != nil {
+			b.Errorf("Failed to close zip writer: %v", err)
+		}
+	}()
 
 	for filename, content := range files {
 		writer, err := zipWriter.Create(filename)
@@ -103,7 +113,9 @@ func createBenchmarkZip(b *testing.B, files map[string]string) string {
 
 	// Register cleanup
 	b.Cleanup(func() {
-		os.Remove(tmpFile.Name())
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			b.Errorf("Failed to remove temp file: %v", err)
+		}
 	})
 
 	return tmpFile.Name()

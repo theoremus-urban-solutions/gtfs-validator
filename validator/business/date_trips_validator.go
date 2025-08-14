@@ -369,9 +369,10 @@ func (v *DateTripsValidator) getActiveServicesForDate(services map[string]*Servi
 	// Apply calendar exceptions
 	for _, exception := range exceptions {
 		if exception.Date.Equal(date) {
-			if exception.ExceptionType == 1 { // Service added
+			switch exception.ExceptionType {
+			case 1: // Service added
 				activeServices[exception.ServiceID] = true
-			} else if exception.ExceptionType == 2 { // Service removed
+			case 2: // Service removed
 				delete(activeServices, exception.ServiceID)
 			}
 		}

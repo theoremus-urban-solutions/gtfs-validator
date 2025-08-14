@@ -182,9 +182,9 @@ func (v *RouteConsistencyValidator) isValidHexColor(color string) bool {
 	}
 
 	for _, char := range color {
-		if !((char >= '0' && char <= '9') ||
-			(char >= 'A' && char <= 'F') ||
-			(char >= 'a' && char <= 'f')) {
+		if (char < '0' || char > '9') &&
+			(char < 'A' || char > 'F') &&
+			(char < 'a' || char > 'f') {
 			return false
 		}
 	}
