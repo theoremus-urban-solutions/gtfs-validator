@@ -2,6 +2,7 @@ package core
 
 import (
 	"io"
+	"log"
 	"strings"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -32,7 +33,11 @@ func (v *EmptyFileValidator) validateFileNotEmpty(loader *parser.FeedLoader, con
 	if err != nil {
 		return // File doesn't exist, other validators handle this
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	// Read the entire file content to check if it contains only headers and whitespace
 	content, err := io.ReadAll(reader)
@@ -70,7 +75,11 @@ func (v *EmptyFileValidator) validateFileNotEmpty(loader *parser.FeedLoader, con
 	if err != nil {
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, filename)
 	if err != nil {

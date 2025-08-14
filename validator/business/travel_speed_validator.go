@@ -3,6 +3,7 @@ package business
 import (
 	"fmt"
 	"io"
+	"log"
 	"math"
 	"sort"
 	"strconv"
@@ -70,7 +71,11 @@ func (v *TravelSpeedValidator) loadStopLocations(loader *parser.FeedLoader) map[
 	if err != nil {
 		return stopLocations
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stops.txt")
 	if err != nil {
@@ -121,7 +126,11 @@ func (v *TravelSpeedValidator) loadRouteTypes(loader *parser.FeedLoader) map[str
 
 	// Load route types from routes.txt
 	if reader, err := loader.GetFile("routes.txt"); err == nil {
-		defer reader.Close()
+		defer func() {
+			if closeErr := reader.Close(); closeErr != nil {
+				log.Printf("Warning: failed to close reader %v", closeErr)
+			}
+		}()
 		if csvFile, err := parser.NewCSVFile(reader, "routes.txt"); err == nil {
 			for {
 				row, err := csvFile.ReadRow()
@@ -146,7 +155,11 @@ func (v *TravelSpeedValidator) loadRouteTypes(loader *parser.FeedLoader) map[str
 
 	// Load trip-to-route mappings from trips.txt
 	if reader, err := loader.GetFile("trips.txt"); err == nil {
-		defer reader.Close()
+		defer func() {
+			if closeErr := reader.Close(); closeErr != nil {
+				log.Printf("Warning: failed to close reader %v", closeErr)
+			}
+		}()
 		if csvFile, err := parser.NewCSVFile(reader, "trips.txt"); err == nil {
 			for {
 				row, err := csvFile.ReadRow()
@@ -184,7 +197,11 @@ func (v *TravelSpeedValidator) validateStopTimeSpeeds(loader *parser.FeedLoader,
 	if err != nil {
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stop_times.txt")
 	if err != nil {

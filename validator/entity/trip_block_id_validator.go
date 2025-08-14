@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -64,7 +65,11 @@ func (v *TripBlockIdValidator) loadTrips(loader *parser.FeedLoader) []*TripBlock
 	if err != nil {
 		return trips
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {
@@ -206,7 +211,11 @@ func (v *TripBlockIdValidator) loadStopTimesForTrips(loader *parser.FeedLoader, 
 	if err != nil {
 		return stopTimes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stop_times.txt")
 	if err != nil {

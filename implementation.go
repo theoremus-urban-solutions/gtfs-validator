@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -85,8 +86,16 @@ func (v *validatorImpl) ValidateReaderWithContext(ctx context.Context, reader io
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temporary file: %w", err)
 	}
-	defer os.Remove(tmpFile.Name())
-	defer tmpFile.Close()
+	defer func() {
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			log.Printf("Warning: failed to remove temp file: %v", err)
+		}
+	}()
+	defer func() {
+		if closeErr := tmpFile.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close %v", closeErr)
+		}
+	}()
 
 	// Copy reader content to temporary file
 	_, err = io.Copy(tmpFile, reader)
@@ -288,7 +297,11 @@ func (v *internalValidator) ValidateZipWithContext(ctx context.Context, zipPath 
 	if err != nil {
 		return nil, fmt.Errorf("failed to load zip file: %w", err)
 	}
-	defer loader.Close()
+	defer func() {
+		if err := loader.Close(); err != nil {
+			log.Printf("Warning: failed to close loader: %v", err)
+		}
+	}()
 
 	v.feedLoader = loader
 
@@ -314,7 +327,11 @@ func (v *internalValidator) ValidateDirectoryWithContext(ctx context.Context, di
 	if err != nil {
 		return nil, fmt.Errorf("failed to load directory: %w", err)
 	}
-	defer loader.Close()
+	defer func() {
+		if err := loader.Close(); err != nil {
+			log.Printf("Warning: failed to close loader: %v", err)
+		}
+	}()
 
 	v.feedLoader = loader
 
@@ -565,7 +582,12 @@ func (v *internalValidator) countRowsInFile(filename string) int {
 	if err != nil {
 		return 0
 	}
-	defer reader.Close()
+
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, filename)
 	if err != nil {
@@ -586,7 +608,11 @@ func (v *internalValidator) extractServiceDates(feedInfo *report.FeedInfo) {
 	if err != nil {
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "feed_info.txt")
 	if err != nil {

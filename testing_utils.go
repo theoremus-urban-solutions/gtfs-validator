@@ -3,6 +3,7 @@ package gtfsvalidator
 import (
 	"archive/zip"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,10 +23,18 @@ func CreateTestZipFromDir(t *testing.T, srcDir, zipPath string) {
 	if err != nil {
 		t.Fatalf("Failed to create zip file: %v", err)
 	}
-	defer zipFile.Close()
+	defer func() {
+		if closeErr := zipFile.Close(); closeErr != nil {
+			t.Errorf("Failed to close zip file: %v", closeErr)
+		}
+	}()
 
 	zipWriter := zip.NewWriter(zipFile)
-	defer zipWriter.Close()
+	defer func() {
+		if closeErr := zipWriter.Close(); closeErr != nil {
+			t.Errorf("Failed to close zip file: %v", closeErr)
+		}
+	}()
 
 	err = filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -50,7 +59,11 @@ func CreateTestZipFromDir(t *testing.T, srcDir, zipPath string) {
 		if err != nil {
 			return err
 		}
-		defer file.Close()
+		defer func() {
+			if closeErr := file.Close(); closeErr != nil {
+				log.Printf("Warning: failed to close %v", closeErr)
+			}
+		}()
 
 		_, err = io.Copy(zipEntry, file)
 		return err
@@ -221,16 +234,26 @@ func CreateTempZip(t *testing.T, files map[string]string) string {
 	if err != nil {
 		t.Fatalf("Failed to create temp file: %v", err)
 	}
-	tmpFile.Close()
+	if closeErr := tmpFile.Close(); closeErr != nil {
+		t.Errorf("Failed to close temp file: %v", closeErr)
+	}
 
 	zipFile, err := os.Create(tmpFile.Name())
 	if err != nil {
 		t.Fatalf("Failed to create zip file: %v", err)
 	}
-	defer zipFile.Close()
+	defer func() {
+		if closeErr := zipFile.Close(); closeErr != nil {
+			t.Errorf("Failed to close zip file: %v", closeErr)
+		}
+	}()
 
 	zipWriter := zip.NewWriter(zipFile)
-	defer zipWriter.Close()
+	defer func() {
+		if closeErr := zipWriter.Close(); closeErr != nil {
+			t.Errorf("Failed to close zip file: %v", closeErr)
+		}
+	}()
 
 	for filename, content := range files {
 		writer, err := zipWriter.Create(filename)
@@ -245,7 +268,9 @@ func CreateTempZip(t *testing.T, files map[string]string) string {
 
 	// Register cleanup
 	t.Cleanup(func() {
-		os.Remove(tmpFile.Name())
+		if err := os.Remove(tmpFile.Name()); err != nil {
+			t.Errorf("Failed to remove temp file: %v", err)
+		}
 	})
 
 	return tmpFile.Name()

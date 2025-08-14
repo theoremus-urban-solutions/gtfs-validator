@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -45,7 +46,11 @@ func (v *AttributionWithoutRoleValidator) loadAttributions(loader *parser.FeedLo
 	if err != nil {
 		return attributions // File doesn't exist, no attributions to validate
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "attributions.txt")
 	if err != nil {

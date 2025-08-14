@@ -2,6 +2,7 @@ package core
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -33,7 +34,11 @@ func (v *RequiredFieldValidator) validateFile(loader *parser.FeedLoader, contain
 	if err != nil {
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, filename)
 	if err != nil {

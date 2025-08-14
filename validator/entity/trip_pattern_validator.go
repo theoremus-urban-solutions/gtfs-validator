@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -65,7 +66,11 @@ func (v *TripPatternValidator) loadStopTimes(loader *parser.FeedLoader) []*TripS
 	if err != nil {
 		return stopTimes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stop_times.txt")
 	if err != nil {

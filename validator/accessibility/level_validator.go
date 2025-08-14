@@ -2,6 +2,7 @@ package accessibility
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -53,7 +54,11 @@ func (v *LevelValidator) loadLevels(loader *parser.FeedLoader) map[string]*Level
 	if err != nil {
 		return levels
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "levels.txt")
 	if err != nil {
@@ -181,7 +186,11 @@ func (v *LevelValidator) loadUsedLevelsFromStops(loader *parser.FeedLoader) map[
 	if err != nil {
 		return usedLevels
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stops.txt")
 	if err != nil {
@@ -213,7 +222,11 @@ func (v *LevelValidator) loadUsedLevelsFromPathways(loader *parser.FeedLoader) m
 	if err != nil {
 		return usedLevels
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "pathways.txt")
 	if err != nil {

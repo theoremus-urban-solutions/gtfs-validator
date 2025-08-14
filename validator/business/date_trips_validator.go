@@ -2,6 +2,7 @@ package business
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -75,7 +76,11 @@ func (v *DateTripsValidator) loadServices(loader *parser.FeedLoader) map[string]
 	if err != nil {
 		return services
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "calendar.txt")
 	if err != nil {
@@ -145,7 +150,11 @@ func (v *DateTripsValidator) loadCalendarExceptions(loader *parser.FeedLoader) [
 	if err != nil {
 		return exceptions
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "calendar_dates.txt")
 	if err != nil {
@@ -203,7 +212,11 @@ func (v *DateTripsValidator) countTripsForService(loader *parser.FeedLoader, ser
 	if err != nil {
 		return 0
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {

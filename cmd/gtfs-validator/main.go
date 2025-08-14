@@ -326,8 +326,15 @@ func outputConsole(output *os.File, report *gtfsvalidator.ValidationReport, inpu
 
 	// Show first few notices if any
 	if len(report.Notices) > 0 {
-		fmt.Fprintf(output, "\nSample Notices:\n")
-		fmt.Fprintf(output, "===============\n")
+		// Helper function to write output with error checking
+		write := func(format string, args ...interface{}) {
+			if _, err := fmt.Fprintf(output, format, args...); err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: Failed to write console output: %v\n", err)
+			}
+		}
+
+		write("\nSample Notices:\n")
+		write("===============\n")
 
 		errorCount := 0
 		warningCount := 0
@@ -338,13 +345,13 @@ func outputConsole(output *os.File, report *gtfsvalidator.ValidationReport, inpu
 			}
 
 			if notice.Severity == "ERROR" && errorCount < 5 {
-				fmt.Fprintf(output, "ERROR: %s (%d instances)\n", notice.Code, notice.TotalNotices)
+				write("ERROR: %s (%d instances)\n", notice.Code, notice.TotalNotices)
 				if len(notice.SampleNotices) > 0 {
 					showNoticeContext(output, notice.SampleNotices[0])
 				}
 				errorCount++
 			} else if notice.Severity == "WARNING" && warningCount < 5 {
-				fmt.Fprintf(output, "WARNING: %s (%d instances)\n", notice.Code, notice.TotalNotices)
+				write("WARNING: %s (%d instances)\n", notice.Code, notice.TotalNotices)
 				if len(notice.SampleNotices) > 0 {
 					showNoticeContext(output, notice.SampleNotices[0])
 				}
@@ -353,7 +360,7 @@ func outputConsole(output *os.File, report *gtfsvalidator.ValidationReport, inpu
 		}
 
 		if len(report.Notices) > 10 {
-			fmt.Fprintf(output, "\n... and %d more notices (use -f json for full details)\n", len(report.Notices)-10)
+			write("\n... and %d more notices (use -f json for full details)\n", len(report.Notices)-10)
 		}
 	}
 }
@@ -375,7 +382,9 @@ func showNoticeContext(output *os.File, context map[string]interface{}) {
 	}
 
 	if len(details) > 0 {
-		fmt.Fprintf(output, "       (%s)\n", strings.Join(details, ", "))
+		if _, err := fmt.Fprintf(output, "       (%s)\n", strings.Join(details, ", ")); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Failed to write notice context: %v\n", err)
+		}
 	}
 }
 

@@ -3,6 +3,7 @@ package relationship
 import (
 	"fmt"
 	"io"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -35,7 +36,11 @@ func (v *StopTimeSequenceTimeValidator) Validate(loader *parser.FeedLoader, cont
 	if err != nil {
 		return // File doesn't exist, skip validation
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stop_times.txt")
 	if err != nil {

@@ -58,7 +58,11 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 		sendErrorResponse(w, "Missing 'file' field", http.StatusBadRequest)
 		return
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close %v", closeErr)
+		}
+	}()
 
 	// Parse optional parameters
 	var req ValidationRequest
@@ -127,28 +131,35 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
+	if err := json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":    "healthy",
 		"version":   "1.0.0",
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	})
+	}); err != nil {
+		http.Error(w, "Failed to encode health response", http.StatusInternalServerError)
+	}
 }
 
 func sendErrorResponse(w http.ResponseWriter, message string, statusCode int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(ValidationResponse{
+	if err := json.NewEncoder(w).Encode(ValidationResponse{
 		Success: false,
 		Error:   message,
-	})
+	}); err != nil {
+		// Can't set headers again after WriteHeader, so just log
+		log.Printf("Failed to encode error response: %v", err)
+	}
 }
 
 func sendSuccessResponse(w http.ResponseWriter, report *gtfsvalidator.ValidationReport) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(ValidationResponse{
+	if err := json.NewEncoder(w).Encode(ValidationResponse{
 		Success: true,
 		Report:  report,
-	})
+	}); err != nil {
+		http.Error(w, "Failed to encode success response", http.StatusInternalServerError)
+	}
 }
 
 // Example usage with curl:

@@ -2,6 +2,7 @@ package business
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -25,7 +26,11 @@ func (v *FeedExpirationValidator) Validate(loader *parser.FeedLoader, container 
 	if err != nil {
 		return // File doesn't exist, skip validation
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "feed_info.txt")
 	if err != nil {

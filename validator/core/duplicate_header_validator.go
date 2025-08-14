@@ -1,6 +1,7 @@
 package core
 
 import (
+	"log"
 	"strings"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -31,7 +32,11 @@ func (v *DuplicateHeaderValidator) validateFileHeaders(loader *parser.FeedLoader
 	if err != nil {
 		return // File doesn't exist, other validators handle this
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, filename)
 	if err != nil {

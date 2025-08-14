@@ -41,7 +41,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("❌ Failed to open file: %v", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close %v", closeErr)
+		}
+	}()
 
 	// Get file size for progress reporting
 	fileInfo, err := file.Stat()

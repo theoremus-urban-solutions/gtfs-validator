@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -54,7 +55,11 @@ func (v *ServiceValidationValidator) loadCalendarServices(loader *parser.FeedLoa
 	if err != nil {
 		return services
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "calendar.txt")
 	if err != nil {
@@ -113,7 +118,11 @@ func (v *ServiceValidationValidator) loadCalendarDateServices(loader *parser.Fee
 	if err != nil {
 		return services
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "calendar_dates.txt")
 	if err != nil {
@@ -253,7 +262,11 @@ func (v *ServiceValidationValidator) loadUsedServices(loader *parser.FeedLoader)
 	if err != nil {
 		return usedServices
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {

@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 	"strings"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -44,7 +45,11 @@ func (v *ZoneValidator) loadZones(loader *parser.FeedLoader) map[string][]*ZoneI
 	if err != nil {
 		return zones
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stops.txt")
 	if err != nil {
@@ -91,7 +96,11 @@ func (v *ZoneValidator) loadUsedZones(loader *parser.FeedLoader) map[string]bool
 	if err != nil {
 		return usedZones
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "fare_rules.txt")
 	if err != nil {

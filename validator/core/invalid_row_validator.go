@@ -2,6 +2,7 @@ package core
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -41,7 +42,11 @@ func (v *InvalidRowValidator) validateFile(loader *parser.FeedLoader, container 
 	if err != nil {
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, filename)
 	if err != nil {

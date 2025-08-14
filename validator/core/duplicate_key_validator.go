@@ -2,6 +2,7 @@ package core
 
 import (
 	"io"
+	"log"
 	"strings"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -61,7 +62,11 @@ func (v *DuplicateKeyValidator) validateFileKeys(loader *parser.FeedLoader, cont
 	if err != nil {
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, config.Filename)
 	if err != nil {

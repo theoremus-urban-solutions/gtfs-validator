@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -43,7 +44,11 @@ func (v *RouteConsistencyValidator) validateRoutes(loader *parser.FeedLoader, co
 	if err != nil {
 		return // No routes file
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "routes.txt")
 	if err != nil {

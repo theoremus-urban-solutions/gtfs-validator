@@ -2,6 +2,7 @@ package fare
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -83,7 +84,11 @@ func (v *FareValidator) loadFareAttributes(loader *parser.FeedLoader) map[string
 	if err != nil {
 		return fareAttributes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "fare_attributes.txt")
 	if err != nil {
@@ -159,7 +164,11 @@ func (v *FareValidator) loadFareRules(loader *parser.FeedLoader) []*FareRuleInfo
 	if err != nil {
 		return fareRules
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "fare_rules.txt")
 	if err != nil {

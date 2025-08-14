@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -182,7 +183,11 @@ func TestFeedLoader_FromDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to load from directory: %v", err)
 	}
-	defer loader.Close()
+	defer func() {
+		if err := loader.Close(); err != nil {
+			log.Printf("Warning: failed to close loader: %v", err)
+		}
+	}()
 
 	// Test HasFile
 	if !loader.HasFile("agency.txt") {
@@ -200,7 +205,11 @@ func TestFeedLoader_FromDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get agency.txt: %v", err)
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close %v", closeErr)
+		}
+	}()
 
 	csvFile, err := NewCSVFile(reader, "agency.txt")
 	if err != nil {
@@ -230,7 +239,11 @@ func TestFeedLoader_GetNonExistentFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to load from directory: %v", err)
 	}
-	defer loader.Close()
+	defer func() {
+		if err := loader.Close(); err != nil {
+			log.Printf("Warning: failed to close loader: %v", err)
+		}
+	}()
 
 	_, err = loader.GetFile("nonexistent.txt")
 	if err == nil {

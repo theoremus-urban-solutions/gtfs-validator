@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 	"math"
 	"sort"
 	"strconv"
@@ -60,7 +61,11 @@ func (v *ShapeValidator) loadShapes(loader *parser.FeedLoader) map[string]*Shape
 	if err != nil {
 		return shapes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "shapes.txt")
 	if err != nil {
@@ -308,7 +313,11 @@ func (v *ShapeValidator) loadUsedShapes(loader *parser.FeedLoader) map[string]bo
 	if err != nil {
 		return usedShapes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {

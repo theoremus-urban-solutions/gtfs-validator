@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
@@ -43,7 +44,11 @@ func (v *CalendarValidator) fileHasData(loader *parser.FeedLoader, filename stri
 	if err != nil {
 		return false
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, filename)
 	if err != nil {

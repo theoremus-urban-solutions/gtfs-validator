@@ -2,6 +2,7 @@ package business
 
 import (
 	"io"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -178,7 +179,11 @@ func (v *NetworkTopologyValidator) loadTripPatterns(loader *parser.FeedLoader) m
 	if err != nil {
 		return patterns
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stop_times.txt")
 	if err != nil {
@@ -256,7 +261,11 @@ func (v *NetworkTopologyValidator) loadTripRoutes(loader *parser.FeedLoader) map
 	if err != nil {
 		return tripRoutes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {

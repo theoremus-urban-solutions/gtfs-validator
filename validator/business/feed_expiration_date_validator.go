@@ -2,6 +2,7 @@ package business
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -64,7 +65,11 @@ func (v *FeedExpirationDateValidator) loadFeedInfo(loader *parser.FeedLoader) *F
 	if err != nil {
 		return nil
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "feed_info.txt")
 	if err != nil {
@@ -249,7 +254,11 @@ func (v *FeedExpirationDateValidator) findLatestCalendarDate(loader *parser.Feed
 	if err != nil {
 		return nil
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "calendar.txt")
 	if err != nil {
@@ -285,7 +294,11 @@ func (v *FeedExpirationDateValidator) findLatestCalendarDatesDate(loader *parser
 	if err != nil {
 		return nil
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "calendar_dates.txt")
 	if err != nil {
@@ -358,7 +371,11 @@ func (v *FeedExpirationDateValidator) addCalendarServices(loader *parser.FeedLoa
 	if err != nil {
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "calendar.txt")
 	if err != nil {
@@ -418,7 +435,11 @@ func (v *FeedExpirationDateValidator) addCalendarDatesServices(loader *parser.Fe
 	if err != nil {
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "calendar_dates.txt")
 	if err != nil {
@@ -477,7 +498,11 @@ func (v *FeedExpirationDateValidator) countTripsForServices(loader *parser.FeedL
 	if err != nil {
 		return 0
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {

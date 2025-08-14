@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -57,7 +58,11 @@ func (v *BikesAllowanceValidator) loadRoutes(loader *parser.FeedLoader) map[stri
 	if err != nil {
 		return routes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "routes.txt")
 	if err != nil {
@@ -116,7 +121,11 @@ func (v *BikesAllowanceValidator) loadTrips(loader *parser.FeedLoader, routes ma
 	if err != nil {
 		return trips
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {

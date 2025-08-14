@@ -2,6 +2,7 @@ package relationship
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -63,7 +64,11 @@ func (v *AttributionValidator) loadAttributions(loader *parser.FeedLoader) []*At
 	if err != nil {
 		return attributions
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "attributions.txt")
 	if err != nil {
@@ -342,7 +347,11 @@ func (v *AttributionValidator) loadAgencyIDs(loader *parser.FeedLoader) map[stri
 	if err != nil {
 		return agencies
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "agency.txt")
 	if err != nil {
@@ -374,7 +383,11 @@ func (v *AttributionValidator) loadRouteIDs(loader *parser.FeedLoader) map[strin
 	if err != nil {
 		return routes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "routes.txt")
 	if err != nil {
@@ -406,7 +419,11 @@ func (v *AttributionValidator) loadTripIDs(loader *parser.FeedLoader) map[string
 	if err != nil {
 		return trips
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {

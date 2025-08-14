@@ -21,7 +21,9 @@ func CreateTestFeedLoader(t *testing.T, files map[string]string) *parser.FeedLoa
 
 	// Clean up the directory after test
 	t.Cleanup(func() {
-		os.RemoveAll(tmpDir)
+		if err := os.RemoveAll(tmpDir); err != nil {
+			t.Errorf("Failed to remove temp dir: %v", err)
+		}
 	})
 
 	// Write test files to the temporary directory
@@ -40,7 +42,9 @@ func CreateTestFeedLoader(t *testing.T, files map[string]string) *parser.FeedLoa
 
 	// Clean up the loader after test
 	t.Cleanup(func() {
-		loader.Close()
+		if err := loader.Close(); err != nil {
+			t.Errorf("Failed to close loader: %v", err)
+		}
 	})
 
 	return loader

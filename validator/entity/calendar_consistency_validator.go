@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -81,7 +82,11 @@ func (v *CalendarConsistencyValidator) loadCalendarServices(loader *parser.FeedL
 	if err != nil {
 		return services
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "calendar.txt")
 	if err != nil {
@@ -160,7 +165,11 @@ func (v *CalendarConsistencyValidator) loadCalendarDates(loader *parser.FeedLoad
 	if err != nil {
 		return calendarDates
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "calendar_dates.txt")
 	if err != nil {
@@ -328,7 +337,11 @@ func (v *CalendarConsistencyValidator) getUsedServiceIDs(loader *parser.FeedLoad
 	if err != nil {
 		return usedServices
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {

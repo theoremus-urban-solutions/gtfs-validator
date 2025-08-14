@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -52,7 +53,11 @@ func (v *RouteTypeValidator) loadRoutes(loader *parser.FeedLoader) []*RouteTypeI
 	if err != nil {
 		return routes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "routes.txt")
 	if err != nil {

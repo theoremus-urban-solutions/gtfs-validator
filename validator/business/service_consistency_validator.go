@@ -2,6 +2,7 @@ package business
 
 import (
 	"io"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -84,7 +85,11 @@ func (v *ServiceConsistencyValidator) loadServices(loader *parser.FeedLoader) ma
 	if err != nil {
 		return services
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "calendar.txt")
 	if err != nil {
@@ -149,7 +154,11 @@ func (v *ServiceConsistencyValidator) loadServiceExceptions(loader *parser.FeedL
 	if err != nil {
 		return exceptions
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "calendar_dates.txt")
 	if err != nil {
@@ -205,7 +214,11 @@ func (v *ServiceConsistencyValidator) loadTripServices(loader *parser.FeedLoader
 	if err != nil {
 		return tripServices
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {

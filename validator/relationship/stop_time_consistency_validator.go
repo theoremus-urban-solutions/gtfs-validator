@@ -2,6 +2,7 @@ package relationship
 
 import (
 	"io"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -55,7 +56,11 @@ func (v *StopTimeConsistencyValidator) loadStopTimes(loader *parser.FeedLoader) 
 	if err != nil {
 		return stopTimes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stop_times.txt")
 	if err != nil {

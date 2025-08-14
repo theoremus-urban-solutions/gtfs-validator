@@ -1,6 +1,8 @@
 package core
 
 import (
+	"log"
+
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
 	"github.com/theoremus-urban-solutions/gtfs-validator/validator"
@@ -118,7 +120,11 @@ func (v *MissingColumnValidator) validateFileColumns(loader *parser.FeedLoader, 
 	if err != nil {
 		return // File doesn't exist, other validators handle this
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, filename)
 	if err != nil {

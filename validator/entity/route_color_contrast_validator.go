@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -51,7 +52,11 @@ func (v *RouteColorContrastValidator) loadRouteColors(loader *parser.FeedLoader)
 	if err != nil {
 		return routes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "routes.txt")
 	if err != nil {

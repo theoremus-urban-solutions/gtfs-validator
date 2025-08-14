@@ -2,6 +2,7 @@ package business
 
 import (
 	"io"
+	"log"
 	"math"
 	"sort"
 	"strconv"
@@ -98,7 +99,11 @@ func (v *GeospatialValidator) loadGeoStops(loader *parser.FeedLoader) map[string
 	if err != nil {
 		return stops
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stops.txt")
 	if err != nil {
@@ -173,7 +178,11 @@ func (v *GeospatialValidator) loadGeoShapes(loader *parser.FeedLoader) map[strin
 	if err != nil {
 		return shapes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "shapes.txt")
 	if err != nil {

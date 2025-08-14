@@ -5,7 +5,8 @@
       "Bash(go run:*)",
       "Bash(find:*)",
       "Bash(go build:*)",
-      "Bash(golangci-lint run:*)"
+      "Bash(golangci-lint run:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": [],

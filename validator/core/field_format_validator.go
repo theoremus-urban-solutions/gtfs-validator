@@ -2,6 +2,7 @@ package core
 
 import (
 	"io"
+	"log"
 	"net/mail"
 	"net/url"
 	"regexp"
@@ -37,7 +38,11 @@ func (v *FieldFormatValidator) validateFile(loader *parser.FeedLoader, container
 	if err != nil {
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, filename)
 	if err != nil {

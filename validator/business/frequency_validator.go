@@ -3,6 +3,7 @@ package business
 import (
 	"fmt"
 	"io"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -54,7 +55,11 @@ func (v *FrequencyValidator) loadFrequencies(loader *parser.FeedLoader) []*Frequ
 	if err != nil {
 		return frequencies
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "frequencies.txt")
 	if err != nil {
@@ -272,7 +277,11 @@ func (v *FrequencyValidator) loadTripIDs(loader *parser.FeedLoader) map[string]b
 	if err != nil {
 		return tripIDs
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {

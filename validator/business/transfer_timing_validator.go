@@ -2,6 +2,7 @@ package business
 
 import (
 	"io"
+	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -60,7 +61,11 @@ func (v *TransferTimingValidator) loadTransfers(loader *parser.FeedLoader) []*Tr
 	if err != nil {
 		return transfers
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "transfers.txt")
 	if err != nil {
@@ -125,7 +130,11 @@ func (v *TransferTimingValidator) loadStopLocations(loader *parser.FeedLoader) m
 	if err != nil {
 		return stops
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stops.txt")
 	if err != nil {

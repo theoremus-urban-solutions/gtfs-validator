@@ -2,6 +2,7 @@ package relationship
 
 import (
 	"io"
+	"log"
 	"math"
 	"sort"
 	"strconv"
@@ -48,7 +49,11 @@ func (v *ShapeIncreasingDistanceValidator) loadShapePoints(loader *parser.FeedLo
 	if err != nil {
 		return shapes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "shapes.txt")
 	if err != nil {

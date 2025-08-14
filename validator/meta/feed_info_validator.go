@@ -2,6 +2,7 @@ package meta
 
 import (
 	"io"
+	"log"
 	"strings"
 	"time"
 
@@ -60,7 +61,11 @@ func (v *FeedInfoValidator) loadFeedInfo(loader *parser.FeedLoader) []*FeedInfo 
 	if err != nil {
 		return feedInfos
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "feed_info.txt")
 	if err != nil {

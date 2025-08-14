@@ -2,6 +2,7 @@ package core
 
 import (
 	"io"
+	"log"
 	"strings"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -53,7 +54,11 @@ func (v *CurrencyValidator) validateFileCurrency(loader *parser.FeedLoader, cont
 	if err != nil {
 		return // File doesn't exist, skip validation
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, filename)
 	if err != nil {

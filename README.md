@@ -122,7 +122,11 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
         http.Error(w, "Failed to read file", http.StatusBadRequest)
         return
     }
-    defer file.Close()
+    defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close %v", closeErr)
+		}
+	}()
     
     validator := gtfsvalidator.New(
         gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),

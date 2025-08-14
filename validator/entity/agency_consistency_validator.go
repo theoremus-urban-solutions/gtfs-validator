@@ -2,6 +2,7 @@ package entity
 
 import (
 	"io"
+	"log"
 	"strings"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -47,7 +48,11 @@ func (v *AgencyConsistencyValidator) loadAgencies(loader *parser.FeedLoader) []*
 	if err != nil {
 		return agencies
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "agency.txt")
 	if err != nil {
@@ -108,7 +113,11 @@ func (v *AgencyConsistencyValidator) validateRouteAgencyReferences(loader *parse
 	if err != nil {
 		return // No routes file
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "routes.txt")
 	if err != nil {

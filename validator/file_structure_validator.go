@@ -2,6 +2,7 @@ package validator
 
 import (
 	"io"
+	"log"
 	"strings"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -32,7 +33,11 @@ func (v *FileStructureValidator) validateFile(loader *parser.FeedLoader, contain
 		// This shouldn't happen as we're iterating over existing files
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, filename)
 	if err != nil {

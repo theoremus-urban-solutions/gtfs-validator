@@ -4,6 +4,7 @@ import (
 	"embed"
 	"html/template"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -85,7 +86,11 @@ func (f *HTMLFormatter) GenerateHTMLToFile(report *ValidationReport, filename st
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close %v", closeErr)
+		}
+	}()
 
 	return f.GenerateHTML(report, file)
 }

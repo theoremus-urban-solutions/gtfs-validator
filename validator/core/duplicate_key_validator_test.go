@@ -1,6 +1,7 @@
 package core
 
 import (
+	"log"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -450,7 +451,11 @@ func TestDuplicateKeyValidator_ValidateSingleRecordFile(t *testing.T) {
 			files := map[string]string{"feed_info.txt": tt.content}
 			loader := CreateTestFeedLoader(t, files)
 			reader, _ := loader.GetFile("feed_info.txt")
-			defer reader.Close()
+			defer func() {
+				if closeErr := reader.Close(); closeErr != nil {
+					log.Printf("Warning: failed to close reader %v", closeErr)
+				}
+			}()
 			csvFile, _ := parser.NewCSVFile(reader, "feed_info.txt")
 
 			container := notice.NewNoticeContainer()

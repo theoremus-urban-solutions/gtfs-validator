@@ -2,6 +2,7 @@ package relationship
 
 import (
 	"io"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -92,7 +93,11 @@ func (v *RouteConsistencyValidator) loadRoutes(loader *parser.FeedLoader) map[st
 	if err != nil {
 		return routes
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "routes.txt")
 	if err != nil {
@@ -156,7 +161,11 @@ func (v *RouteConsistencyValidator) enhanceWithTripData(loader *parser.FeedLoade
 	if err != nil {
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {
@@ -249,7 +258,11 @@ func (v *RouteConsistencyValidator) enhanceWithStopTimeData(loader *parser.FeedL
 	if err != nil {
 		return
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stop_times.txt")
 	if err != nil {

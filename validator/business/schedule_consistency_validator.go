@@ -3,6 +3,7 @@ package business
 import (
 	"fmt"
 	"io"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -105,7 +106,11 @@ func (v *ScheduleConsistencyValidator) loadTripSchedules(loader *parser.FeedLoad
 	if err != nil {
 		return schedules
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stop_times.txt")
 	if err != nil {
@@ -197,7 +202,11 @@ func (v *ScheduleConsistencyValidator) loadTripMetadata(loader *parser.FeedLoade
 	if err != nil {
 		return metadata
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {

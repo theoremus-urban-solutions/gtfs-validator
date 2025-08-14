@@ -2,6 +2,7 @@ package accessibility
 
 import (
 	"io"
+	"log"
 	"strconv"
 	"strings"
 
@@ -76,7 +77,11 @@ func (v *PathwayValidator) loadPathways(loader *parser.FeedLoader) []*PathwayInf
 	if err != nil {
 		return pathways
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "pathways.txt")
 	if err != nil {
@@ -182,7 +187,11 @@ func (v *PathwayValidator) loadStopsForPathways(loader *parser.FeedLoader) map[s
 	if err != nil {
 		return stops
 	}
-	defer reader.Close()
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close %v", closeErr)
+		}
+	}()
 
 	csvFile, err := parser.NewCSVFile(reader, "stops.txt")
 	if err != nil {
