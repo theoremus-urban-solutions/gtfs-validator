@@ -47,6 +47,7 @@ type NoticeCounts struct {
 type NoticeReport struct {
 	Code          string                   `json:"code"`
 	Severity      string                   `json:"severity"`
+	Description   string                   `json:"description"`
 	TotalNotices  int                      `json:"totalNotices"`
 	SampleNotices []map[string]interface{} `json:"sampleNotices"`
 }
@@ -80,6 +81,7 @@ func (g *ReportGenerator) GenerateReport(container *notice.NoticeContainer, feed
 		report := NoticeReport{
 			Code:          code,
 			Severity:      notices[0].Severity().String(),
+			Description:   "", // Will be populated by the main package
 			TotalNotices:  len(notices),
 			SampleNotices: g.getSampleNotices(notices),
 		}

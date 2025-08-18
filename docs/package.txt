@@ -16,6 +16,8 @@ Features:
   - Configurable notice limits and memory management
   - Streaming CSV processing for massive feeds (2-4M rows/sec)
   - Memory-efficient processing with constant memory usage
+  - Enhanced error descriptions with 180+ comprehensive, user-friendly
+    descriptions
 
 Basic Usage:
 
@@ -178,6 +180,8 @@ type HTMLFormatter struct{ ... }
 type HTMLTemplateData struct{ ... }
 type NoticeCallback func(notice NoticeGroup)
 type NoticeCounts struct{ ... }
+type NoticeDescription struct{ ... }
+    func GetEnhancedNoticeDescription(code string) NoticeDescription
 type NoticeGroup struct{ ... }
 type NoticeWithDescription struct{ ... }
 type Option func(*Config)
@@ -189,6 +193,8 @@ type Option func(*Config)
     func WithProgressCallback(callback func(ProgressInfo)) Option
     func WithValidationMode(mode ValidationMode) Option
 type ProgressInfo struct{ ... }
+type SeverityInfo struct{ ... }
+    func GetSeverityInfo(severity string) SeverityInfo
 type Summary struct{ ... }
 type ValidationMode string
     const ValidationModePerformance ValidationMode = "performance" ...

@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Enhanced Error Descriptions**: Added comprehensive, user-friendly descriptions to all validation notices in both JSON and HTML outputs
+- **Centralized Description System**: Created `notice_descriptions.go` with 180+ detailed descriptions covering all validation categories
 - **Memory Pooling System**: Comprehensive memory pools for CSV parsing to reduce garbage collection overhead
 - **Streaming CSV Parser**: High-performance streaming parser for processing massive CSV files (2-4M rows/sec)
 - **Structured Logging**: JSON and text formatters with configurable levels (DEBUG, INFO, WARN, ERROR)
@@ -27,6 +29,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Missing validator test coverage (5 new test files created)
 
 ### Changed
+- **NoticeGroup Structure**: Added `Description` field to `NoticeGroup` struct for comprehensive error descriptions
+- **JSON Output Enhancement**: All JSON validation reports now include detailed error descriptions
+- **HTML Report Enhancement**: HTML reports now include comprehensive error descriptions for better user experience
 - **CSV Parser Integration**: Integrated memory pools into existing CSV parser for automatic memory optimization
 - **Modern Go Practices**: Replaced deprecated `ioutil` functions with modern `os` equivalents throughout codebase
 - **Enhanced Documentation**: Updated README, CLI help, and API docs to reflect streaming and memory features

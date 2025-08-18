@@ -18,7 +18,7 @@ A fast, comprehensive GTFS (General Transit Feed Specification) validator librar
 - **⚡ Concurrent**: Thread-safe with configurable worker pools
 - **⏰ Context Support**: Cancellation, timeouts, and progress reporting
 - **💾 Memory Efficient**: Memory pooling and streaming CSV parser for large feeds
-- **📊 Rich Reports**: JSON, console, and summary output formats
+- **📊 Rich Reports**: JSON, console, and summary output formats with comprehensive error descriptions
 - **🎯 Streaming Processing**: Process massive CSV files without loading into memory
 - **📦 Dual Purpose**: Use as Go library or standalone CLI tool
 - **🛠️ Modern CLI**: Cobra-powered interface with subcommands, help, and autocompletion
@@ -214,6 +214,7 @@ This implementation provides **more validation rules than the official MobilityD
 ### **Advanced Features Beyond Official Spec**
 
 - **Analytics & Reporting**: Network topology analysis, service pattern insights
+- **Enhanced Error Descriptions**: 180+ comprehensive, user-friendly error descriptions with impact analysis and fix suggestions
 - **Enhanced Business Logic**: Block overlapping, attribution scope conflicts
 - **Geospatial Intelligence**: Coordinate clustering, geographic analysis  
 - **Operational Insights**: Route pattern variations, service optimization suggestions
@@ -226,6 +227,27 @@ This implementation provides **more validation rules than the official MobilityD
 | **ERROR** | Spec violations | Missing required file |
 | **WARNING** | Potential issues | Route without trips |
 | **INFO** | Informational | Feed statistics |
+
+## Enhanced Error Descriptions
+
+The validator provides comprehensive, user-friendly descriptions for all validation issues:
+
+```json
+{
+  "code": "missing_required_field",
+  "severity": "ERROR",
+  "description": "A required field is missing from a GTFS file. This field is mandatory according to the GTFS specification.",
+  "totalNotices": 2,
+  "sampleNotices": [...]
+}
+```
+
+**Features:**
+- **180+ Detailed Descriptions**: Comprehensive coverage of all validation categories
+- **Impact Analysis**: Explains how each issue affects the feed
+- **Fix Suggestions**: Provides actionable guidance for resolving issues
+- **User-Friendly Language**: Clear, non-technical explanations
+- **Consistent Format**: Same descriptions in JSON and HTML outputs
 
 ## Examples
 

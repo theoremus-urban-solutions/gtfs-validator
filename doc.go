@@ -15,6 +15,7 @@ Features:
   - Configurable notice limits and memory management
   - Streaming CSV processing for massive feeds (2-4M rows/sec)
   - Memory-efficient processing with constant memory usage
+  - Enhanced error descriptions with 180+ comprehensive, user-friendly descriptions
 
 Basic Usage:
 

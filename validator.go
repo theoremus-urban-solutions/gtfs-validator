@@ -192,6 +192,25 @@ type NoticeGroup struct {
 	// Severity is the notice severity (ERROR, WARNING, INFO).
 	Severity string `json:"severity"`
 
+	// Description is a comprehensive, user-friendly description of the notice type.
+	// This helps feed producers understand and fix validation issues.
+	Description string `json:"description"`
+
+	// GTFSReference provides a link to the relevant GTFS specification section.
+	GTFSReference string `json:"gtfsReference,omitempty"`
+
+	// AffectedFiles lists the GTFS files that may contain this issue.
+	AffectedFiles []string `json:"affectedFiles,omitempty"`
+
+	// AffectedFields lists the specific fields that may have this issue.
+	AffectedFields []string `json:"affectedFields,omitempty"`
+
+	// ExampleFix provides a concrete example of how to fix this issue.
+	ExampleFix string `json:"exampleFix,omitempty"`
+
+	// Impact describes the business impact of this validation issue.
+	Impact string `json:"impact,omitempty"`
+
 	// TotalNotices is the total count of this notice type.
 	TotalNotices int `json:"totalNotices"`
 

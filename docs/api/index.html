@@ -110,6 +110,7 @@ ZIP files and directories containing GTFS data.
 <li>Configurable notice limits and memory management
 <li>Streaming CSV processing for massive feeds (2-4M rows/sec)
 <li>Memory-efficient processing with constant memory usage
+<li>Enhanced error descriptions with 180+ comprehensive, user-friendly descriptions
 </ul>
 <p>Basic Usage:
 <pre>import gtfsvalidator &quot;github.com/theoremus-urban-solutions/gtfs-validator&quot;
@@ -353,6 +354,14 @@ if report.HasErrors() {
 				
 			
 				
+				<dd><a href="#NoticeDescription">type NoticeDescription</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#GetEnhancedNoticeDescription">func GetEnhancedNoticeDescription(code string) NoticeDescription</a></dd>
+				
+				
+			
+				
 				<dd><a href="#NoticeGroup">type NoticeGroup</a></dd>
 				
 				
@@ -390,6 +399,14 @@ if report.HasErrors() {
 			
 				
 				<dd><a href="#ProgressInfo">type ProgressInfo</a></dd>
+				
+				
+			
+				
+				<dd><a href="#SeverityInfo">type SeverityInfo</a></dd>
+				
+					
+					<dd>&nbsp; &nbsp; <a href="#GetSeverityInfo">func GetSeverityInfo(severity string) SeverityInfo</a></dd>
 				
 				
 			
@@ -445,6 +462,8 @@ if report.HasErrors() {
 			
 				<a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/implementation.go">implementation.go</a>
 			
+				<a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/notice_descriptions.go">notice_descriptions.go</a>
+			
 				<a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go">testing_utils.go</a>
 			
 				<a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go">validator.go</a>
@@ -462,7 +481,7 @@ if report.HasErrors() {
 		
 			
 			
-			<h2 id="CreateTempZip">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=5783:5847#L207">CreateTempZip</a>
+			<h2 id="CreateTempZip">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=6232:6296#L220">CreateTempZip</a>
 				<a class="permalink" href="#CreateTempZip">&#xb6;</a>
 				
 				
@@ -476,7 +495,7 @@ if report.HasErrors() {
 		
 			
 			
-			<h2 id="CreateTestZipFromDir">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=318:381#L8">CreateTestZipFromDir</a>
+			<h2 id="CreateTestZipFromDir">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=325:388#L9">CreateTestZipFromDir</a>
 				<a class="permalink" href="#CreateTestZipFromDir">&#xb6;</a>
 				
 				
@@ -490,7 +509,7 @@ if report.HasErrors() {
 		
 			
 			
-			<h2 id="InvalidGTFS">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=7984:8020#L279">InvalidGTFS</a>
+			<h2 id="InvalidGTFS">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=8814:8850#L304">InvalidGTFS</a>
 				<a class="permalink" href="#InvalidGTFS">&#xb6;</a>
 				
 				
@@ -504,7 +523,7 @@ if report.HasErrors() {
 		
 			
 			
-			<h2 id="MinimalValidGTFS">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=7050:7091#L259">MinimalValidGTFS</a>
+			<h2 id="MinimalValidGTFS">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=7880:7921#L284">MinimalValidGTFS</a>
 				<a class="permalink" href="#MinimalValidGTFS">&#xb6;</a>
 				
 				
@@ -518,7 +537,7 @@ if report.HasErrors() {
 		
 			
 			
-			<h2 id="TestDataPath">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=157:197#L3">TestDataPath</a>
+			<h2 id="TestDataPath">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=164:204#L4">TestDataPath</a>
 				<a class="permalink" href="#TestDataPath">&#xb6;</a>
 				
 				
@@ -533,7 +552,7 @@ if report.HasErrors() {
 		
 			
 			
-			<h2 id="AssertValidationReport">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=1195:1278#L55">AssertValidationReport</a>
+			<h2 id="AssertValidationReport">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=1646:1729#L68">AssertValidationReport</a>
 				<a class="permalink" href="#AssertValidationReport">&#xb6;</a>
 				
 				
@@ -555,7 +574,7 @@ if report.HasErrors() {
 
 			
 				
-				<h3 id="NewAssertValidationReport">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=1350:1444#L61">NewAssertValidationReport</a>
+				<h3 id="NewAssertValidationReport">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=1801:1895#L74">NewAssertValidationReport</a>
 					<a class="permalink" href="#NewAssertValidationReport">&#xb6;</a>
 					
 					
@@ -567,7 +586,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="ValidateAndAssert">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=6680:6774#L245">ValidateAndAssert</a>
+				<h3 id="ValidateAndAssert">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=7512:7606#L270">ValidateAndAssert</a>
 					<a class="permalink" href="#ValidateAndAssert">&#xb6;</a>
 					
 					
@@ -581,7 +600,7 @@ if report.HasErrors() {
 
 			
 				
-				<h3 id="AssertValidationReport.ContainsNotice">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=3487:3571#L134">ContainsNotice</a>
+				<h3 id="AssertValidationReport.ContainsNotice">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=3938:4022#L147">ContainsNotice</a>
 					<a class="permalink" href="#AssertValidationReport.ContainsNotice">&#xb6;</a>
 					
 					
@@ -594,7 +613,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="AssertValidationReport.DoesNotContainNotice">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=3881:3971#L147">DoesNotContainNotice</a>
+				<h3 id="AssertValidationReport.DoesNotContainNotice">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=4332:4422#L160">DoesNotContainNotice</a>
 					<a class="permalink" href="#AssertValidationReport.DoesNotContainNotice">&#xb6;</a>
 					
 					
@@ -607,7 +626,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="AssertValidationReport.ErrorCountEquals">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=2751:2838#L108">ErrorCountEquals</a>
+				<h3 id="AssertValidationReport.ErrorCountEquals">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=3202:3289#L121">ErrorCountEquals</a>
 					<a class="permalink" href="#AssertValidationReport.ErrorCountEquals">&#xb6;</a>
 					
 					
@@ -620,7 +639,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="AssertValidationReport.FeedInfoEquals">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=4239:4329#L159">FeedInfoEquals</a>
+				<h3 id="AssertValidationReport.FeedInfoEquals">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=4690:4780#L172">FeedInfoEquals</a>
 					<a class="permalink" href="#AssertValidationReport.FeedInfoEquals">&#xb6;</a>
 					
 					
@@ -633,7 +652,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="AssertValidationReport.HasErrors">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=1619:1687#L70">HasErrors</a>
+				<h3 id="AssertValidationReport.HasErrors">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=2070:2138#L83">HasErrors</a>
 					<a class="permalink" href="#AssertValidationReport.HasErrors">&#xb6;</a>
 					
 					
@@ -646,7 +665,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="AssertValidationReport.HasNoErrors">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=1853:1923#L79">HasNoErrors</a>
+				<h3 id="AssertValidationReport.HasNoErrors">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=2304:2374#L92">HasNoErrors</a>
 					<a class="permalink" href="#AssertValidationReport.HasNoErrors">&#xb6;</a>
 					
 					
@@ -659,7 +678,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="AssertValidationReport.HasNoWarnings">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=2411:2483#L98">HasNoWarnings</a>
+				<h3 id="AssertValidationReport.HasNoWarnings">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=2862:2934#L111">HasNoWarnings</a>
 					<a class="permalink" href="#AssertValidationReport.HasNoWarnings">&#xb6;</a>
 					
 					
@@ -672,7 +691,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="AssertValidationReport.HasWarnings">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=2167:2237#L89">HasWarnings</a>
+				<h3 id="AssertValidationReport.HasWarnings">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=2618:2688#L102">HasWarnings</a>
 					<a class="permalink" href="#AssertValidationReport.HasWarnings">&#xb6;</a>
 					
 					
@@ -685,7 +704,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="AssertValidationReport.WarningCountEquals">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=3110:3199#L121">WarningCountEquals</a>
+				<h3 id="AssertValidationReport.WarningCountEquals">func (*AssertValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/testing_utils.go?s=3561:3650#L134">WarningCountEquals</a>
 					<a class="permalink" href="#AssertValidationReport.WarningCountEquals">&#xb6;</a>
 					
 					
@@ -796,7 +815,7 @@ if report.HasErrors() {
 		
 			
 			
-			<h2 id="HTMLFormatter">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=651:709#L20">HTMLFormatter</a>
+			<h2 id="HTMLFormatter">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=707:765#L24">HTMLFormatter</a>
 				<a class="permalink" href="#HTMLFormatter">&#xb6;</a>
 				
 				
@@ -818,7 +837,7 @@ if report.HasErrors() {
 
 			
 				
-				<h3 id="NewHTMLFormatter">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=784:831#L25">NewHTMLFormatter</a>
+				<h3 id="NewHTMLFormatter">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=840:887#L29">NewHTMLFormatter</a>
 					<a class="permalink" href="#NewHTMLFormatter">&#xb6;</a>
 					
 					
@@ -832,7 +851,7 @@ if report.HasErrors() {
 
 			
 				
-				<h3 id="HTMLFormatter.GenerateHTML">func (*HTMLFormatter) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=1168:1254#L40">GenerateHTML</a>
+				<h3 id="HTMLFormatter.GenerateHTML">func (*HTMLFormatter) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=1263:1349#L45">GenerateHTML</a>
 					<a class="permalink" href="#HTMLFormatter.GenerateHTML">&#xb6;</a>
 					
 					
@@ -845,7 +864,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="HTMLFormatter.GenerateHTMLString">func (*HTMLFormatter) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=2348:2432#L80">GenerateHTMLString</a>
+				<h3 id="HTMLFormatter.GenerateHTMLString">func (*HTMLFormatter) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=2607:2691#L89">GenerateHTMLString</a>
 					<a class="permalink" href="#HTMLFormatter.GenerateHTMLString">&#xb6;</a>
 					
 					
@@ -858,7 +877,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="HTMLFormatter.GenerateHTMLToFile">func (*HTMLFormatter) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=2067:2158#L69">GenerateHTMLToFile</a>
+				<h3 id="HTMLFormatter.GenerateHTMLToFile">func (*HTMLFormatter) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=2169:2260#L74">GenerateHTMLToFile</a>
 					<a class="permalink" href="#HTMLFormatter.GenerateHTMLToFile">&#xb6;</a>
 					
 					
@@ -873,7 +892,7 @@ if report.HasErrors() {
 		
 			
 			
-			<h2 id="HTMLTemplateData">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=392:601#L12">HTMLTemplateData</a>
+			<h2 id="HTMLTemplateData">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=457:657#L16">HTMLTemplateData</a>
 				<a class="permalink" href="#HTMLTemplateData">&#xb6;</a>
 				
 				
@@ -961,7 +980,50 @@ if report.HasErrors() {
 		
 			
 			
-			<h2 id="NoticeGroup">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=5792:6231#L178">NoticeGroup</a>
+			<h2 id="NoticeDescription">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/notice_descriptions.go?s=181:536#L1">NoticeDescription</a>
+				<a class="permalink" href="#NoticeDescription">&#xb6;</a>
+				
+				
+			</h2>
+			<p>NoticeDescription contains enhanced information about a validation notice
+
+			<pre>type NoticeDescription struct {
+<span id="NoticeDescription.Description"></span>    Description    <a href="/pkg/builtin/#string">string</a>   `json:&#34;description&#34;`
+<span id="NoticeDescription.GTFSReference"></span>    GTFSReference  <a href="/pkg/builtin/#string">string</a>   `json:&#34;gtfsReference,omitempty&#34;`
+<span id="NoticeDescription.AffectedFiles"></span>    AffectedFiles  []<a href="/pkg/builtin/#string">string</a> `json:&#34;affectedFiles,omitempty&#34;`
+<span id="NoticeDescription.AffectedFields"></span>    AffectedFields []<a href="/pkg/builtin/#string">string</a> `json:&#34;affectedFields,omitempty&#34;`
+<span id="NoticeDescription.ExampleFix"></span>    ExampleFix     <a href="/pkg/builtin/#string">string</a>   `json:&#34;exampleFix,omitempty&#34;`
+<span id="NoticeDescription.Impact"></span>    Impact         <a href="/pkg/builtin/#string">string</a>   `json:&#34;impact,omitempty&#34;`
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+				
+				<h3 id="GetEnhancedNoticeDescription">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/notice_descriptions.go?s=2411:2475#L62">GetEnhancedNoticeDescription</a>
+					<a class="permalink" href="#GetEnhancedNoticeDescription">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func GetEnhancedNoticeDescription(code <a href="/pkg/builtin/#string">string</a>) <a href="#NoticeDescription">NoticeDescription</a></pre>
+				<p>GetEnhancedNoticeDescription returns detailed notice information including GTFS references
+
+				
+				
+			
+
+			
+		
+			
+			
+			<h2 id="NoticeGroup">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=5792:7042#L178">NoticeGroup</a>
 				<a class="permalink" href="#NoticeGroup">&#xb6;</a>
 				
 				
@@ -974,6 +1036,25 @@ if report.HasErrors() {
 
 <span id="NoticeGroup.Severity"></span>    <span class="comment">// Severity is the notice severity (ERROR, WARNING, INFO).</span>
     Severity <a href="/pkg/builtin/#string">string</a> `json:&#34;severity&#34;`
+
+<span id="NoticeGroup.Description"></span>    <span class="comment">// Description is a comprehensive, user-friendly description of the notice type.</span>
+    <span class="comment">// This helps feed producers understand and fix validation issues.</span>
+    Description <a href="/pkg/builtin/#string">string</a> `json:&#34;description&#34;`
+
+<span id="NoticeGroup.GTFSReference"></span>    <span class="comment">// GTFSReference provides a link to the relevant GTFS specification section.</span>
+    GTFSReference <a href="/pkg/builtin/#string">string</a> `json:&#34;gtfsReference,omitempty&#34;`
+
+<span id="NoticeGroup.AffectedFiles"></span>    <span class="comment">// AffectedFiles lists the GTFS files that may contain this issue.</span>
+    AffectedFiles []<a href="/pkg/builtin/#string">string</a> `json:&#34;affectedFiles,omitempty&#34;`
+
+<span id="NoticeGroup.AffectedFields"></span>    <span class="comment">// AffectedFields lists the specific fields that may have this issue.</span>
+    AffectedFields []<a href="/pkg/builtin/#string">string</a> `json:&#34;affectedFields,omitempty&#34;`
+
+<span id="NoticeGroup.ExampleFix"></span>    <span class="comment">// ExampleFix provides a concrete example of how to fix this issue.</span>
+    ExampleFix <a href="/pkg/builtin/#string">string</a> `json:&#34;exampleFix,omitempty&#34;`
+
+<span id="NoticeGroup.Impact"></span>    <span class="comment">// Impact describes the business impact of this validation issue.</span>
+    Impact <a href="/pkg/builtin/#string">string</a> `json:&#34;impact,omitempty&#34;`
 
 <span id="NoticeGroup.TotalNotices"></span>    <span class="comment">// TotalNotices is the total count of this notice type.</span>
     TotalNotices <a href="/pkg/builtin/#int">int</a> `json:&#34;totalNotices&#34;`
@@ -997,16 +1078,16 @@ if report.HasErrors() {
 		
 			
 			
-			<h2 id="NoticeWithDescription">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=224:315#L6">NoticeWithDescription</a>
+			<h2 id="NoticeWithDescription">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/html_formatter.go?s=281:380#L10">NoticeWithDescription</a>
 				<a class="permalink" href="#NoticeWithDescription">&#xb6;</a>
 				
 				
 			</h2>
-			<p>NoticeWithDescription extends NoticeGroup with a human-readable description
+			<p>NoticeWithDescription extends NoticeGroup with severity information
 
 			<pre>type NoticeWithDescription struct {
     <a href="#NoticeGroup">NoticeGroup</a>
-<span id="NoticeWithDescription.Description"></span>    Description <a href="/pkg/builtin/#string">string</a> `json:&#34;description&#34;`
+<span id="NoticeWithDescription.SeverityInfo"></span>    SeverityInfo <a href="#SeverityInfo">SeverityInfo</a> `json:&#34;severityInfo&#34;`
 }
 </pre>
 
@@ -1024,7 +1105,7 @@ if report.HasErrors() {
 		
 			
 			
-			<h2 id="Option">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7027:7052#L221">Option</a>
+			<h2 id="Option">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7838:7863#L240">Option</a>
 				<a class="permalink" href="#Option">&#xb6;</a>
 				
 				
@@ -1043,7 +1124,7 @@ if report.HasErrors() {
 
 			
 				
-				<h3 id="WithCountryCode">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7111:7151#L224">WithCountryCode</a>
+				<h3 id="WithCountryCode">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7922:7962#L243">WithCountryCode</a>
 					<a class="permalink" href="#WithCountryCode">&#xb6;</a>
 					
 					
@@ -1055,7 +1136,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="WithCurrentDate">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7266:7309#L231">WithCurrentDate</a>
+				<h3 id="WithCurrentDate">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=8077:8120#L250">WithCurrentDate</a>
 					<a class="permalink" href="#WithCurrentDate">&#xb6;</a>
 					
 					
@@ -1067,7 +1148,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="WithMaxMemory">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7424:7462#L238">WithMaxMemory</a>
+				<h3 id="WithMaxMemory">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=8235:8273#L257">WithMaxMemory</a>
 					<a class="permalink" href="#WithMaxMemory">&#xb6;</a>
 					
 					
@@ -1079,7 +1160,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="WithMaxNoticesPerType">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=8095:8137#L266">WithMaxNoticesPerType</a>
+				<h3 id="WithMaxNoticesPerType">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=8906:8948#L285">WithMaxNoticesPerType</a>
 					<a class="permalink" href="#WithMaxNoticesPerType">&#xb6;</a>
 					
 					
@@ -1091,7 +1172,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="WithParallelWorkers">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7579:7623#L245">WithParallelWorkers</a>
+				<h3 id="WithParallelWorkers">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=8390:8434#L264">WithParallelWorkers</a>
 					<a class="permalink" href="#WithParallelWorkers">&#xb6;</a>
 					
 					
@@ -1103,7 +1184,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="WithProgressCallback">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7747:7808#L252">WithProgressCallback</a>
+				<h3 id="WithProgressCallback">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=8558:8619#L271">WithProgressCallback</a>
 					<a class="permalink" href="#WithProgressCallback">&#xb6;</a>
 					
 					
@@ -1115,7 +1196,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="WithValidationMode">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7923:7974#L259">WithValidationMode</a>
+				<h3 id="WithValidationMode">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=8734:8785#L278">WithValidationMode</a>
 					<a class="permalink" href="#WithValidationMode">&#xb6;</a>
 					
 					
@@ -1164,6 +1245,47 @@ if report.HasErrors() {
 			
 			
 
+			
+
+			
+		
+			
+			
+			<h2 id="SeverityInfo">type <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/notice_descriptions.go?s=617:794#L11">SeverityInfo</a>
+				<a class="permalink" href="#SeverityInfo">&#xb6;</a>
+				
+				
+			</h2>
+			<p>SeverityInfo provides detailed information about validation severity levels
+
+			<pre>type SeverityInfo struct {
+<span id="SeverityInfo.Level"></span>    Level       <a href="/pkg/builtin/#string">string</a> `json:&#34;level&#34;`
+<span id="SeverityInfo.Description"></span>    Description <a href="/pkg/builtin/#string">string</a> `json:&#34;description&#34;`
+<span id="SeverityInfo.Impact"></span>    Impact      <a href="/pkg/builtin/#string">string</a> `json:&#34;impact&#34;`
+<span id="SeverityInfo.Urgency"></span>    Urgency     <a href="/pkg/builtin/#string">string</a> `json:&#34;urgency&#34;`
+}
+</pre>
+
+			
+
+			
+
+			
+			
+			
+
+			
+				
+				<h3 id="GetSeverityInfo">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/notice_descriptions.go?s=1698:1748#L41">GetSeverityInfo</a>
+					<a class="permalink" href="#GetSeverityInfo">&#xb6;</a>
+					
+					
+				</h3>
+				<pre>func GetSeverityInfo(severity <a href="/pkg/builtin/#string">string</a>) <a href="#SeverityInfo">SeverityInfo</a></pre>
+				<p>GetSeverityInfo returns detailed information about a severity level
+
+				
+				
 			
 
 			
@@ -1273,7 +1395,7 @@ if report.HasErrors() {
 
 			
 				
-				<h3 id="ValidationReport.ErrorCount">func (*ValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=6663:6706#L207">ErrorCount</a>
+				<h3 id="ValidationReport.ErrorCount">func (*ValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7474:7517#L226">ErrorCount</a>
 					<a class="permalink" href="#ValidationReport.ErrorCount">&#xb6;</a>
 					
 					
@@ -1286,7 +1408,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="ValidationReport.HasErrors">func (*ValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=6294:6337#L193">HasErrors</a>
+				<h3 id="ValidationReport.HasErrors">func (*ValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7105:7148#L212">HasErrors</a>
 					<a class="permalink" href="#ValidationReport.HasErrors">&#xb6;</a>
 					
 					
@@ -1299,7 +1421,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="ValidationReport.HasWarnings">func (*ValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=6480:6525#L200">HasWarnings</a>
+				<h3 id="ValidationReport.HasWarnings">func (*ValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7291:7336#L219">HasWarnings</a>
 					<a class="permalink" href="#ValidationReport.HasWarnings">&#xb6;</a>
 					
 					
@@ -1312,7 +1434,7 @@ if report.HasErrors() {
 				
 			
 				
-				<h3 id="ValidationReport.WarningCount">func (*ValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=6842:6887#L214">WarningCount</a>
+				<h3 id="ValidationReport.WarningCount">func (*ValidationReport) <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=7653:7698#L233">WarningCount</a>
 					<a class="permalink" href="#ValidationReport.WarningCount">&#xb6;</a>
 					
 					
@@ -1364,7 +1486,7 @@ if report.HasErrors() {
 
 			
 				
-				<h3 id="New">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=8260:8294#L273">New</a>
+				<h3 id="New">func <a href="/src/github.com/theoremus-urban-solutions/gtfs-validator/validator.go?s=9071:9105#L292">New</a>
 					<a class="permalink" href="#New">&#xb6;</a>
 					
 					

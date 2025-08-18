@@ -251,6 +251,94 @@
             margin: 0.5rem 0;
         }
 
+        .notice-details {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .details-section {
+            margin-bottom: 1rem;
+        }
+
+        .details-label {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .details-content {
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .gtfs-reference {
+            display: inline-block;
+            background: #e3f2fd;
+            color: #1976d2;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            text-decoration: none;
+            font-size: 0.8rem;
+            transition: background-color 0.2s ease;
+        }
+
+        .gtfs-reference:hover {
+            background: #bbdefb;
+        }
+
+        .file-tag, .field-tag {
+            display: inline-block;
+            background: #f8f9fa;
+            color: #495057;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            margin: 0.1rem;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+        }
+
+        .example-fix {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            border-radius: 5px;
+            border-left: 3px solid #28a745;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 0.85rem;
+            color: #495057;
+        }
+
+        .impact-badge {
+            display: inline-block;
+            background: #fff3cd;
+            color: #856404;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            border: 1px solid #ffeaa7;
+        }
+
+        .severity-info {
+            background: #f8f9fa;
+            padding: 0.75rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            border-left: 3px solid #6c757d;
+        }
+
+        .severity-info-title {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+
+        .severity-description {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
         .notice-samples {
             margin-top: 1rem;
         }
@@ -425,7 +513,69 @@
                         </div>
                         <span class="notice-count">{{.TotalNotices}} instance{{if ne .TotalNotices 1}}s{{end}}</span>
                     </div>
+
+                    {{if .SeverityInfo}}
+                    <div class="severity-info">
+                        <div class="severity-info-title">{{.SeverityInfo.Description}}</div>
+                        <div class="severity-description">
+                            <strong>Impact:</strong> {{.SeverityInfo.Impact}}<br>
+                            <strong>Action:</strong> {{.SeverityInfo.Urgency}}
+                        </div>
+                    </div>
+                    {{end}}
+
                     <div class="notice-description">{{.Description}}</div>
+                    
+                    {{if or .Impact .GTFSReference .AffectedFiles .AffectedFields .ExampleFix}}
+                    <div class="notice-details">
+                        {{if .Impact}}
+                        <div class="details-section">
+                            <div class="details-label">Impact</div>
+                            <div class="details-content">
+                                <span class="impact-badge">{{.Impact}}</span>
+                            </div>
+                        </div>
+                        {{end}}
+
+                        {{if .GTFSReference}}
+                        <div class="details-section">
+                            <div class="details-label">GTFS Reference</div>
+                            <div class="details-content">
+                                <a href="{{.GTFSReference}}" target="_blank" class="gtfs-reference">
+                                    📖 View Official Documentation
+                                </a>
+                            </div>
+                        </div>
+                        {{end}}
+
+                        {{if .AffectedFiles}}
+                        <div class="details-section">
+                            <div class="details-label">Affected Files</div>
+                            <div class="details-content">
+                                {{range .AffectedFiles}}<span class="file-tag">{{.}}</span>{{end}}
+                            </div>
+                        </div>
+                        {{end}}
+
+                        {{if .AffectedFields}}
+                        <div class="details-section">
+                            <div class="details-label">Affected Fields</div>
+                            <div class="details-content">
+                                {{range .AffectedFields}}<span class="field-tag">{{.}}</span>{{end}}
+                            </div>
+                        </div>
+                        {{end}}
+
+                        {{if .ExampleFix}}
+                        <div class="details-section">
+                            <div class="details-label">Example Fix</div>
+                            <div class="details-content">
+                                <div class="example-fix">{{.ExampleFix}}</div>
+                            </div>
+                        </div>
+                        {{end}}
+                    </div>
+                    {{end}}
                     
                     {{if .SampleNotices}}
                     <div class="notice-samples">

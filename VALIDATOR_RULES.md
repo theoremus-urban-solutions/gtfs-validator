@@ -1089,6 +1089,215 @@ Each validation notice contains:
 - **Context**: File, row, and field information
 - **Suggestion**: Recommended fix when applicable
 
+### User-Friendly Error Descriptions
+
+The validator provides detailed, user-friendly descriptions for each error type to help feed producers understand and fix issues. Here are examples of the enhanced descriptions:
+
+#### Core Validation Errors
+
+**Missing Required File**
+- **Description**: "A required GTFS file is missing from the feed. This file is essential for GTFS compliance and must be present."
+- **Impact**: Feed will not be accepted by GTFS consumers
+- **Fix**: Add the missing file with proper content and structure
+
+**Missing Required Field**
+- **Description**: "A required field is missing from a GTFS file. This field is mandatory according to the GTFS specification."
+- **Impact**: Data integrity issues, potential feed rejection
+- **Fix**: Add the missing field value to the specified row
+
+**Invalid Date Format**
+- **Description**: "A date field contains an invalid date format. Dates must be in YYYYMMDD format (e.g., 20231225 for December 25, 2023)."
+- **Impact**: Date parsing errors, service scheduling issues
+- **Fix**: Ensure all dates follow YYYYMMDD format
+
+**Invalid Time Format**
+- **Description**: "A time field contains an invalid time format. Times must be in HH:MM:SS format (e.g., 14:30:00 for 2:30 PM)."
+- **Impact**: Time parsing errors, trip scheduling issues
+- **Fix**: Ensure all times follow HH:MM:SS format (24-hour clock)
+
+#### Entity Validation Errors
+
+**Duplicate Primary Key**
+- **Description**: "A record has a duplicate primary key. Each record must have a unique identifier to maintain data integrity."
+- **Impact**: Data conflicts, potential feed rejection
+- **Fix**: Ensure each record has a unique primary key value
+
+**Invalid Route Type**
+- **Description**: "A route type field contains an invalid route type. Route types must be valid GTFS route type codes."
+- **Impact**: Route classification errors, consumer confusion
+- **Fix**: Use valid route type codes (0-12 for basic types, 100-1799 for extended types)
+
+#### Business Logic Errors
+
+**Excessive Travel Speed**
+- **Description**: "Travel speed between stops is unrealistically fast for the transport mode. This may indicate data errors or missing stops."
+- **Impact**: Unrealistic trip planning, passenger confusion
+- **Fix**: Check for missing intermediate stops or correct travel times
+
+**Feed Expiration**
+- **Description**: "The feed has expired or will expire soon. Feeds should be updated regularly to provide current service information."
+- **Impact**: Outdated information, potential service disruptions
+- **Fix**: Update feed with current service dates and republish
+
+#### Accessibility Errors
+
+**Poor Color Contrast**
+- **Description**: "Route colors have insufficient contrast for accessibility compliance. This affects colorblind users and accessibility standards."
+- **Impact**: Accessibility compliance issues, poor user experience
+- **Fix**: Choose route colors with sufficient contrast ratios (WCAG 2.1 AA compliant)
+
+**Missing Pathway Information**
+- **Description**: "Pathway information is missing or incomplete. This affects accessibility navigation in multi-level stations."
+- **Impact**: Accessibility compliance issues, navigation difficulties
+- **Fix**: Add complete pathway definitions for station navigation
+
+### Comprehensive Error Description Reference
+
+#### File Structure Errors
+
+**Empty File**
+- **Description**: "A GTFS file is completely empty (no data rows). Empty files may indicate data export issues or missing content."
+- **Impact**: File parsing errors, incomplete feed information
+- **Fix**: Ensure the file contains proper data or remove if not needed
+
+**Unknown File**
+- **Description**: "An unknown file is present in the GTFS feed. Only standard GTFS files should be included."
+- **Impact**: Potential confusion, non-standard feed structure
+- **Fix**: Remove non-GTFS files or rename to follow GTFS conventions
+
+**Duplicate Column Headers**
+- **Description**: "Duplicate column headers found in a GTFS file. Each column should have a unique header name."
+- **Impact**: Data parsing errors, column mapping issues
+- **Fix**: Remove duplicate columns or rename to make them unique
+
+#### Data Quality Errors
+
+**Leading/Trailing Whitespace**
+- **Description**: "Field values contain leading or trailing whitespace. This can cause data parsing issues and inconsistencies."
+- **Impact**: Data matching problems, potential validation failures
+- **Fix**: Trim whitespace from all field values
+
+**Invalid URL Format**
+- **Description**: "A URL field contains an invalid URL format. URLs must be properly formatted with http:// or https:// protocol."
+- **Impact**: Broken links, poor user experience
+- **Fix**: Ensure URLs include proper protocol and are valid
+
+**Invalid Email Format**
+- **Description**: "An email field contains an invalid email address format. Email addresses must follow standard email format."
+- **Impact**: Contact information issues, communication problems
+- **Fix**: Use valid email address format (e.g., contact@agency.com)
+
+#### Geographic Data Errors
+
+**Invalid Coordinates**
+- **Description**: "Coordinates are outside valid ranges. Latitude must be between -90 and 90, longitude between -180 and 180."
+- **Impact**: Mapping errors, location display issues
+- **Fix**: Correct coordinate values to valid ranges
+
+**Suspicious Coordinates**
+- **Description**: "Coordinates appear to be placeholder or error values (e.g., 0,0). This may indicate data import issues."
+- **Impact**: Incorrect location display, navigation problems
+- **Fix**: Replace with actual geographic coordinates
+
+**Very Close Stops**
+- **Description**: "Stops are located very close together (within 10 meters). This may indicate duplicate stops or data errors."
+- **Impact**: Confusion for passengers, redundant data
+- **Fix**: Review and consolidate duplicate stops or correct coordinates
+
+#### Service and Schedule Errors
+
+**Service Never Active**
+- **Description**: "A service is defined but never active on any day. This creates unused service definitions."
+- **Impact**: Data bloat, potential confusion
+- **Fix**: Remove unused services or add active days
+
+**Invalid Date Range**
+- **Description**: "Service start date is after end date. Date ranges must be logical with start date before end date."
+- **Impact**: Service scheduling errors, date parsing issues
+- **Fix**: Correct the date range order
+
+**Overlapping Frequencies**
+- **Description**: "Frequency periods overlap for the same trip. Each time period should be distinct and non-overlapping."
+- **Impact**: Scheduling conflicts, service planning issues
+- **Fix**: Adjust frequency periods to eliminate overlaps
+
+#### Fare System Errors
+
+**Invalid Fare Price**
+- **Description**: "Fare price is negative or has excessive precision. Prices should be non-negative with reasonable decimal places."
+- **Impact**: Fare calculation errors, payment issues
+- **Fix**: Use non-negative prices with 2 decimal places maximum
+
+**Empty Fare Rule**
+- **Description**: "A fare rule has no qualifying conditions specified. At least one condition must be defined."
+- **Impact**: Ambiguous fare application, pricing confusion
+- **Fix**: Add qualifying conditions (route, origin, destination, or zone)
+
+**Unused Fare Attribute**
+- **Description**: "A fare attribute is defined but not used in any fare rules. This creates orphaned fare definitions."
+- **Impact**: Data bloat, potential confusion
+- **Fix**: Remove unused fare attributes or create corresponding fare rules
+
+#### Accessibility and Compliance Errors
+
+**Insufficient Color Contrast**
+- **Description**: "Route colors have insufficient contrast for accessibility compliance. This affects colorblind users."
+- **Impact**: Accessibility compliance issues, poor user experience
+- **Fix**: Choose colors with WCAG 2.1 AA contrast ratios (4.5:1 minimum)
+
+**Missing Level Information**
+- **Description**: "Level information is missing for multi-level stations. This affects accessibility navigation."
+- **Impact**: Accessibility compliance issues, navigation difficulties
+- **Fix**: Add complete level definitions for multi-level stations
+
+**Invalid Pathway Mode**
+- **Description**: "Pathway mode is invalid or not specified. Pathway modes must be valid GTFS pathway type codes."
+- **Impact**: Accessibility navigation issues, compliance problems
+- **Fix**: Use valid pathway mode codes (1-7)
+
+#### Network and Connectivity Errors
+
+**Isolated Stop**
+- **Description**: "A stop cannot be reached by any trip. This creates disconnected network elements."
+- **Impact**: Network connectivity issues, passenger confusion
+- **Fix**: Add trips serving the stop or remove if not needed
+
+**Disconnected Route**
+- **Description**: "A route has no connections to other routes. This may indicate network planning issues."
+- **Impact**: Limited passenger options, poor network design
+- **Fix**: Review network design and add transfer connections
+
+**Poor Network Connectivity**
+- **Description**: "The network has poor overall connectivity. This affects passenger journey planning and accessibility."
+- **Impact**: Limited travel options, poor user experience
+- **Fix**: Improve network connectivity through better transfer design
+
+### Comparison with Other GTFS Validators
+
+The GTFS validator provides comprehensive error descriptions that compare favorably with other validation tools:
+
+#### vs. Google's GTFS Validator
+- **Similar Features**: Both provide clear error messages and severity levels
+- **Enhanced Descriptions**: Our validator includes detailed impact analysis and specific fix suggestions
+- **Comprehensive Coverage**: Covers more validation scenarios with detailed explanations
+
+#### vs. Java GTFS Validator
+- **User-Friendly Language**: More accessible language for non-technical users
+- **Actionable Fixes**: Specific, actionable recommendations for each error type
+- **Impact Assessment**: Clear explanation of how each error affects feed quality and usability
+
+#### vs. Other Open Source Validators
+- **Detailed Context**: Provides file, row, and field-specific context for each error
+- **Best Practices**: Includes recommendations based on GTFS best practices
+- **Accessibility Focus**: Enhanced descriptions for accessibility compliance issues
+
+#### Key Advantages
+- **Comprehensive Error Coverage**: 55+ validators with detailed error descriptions
+- **User-Friendly Language**: Clear, non-technical explanations
+- **Actionable Recommendations**: Specific steps to fix each issue
+- **Impact Assessment**: Understanding of how errors affect feed quality
+- **Best Practice Guidance**: Recommendations based on industry standards
+
 ### Common Notice Patterns
 
 #### File-Level Notices

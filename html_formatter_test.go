@@ -49,6 +49,7 @@ func TestHTMLFormatter_GenerateHTML(t *testing.T) {
 			{
 				Code:         "missing_required_field",
 				Severity:     "ERROR",
+				Description:  "A required field is missing from a GTFS file. This field is mandatory according to the GTFS specification.",
 				TotalNotices: 2,
 				SampleNotices: []map[string]interface{}{
 					{
@@ -61,6 +62,7 @@ func TestHTMLFormatter_GenerateHTML(t *testing.T) {
 			{
 				Code:         "invalid_date",
 				Severity:     "WARNING",
+				Description:  "A date field contains an invalid date format. Dates must be in YYYYMMDD format.",
 				TotalNotices: 3,
 				SampleNotices: []map[string]interface{}{
 					{
@@ -139,10 +141,10 @@ func TestHTMLFormatter_GenerateHTML(t *testing.T) {
 	}
 
 	// Test notice descriptions
-	if !strings.Contains(html, "A required field is missing from a GTFS file") {
+	if !strings.Contains(html, "A required field is missing from a GTFS file. This field is mandatory according to the GTFS specification.") {
 		t.Error("HTML output missing error notice description")
 	}
-	if !strings.Contains(html, "A date field contains an invalid date") {
+	if !strings.Contains(html, "A date field contains an invalid date format. Dates must be in YYYYMMDD format.") {
 		t.Error("HTML output missing warning notice description")
 	}
 
@@ -228,22 +230,22 @@ func TestGetNoticeDescription(t *testing.T) {
 	}{
 		{
 			code:        "missing_required_field",
-			expected:    "A required field is missing from a GTFS file",
+			expected:    "A required field is missing from a GTFS file. This field is mandatory according to the GTFS specification.",
 			description: "Should return predefined description for known notice codes",
 		},
 		{
 			code:        "invalid_date",
-			expected:    "A date field contains an invalid date",
+			expected:    "A date field contains an invalid date format. Dates must be in YYYYMMDD format.",
 			description: "Should return predefined description for date validation errors",
 		},
 		{
 			code:        "unknown_notice_code",
-			expected:    "Unknown Notice Code",
+			expected:    "Unknown Notice Code. This validation check identified an issue that should be reviewed and corrected.",
 			description: "Should generate title-case description for unknown codes",
 		},
 		{
 			code:        "some_custom_validation_error",
-			expected:    "Some Custom Validation Error",
+			expected:    "Some Custom Validation Error. This validation check identified an issue that should be reviewed and corrected.",
 			description: "Should convert underscores to spaces and title case",
 		},
 	}

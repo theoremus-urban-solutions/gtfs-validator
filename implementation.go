@@ -11,7 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	// Import existing packages from the current implementation
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
 	"github.com/theoremus-urban-solutions/gtfs-validator/report"
@@ -147,11 +146,18 @@ func (v *validatorImpl) convertReport(internal *report.ValidationReport, elapsed
 			group.TotalNotices += n.TotalNotices
 			group.SampleNotices = append(group.SampleNotices, n.SampleNotices...)
 		} else {
+			enhanced := GetEnhancedNoticeDescription(n.Code)
 			noticeGroups[n.Code] = &NoticeGroup{
-				Code:          n.Code,
-				Severity:      n.Severity,
-				TotalNotices:  n.TotalNotices,
-				SampleNotices: n.SampleNotices,
+				Code:           n.Code,
+				Severity:       n.Severity,
+				Description:    enhanced.Description,
+				GTFSReference:  enhanced.GTFSReference,
+				AffectedFiles:  enhanced.AffectedFiles,
+				AffectedFields: enhanced.AffectedFields,
+				ExampleFix:     enhanced.ExampleFix,
+				Impact:         enhanced.Impact,
+				TotalNotices:   n.TotalNotices,
+				SampleNotices:  n.SampleNotices,
 			}
 		}
 	}
@@ -797,11 +803,18 @@ func (v *internalValidator) streamNoticeGroups() {
 		}
 
 		// Create notice group for streaming
+		enhanced := GetEnhancedNoticeDescription(code)
 		noticeGroup := NoticeGroup{
-			Code:          code,
-			Severity:      groupNotices[0].Severity().String(),
-			TotalNotices:  len(groupNotices),
-			SampleNotices: sampleNotices,
+			Code:           code,
+			Severity:       groupNotices[0].Severity().String(),
+			Description:    enhanced.Description,
+			GTFSReference:  enhanced.GTFSReference,
+			AffectedFiles:  enhanced.AffectedFiles,
+			AffectedFields: enhanced.AffectedFields,
+			ExampleFix:     enhanced.ExampleFix,
+			Impact:         enhanced.Impact,
+			TotalNotices:   len(groupNotices),
+			SampleNotices:  sampleNotices,
 		}
 
 		// Stream the notice group
