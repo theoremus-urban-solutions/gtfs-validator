@@ -9,12 +9,12 @@ import (
 
 // NoticeDescription contains enhanced information about a validation notice
 type NoticeDescription struct {
-	Description   string   `json:"description"`
-	GTFSReference string   `json:"gtfsReference,omitempty"`
-	AffectedFiles []string `json:"affectedFiles,omitempty"`
+	Description    string   `json:"description"`
+	GTFSReference  string   `json:"gtfsReference,omitempty"`
+	AffectedFiles  []string `json:"affectedFiles,omitempty"`
 	AffectedFields []string `json:"affectedFields,omitempty"`
-	ExampleFix    string   `json:"exampleFix,omitempty"`
-	Impact        string   `json:"impact,omitempty"`
+	ExampleFix     string   `json:"exampleFix,omitempty"`
+	Impact         string   `json:"impact,omitempty"`
 }
 
 // SeverityInfo provides detailed information about validation severity levels
@@ -66,7 +66,6 @@ func getNoticeDescription(code string) string {
 	enhanced := GetEnhancedNoticeDescription(code)
 	return enhanced.Description
 }
-
 
 // GetEnhancedNoticeDescription returns detailed notice information including GTFS references
 func GetEnhancedNoticeDescription(code string) NoticeDescription {
@@ -179,10 +178,10 @@ func GetEnhancedNoticeDescription(code string) NoticeDescription {
 			ExampleFix:     "Add descriptive stop names like 'Main St & 1st Ave' or 'Downtown Transit Center'",
 		},
 		"foreign_key_violation": {
-			Description:    "A foreign key reference is invalid. The referenced record does not exist in the target file.",
-			GTFSReference:  "https://gtfs.org/schedule/reference/#field-definitions",
-			Impact:         "Data integrity issues, broken relationships between files",
-			ExampleFix:     "Ensure referenced IDs exist. For example, if trips.txt references route_id 'R1', ensure 'R1' exists in routes.txt",
+			Description:   "A foreign key reference is invalid. The referenced record does not exist in the target file.",
+			GTFSReference: "https://gtfs.org/schedule/reference/#field-definitions",
+			Impact:        "Data integrity issues, broken relationships between files",
+			ExampleFix:    "Ensure referenced IDs exist. For example, if trips.txt references route_id 'R1', ensure 'R1' exists in routes.txt",
 		},
 		"excessive_travel_speed": {
 			Description:    "Travel speed between stops is unrealistically fast for the transport mode. This may indicate data errors or missing stops.",
@@ -287,12 +286,12 @@ func GetEnhancedNoticeDescription(code string) NoticeDescription {
 			ExampleFix:     "Use valid values: 0=recommended, 1=timed, 2=minimum time required, 3=not possible",
 		},
 		"expired_feed": {
-			Description:   "The feed has expired. Feeds should be updated regularly to provide current service information.",
-			GTFSReference: "https://gtfs.org/schedule/reference/#feed_infotxt",
-			AffectedFiles: []string{"feed_info.txt"},
+			Description:    "The feed has expired. Feeds should be updated regularly to provide current service information.",
+			GTFSReference:  "https://gtfs.org/schedule/reference/#feed_infotxt",
+			AffectedFiles:  []string{"feed_info.txt"},
 			AffectedFields: []string{"feed_end_date"},
-			Impact:        "Feed will be rejected by trip planners, outdated service information",
-			ExampleFix:    "Update feed_end_date to a current date: feed_end_date=20241231",
+			Impact:         "Feed will be rejected by trip planners, outdated service information",
+			ExampleFix:     "Update feed_end_date to a current date: feed_end_date=20241231",
 		},
 		"insufficient_service_coverage": {
 			Description:   "Service coverage is insufficient for the next period. Ensure adequate service is available for passengers.",
@@ -385,20 +384,20 @@ func GetEnhancedNoticeDescription(code string) NoticeDescription {
 
 		// === TRIP AND SERVICE ERRORS ===
 		"service_never_active": {
-			Description:   "A service is defined but never active on any day. This creates unused service definitions.",
-			GTFSReference: "https://gtfs.org/schedule/reference/#calendartxt",
-			AffectedFiles: []string{"calendar.txt"},
+			Description:    "A service is defined but never active on any day. This creates unused service definitions.",
+			GTFSReference:  "https://gtfs.org/schedule/reference/#calendartxt",
+			AffectedFiles:  []string{"calendar.txt"},
 			AffectedFields: []string{"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"},
-			Impact:        "Data bloat, potential confusion",
-			ExampleFix:    "Set at least one day to 1: monday=1, or remove unused service",
+			Impact:         "Data bloat, potential confusion",
+			ExampleFix:     "Set at least one day to 1: monday=1, or remove unused service",
 		},
 		"unused_service": {
-			Description:   "A service is defined but not used by any trips. This creates orphaned service definitions.",
-			GTFSReference: "https://gtfs.org/schedule/reference/#tripstxt",
-			AffectedFiles: []string{"calendar.txt", "trips.txt"},
+			Description:    "A service is defined but not used by any trips. This creates orphaned service definitions.",
+			GTFSReference:  "https://gtfs.org/schedule/reference/#tripstxt",
+			AffectedFiles:  []string{"calendar.txt", "trips.txt"},
 			AffectedFields: []string{"service_id"},
-			Impact:        "Data bloat, maintenance overhead",
-			ExampleFix:    "Remove unused services or add trips that reference them",
+			Impact:         "Data bloat, maintenance overhead",
+			ExampleFix:     "Remove unused services or add trips that reference them",
 		},
 		"invalid_currency_code": {
 			Description:    "Currency code is invalid or not recognized. Must be a valid ISO 4217 3-letter currency code.",
