@@ -6,7 +6,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
-	coretest "github.com/theoremus-urban-solutions/gtfs-validator/validator/core"
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
 func TestFeedInfoValidator_Validate(t *testing.T) {
@@ -14,7 +14,7 @@ func TestFeedInfoValidator_Validate(t *testing.T) {
 		"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang,default_lang,feed_start_date,feed_end_date,feed_version,feed_contact_email,feed_contact_url\n,,en,eng,20260101,20250101,1.0,invalid-email,www.foo",
 	}
 
-	loader := coretest.CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 
 	cfg := gtfsvalidator.Config{CurrentDate: time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC)}

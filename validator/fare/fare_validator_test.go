@@ -5,7 +5,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
-	coretest "github.com/theoremus-urban-solutions/gtfs-validator/validator/core"
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
 func TestFareValidator_Validate(t *testing.T) {
@@ -14,7 +14,7 @@ func TestFareValidator_Validate(t *testing.T) {
 		"fare_rules.txt":      "fare_id,origin_id,destination_id,contains_id\nF3,A,A,\nF2,,,C",
 	}
 
-	loader := coretest.CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 
 	v := NewFareValidator()

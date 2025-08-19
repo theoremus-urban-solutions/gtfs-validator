@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -156,7 +157,7 @@ func TestZoneValidator_Validate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			loader := CreateTestFeedLoader(t, tt.files)
+			loader := testutil.CreateTestFeedLoader(t, tt.files)
 			container := notice.NewNoticeContainer()
 			validator := NewZoneValidator()
 			config := gtfsvalidator.Config{}
@@ -233,7 +234,7 @@ func TestZoneValidator_LoadZones(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			files := map[string]string{"stops.txt": tt.content}
-			loader := CreateTestFeedLoader(t, files)
+			loader := testutil.CreateTestFeedLoader(t, files)
 			validator := NewZoneValidator()
 
 			zones := validator.loadZones(loader)
@@ -321,7 +322,7 @@ func TestZoneValidator_LoadUsedZones(t *testing.T) {
 			if tt.content != "" {
 				files["fare_rules.txt"] = tt.content
 			}
-			loader := CreateTestFeedLoader(t, files)
+			loader := testutil.CreateTestFeedLoader(t, files)
 			validator := NewZoneValidator()
 
 			usedZones := validator.loadUsedZones(loader)

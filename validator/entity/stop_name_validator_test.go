@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"fmt"
 	"strings"
 	"testing"
@@ -236,7 +237,7 @@ func TestStopNameValidator_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test feed loader
-			feedLoader := CreateTestFeedLoader(t, tt.files)
+			feedLoader := testutil.CreateTestFeedLoader(t, tt.files)
 
 			// Create notice container and validator
 			container := notice.NewNoticeContainer()
@@ -354,7 +355,7 @@ func TestStopNameValidator_LoadStops(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			feedLoader := CreateTestFeedLoader(t, map[string]string{
+			feedLoader := testutil.CreateTestFeedLoader(t, map[string]string{
 				"stops.txt": tt.csvData,
 			})
 

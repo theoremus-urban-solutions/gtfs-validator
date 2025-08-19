@@ -5,7 +5,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
-	coretest "github.com/theoremus-urban-solutions/gtfs-validator/validator/core"
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
 func TestScheduleConsistencyValidator_Validate(t *testing.T) {
@@ -14,7 +14,7 @@ func TestScheduleConsistencyValidator_Validate(t *testing.T) {
 		"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence,pickup_type,drop_off_type\nT1,08:10:00,08:05:00,A,1,1,0\nT1,08:04:00,08:04:00,B,2,0,1\nT2,09:00:00,09:00:00,A,1,1,1\nT2,13:30:00,13:30:00,B,2,1,1",
 	}
 
-	loader := coretest.CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 
 	v := NewScheduleConsistencyValidator()

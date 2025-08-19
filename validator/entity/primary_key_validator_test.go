@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -85,7 +86,7 @@ func TestPrimaryKeyValidator_Validate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			loader := CreateTestFeedLoader(t, tt.files)
+			loader := testutil.CreateTestFeedLoader(t, tt.files)
 			container := notice.NewNoticeContainer()
 			validator := NewPrimaryKeyValidator()
 			config := gtfsvalidator.Config{}

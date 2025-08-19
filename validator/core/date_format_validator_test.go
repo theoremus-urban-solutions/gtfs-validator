@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -222,7 +223,7 @@ func TestDateFormatValidator_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test components
-			loader := CreateTestFeedLoader(t, tt.files)
+			loader := testutil.CreateTestFeedLoader(t, tt.files)
 			container := notice.NewNoticeContainer()
 			validator := NewDateFormatValidator()
 			config := gtfsvalidator.Config{}
@@ -502,7 +503,7 @@ func TestDateFormatValidator_ValidateFileDateFields(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			files := map[string]string{tt.filename: tt.content}
-			loader := CreateTestFeedLoader(t, files)
+			loader := testutil.CreateTestFeedLoader(t, files)
 			container := notice.NewNoticeContainer()
 			validator := NewDateFormatValidator()
 

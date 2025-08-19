@@ -5,7 +5,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
-	coretest "github.com/theoremus-urban-solutions/gtfs-validator/validator/core"
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
 func TestGeospatialValidator_Validate(t *testing.T) {
@@ -14,7 +14,7 @@ func TestGeospatialValidator_Validate(t *testing.T) {
 		"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\ns,0,0,1\ns,0,0.00005,2",
 	}
 
-	loader := coretest.CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 
 	v := NewGeospatialValidator()

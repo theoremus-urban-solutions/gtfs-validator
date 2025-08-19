@@ -5,7 +5,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
-	coretest "github.com/theoremus-urban-solutions/gtfs-validator/validator/core"
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
 func TestStopTimeSequenceTimeValidator_Validate(t *testing.T) {
@@ -14,7 +14,7 @@ func TestStopTimeSequenceTimeValidator_Validate(t *testing.T) {
 		"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:10:00,08:05:00,S1,1\nT1,08:04:00,08:04:00,S2,2",
 	}
 
-	loader := coretest.CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 
 	v := NewStopTimeSequenceTimeValidator()

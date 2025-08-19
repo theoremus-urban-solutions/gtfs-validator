@@ -5,7 +5,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
-	coretest "github.com/theoremus-urban-solutions/gtfs-validator/validator/core"
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
 func TestTransferTimingValidator_Validate(t *testing.T) {
@@ -14,7 +14,7 @@ func TestTransferTimingValidator_Validate(t *testing.T) {
 		"transfers.txt": "from_stop_id,to_stop_id,transfer_type,min_transfer_time\nA,B,2,10\nB,A,3,120\nA,A,0,",
 	}
 
-	loader := coretest.CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 
 	v := NewTransferTimingValidator()

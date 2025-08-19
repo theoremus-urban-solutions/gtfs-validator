@@ -6,7 +6,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
-	coretest "github.com/theoremus-urban-solutions/gtfs-validator/validator/core"
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
 func TestServiceCalendarValidator_Validate(t *testing.T) {
@@ -15,7 +15,7 @@ func TestServiceCalendarValidator_Validate(t *testing.T) {
 		"calendar_dates.txt": "service_id,date,exception_type\nWKD,20240115,3\nWKD,20240115,1",
 	}
 
-	loader := coretest.CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 
 	cfg := gtfsvalidator.Config{CurrentDate: time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC)}

@@ -6,7 +6,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
-	coretest "github.com/theoremus-urban-solutions/gtfs-validator/validator/core"
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
 func TestDateTripsValidator_Validate(t *testing.T) {
@@ -16,7 +16,7 @@ func TestDateTripsValidator_Validate(t *testing.T) {
 		"trips.txt":          "route_id,service_id,trip_id\nR1,S3,T1",
 	}
 
-	loader := coretest.CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 
 	cfg := gtfsvalidator.Config{CurrentDate: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)}

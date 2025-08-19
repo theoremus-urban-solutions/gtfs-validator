@@ -1,4 +1,4 @@
-package business
+package testutil
 
 import (
 	"os"

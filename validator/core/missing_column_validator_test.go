@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -193,7 +194,7 @@ func TestMissingColumnValidator_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test components
-			loader := CreateTestFeedLoader(t, tt.files)
+			loader := testutil.CreateTestFeedLoader(t, tt.files)
 			container := notice.NewNoticeContainer()
 			validator := NewMissingColumnValidator()
 			config := gtfsvalidator.Config{}
@@ -322,7 +323,7 @@ func TestMissingColumnValidator_ValidateFileColumns(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test components
 			files := map[string]string{tt.filename: tt.content}
-			loader := CreateTestFeedLoader(t, files)
+			loader := testutil.CreateTestFeedLoader(t, files)
 			container := notice.NewNoticeContainer()
 			validator := NewMissingColumnValidator()
 
@@ -444,7 +445,7 @@ func TestMissingColumnValidator_FileRequiredColumns(t *testing.T) {
 
 func TestMissingColumnValidator_FileNotExists(t *testing.T) {
 	// Test behavior when file doesn't exist
-	loader := CreateTestFeedLoader(t, map[string]string{}) // No files
+	loader := testutil.CreateTestFeedLoader(t, map[string]string{}) // No files
 	container := notice.NewNoticeContainer()
 	validator := NewMissingColumnValidator()
 
@@ -464,7 +465,7 @@ func TestMissingColumnValidator_MalformedCSV(t *testing.T) {
 	files := map[string]string{
 		"agency.txt": "", // Empty file - headers cannot be parsed
 	}
-	loader := CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 	validator := NewMissingColumnValidator()
 

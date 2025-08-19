@@ -5,7 +5,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
-	coretest "github.com/theoremus-urban-solutions/gtfs-validator/validator/core"
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
 func TestPathwayValidator_Validate(t *testing.T) {
@@ -13,7 +13,7 @@ func TestPathwayValidator_Validate(t *testing.T) {
 		"stops.txt":    "stop_id,stop_name\nA,Stop A\nB,Stop B",
 		"pathways.txt": "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidirectional,stair_count\nP1,A,B,2,0,\nP2,A,B,2,0,5\nP3,A,A,2,0,1\nP4,A,B,10,0,1\nP5,A,C,2,0,1",
 	}
-	loader := coretest.CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 	v := NewPathwayValidator()
 	v.Validate(loader, container, gtfsvalidator.Config{})

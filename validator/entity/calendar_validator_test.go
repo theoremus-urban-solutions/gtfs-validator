@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -145,7 +146,7 @@ func TestCalendarValidator_Validate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			loader := CreateTestFeedLoader(t, tt.files)
+			loader := testutil.CreateTestFeedLoader(t, tt.files)
 			container := notice.NewNoticeContainer()
 			validator := NewCalendarValidator()
 			config := gtfsvalidator.Config{}
@@ -260,7 +261,7 @@ func TestCalendarValidator_FileHasData(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			files := map[string]string{tt.filename: tt.content}
-			loader := CreateTestFeedLoader(t, files)
+			loader := testutil.CreateTestFeedLoader(t, files)
 			validator := NewCalendarValidator()
 
 			result := validator.fileHasData(loader, tt.filename)
@@ -274,7 +275,7 @@ func TestCalendarValidator_FileHasData(t *testing.T) {
 
 func TestCalendarValidator_FileHasData_MissingFile(t *testing.T) {
 	// Test behavior when file doesn't exist
-	loader := CreateTestFeedLoader(t, map[string]string{})
+	loader := testutil.CreateTestFeedLoader(t, map[string]string{})
 	validator := NewCalendarValidator()
 
 	result := validator.fileHasData(loader, "nonexistent.txt")

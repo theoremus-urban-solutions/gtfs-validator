@@ -5,7 +5,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
-	coretest "github.com/theoremus-urban-solutions/gtfs-validator/validator/core"
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
 func TestLevelValidator_Validate(t *testing.T) {
@@ -13,7 +13,7 @@ func TestLevelValidator_Validate(t *testing.T) {
 		"levels.txt": "level_id,level_index,level_name\nL1,0,Ground\nL2,1,\nL3,100,Top", // L2 missing level_name (recommended), L3 unreasonable index
 		"stops.txt":  "stop_id,stop_name,level_id\nS1,Stop 1,L1",
 	}
-	loader := coretest.CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 	v := NewLevelValidator()
 	v.Validate(loader, container, gtfsvalidator.Config{})

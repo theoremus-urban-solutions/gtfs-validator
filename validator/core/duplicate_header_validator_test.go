@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -113,7 +114,7 @@ func TestDuplicateHeaderValidator_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test components
-			loader := CreateTestFeedLoader(t, tt.files)
+			loader := testutil.CreateTestFeedLoader(t, tt.files)
 			container := notice.NewNoticeContainer()
 			validator := NewDuplicateHeaderValidator()
 			config := gtfsvalidator.Config{}
@@ -217,7 +218,7 @@ func TestDuplicateHeaderValidator_ValidateFileHeaders(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test components
 			files := map[string]string{tt.filename: tt.content}
-			loader := CreateTestFeedLoader(t, files)
+			loader := testutil.CreateTestFeedLoader(t, files)
 			container := notice.NewNoticeContainer()
 			validator := NewDuplicateHeaderValidator()
 
@@ -296,7 +297,7 @@ func TestDuplicateHeaderValidator_New(t *testing.T) {
 
 func TestDuplicateHeaderValidator_FileNotExists(t *testing.T) {
 	// Test behavior when file doesn't exist
-	loader := CreateTestFeedLoader(t, map[string]string{}) // No files
+	loader := testutil.CreateTestFeedLoader(t, map[string]string{}) // No files
 	container := notice.NewNoticeContainer()
 	validator := NewDuplicateHeaderValidator()
 
@@ -315,7 +316,7 @@ func TestDuplicateHeaderValidator_MalformedCSV(t *testing.T) {
 	files := map[string]string{
 		"malformed.txt": "field1,field2\n\"unclosed quote", // Malformed CSV
 	}
-	loader := CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 	validator := NewDuplicateHeaderValidator()
 
@@ -372,7 +373,7 @@ func TestDuplicateHeaderValidator_WhitespaceHandling(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			files := map[string]string{"test.txt": tt.content}
-			loader := CreateTestFeedLoader(t, files)
+			loader := testutil.CreateTestFeedLoader(t, files)
 			container := notice.NewNoticeContainer()
 			validator := NewDuplicateHeaderValidator()
 

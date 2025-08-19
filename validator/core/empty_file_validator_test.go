@@ -1,6 +1,7 @@
 package core
 
 import (
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -89,7 +90,7 @@ func TestEmptyFileValidator_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test components
-			loader := CreateTestFeedLoader(t, tt.files)
+			loader := testutil.CreateTestFeedLoader(t, tt.files)
 			container := notice.NewNoticeContainer()
 			validator := NewEmptyFileValidator()
 			config := gtfsvalidator.Config{}
@@ -171,7 +172,7 @@ func TestEmptyFileValidator_ValidateFileNotEmpty(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test components
 			files := map[string]string{tt.filename: tt.content}
-			loader := CreateTestFeedLoader(t, files)
+			loader := testutil.CreateTestFeedLoader(t, files)
 			container := notice.NewNoticeContainer()
 			validator := NewEmptyFileValidator()
 
@@ -210,7 +211,7 @@ func TestEmptyFileValidator_New(t *testing.T) {
 
 func TestEmptyFileValidator_FileNotExists(t *testing.T) {
 	// Test behavior when file doesn't exist
-	loader := CreateTestFeedLoader(t, map[string]string{}) // No files
+	loader := testutil.CreateTestFeedLoader(t, map[string]string{}) // No files
 	container := notice.NewNoticeContainer()
 	validator := NewEmptyFileValidator()
 
@@ -229,7 +230,7 @@ func TestEmptyFileValidator_MalformedCSV(t *testing.T) {
 	files := map[string]string{
 		"malformed.txt": "agency_id,agency_name\n\"unclosed quote", // Malformed CSV
 	}
-	loader := CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 	validator := NewEmptyFileValidator()
 

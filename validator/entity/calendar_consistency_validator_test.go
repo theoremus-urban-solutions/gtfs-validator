@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
 	"time"
 
@@ -266,7 +267,7 @@ func TestCalendarConsistencyValidator_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test feed loader
-			feedLoader := CreateTestFeedLoader(t, tt.files)
+			feedLoader := testutil.CreateTestFeedLoader(t, tt.files)
 
 			// Create notice container and validator
 			container := notice.NewNoticeContainer()
@@ -421,7 +422,7 @@ func TestCalendarConsistencyValidator_LoadCalendarServices(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			feedLoader := CreateTestFeedLoader(t, map[string]string{
+			feedLoader := testutil.CreateTestFeedLoader(t, map[string]string{
 				"calendar.txt": tt.csvData,
 			})
 
@@ -541,7 +542,7 @@ func TestCalendarConsistencyValidator_LoadCalendarDates(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			feedLoader := CreateTestFeedLoader(t, map[string]string{
+			feedLoader := testutil.CreateTestFeedLoader(t, map[string]string{
 				"calendar_dates.txt": tt.csvData,
 			})
 
@@ -614,7 +615,7 @@ func TestCalendarConsistencyValidator_GetUsedServiceIDs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			feedLoader := CreateTestFeedLoader(t, map[string]string{
+			feedLoader := testutil.CreateTestFeedLoader(t, map[string]string{
 				"trips.txt": tt.csvData,
 			})
 

@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -225,7 +226,7 @@ func TestRouteConsistencyValidator_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test feed loader
-			feedLoader := CreateTestFeedLoader(t, tt.files)
+			feedLoader := testutil.CreateTestFeedLoader(t, tt.files)
 
 			// Create notice container and validator
 			container := notice.NewNoticeContainer()

@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -228,7 +229,7 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test components
-			loader := CreateTestFeedLoader(t, tt.files)
+			loader := testutil.CreateTestFeedLoader(t, tt.files)
 			container := notice.NewNoticeContainer()
 			v := NewAgencyConsistencyValidator()
 			config := gtfsvalidator.Config{}
@@ -340,7 +341,7 @@ func TestAgencyConsistencyValidator_LoadAgencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			files := map[string]string{"agency.txt": tt.content}
-			loader := CreateTestFeedLoader(t, files)
+			loader := testutil.CreateTestFeedLoader(t, files)
 			validator := NewAgencyConsistencyValidator()
 
 			agencies := validator.loadAgencies(loader)
@@ -522,7 +523,7 @@ func TestAgencyConsistencyValidator_ValidateRouteAgencyReferences(t *testing.T) 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			files := map[string]string{"routes.txt": tt.routesContent}
-			loader := CreateTestFeedLoader(t, files)
+			loader := testutil.CreateTestFeedLoader(t, files)
 			container := notice.NewNoticeContainer()
 			validator := NewAgencyConsistencyValidator()
 

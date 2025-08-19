@@ -5,7 +5,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
-	coretest "github.com/theoremus-urban-solutions/gtfs-validator/validator/core"
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
 func TestForeignKeyValidator_Validate(t *testing.T) {
@@ -24,7 +24,7 @@ func TestForeignKeyValidator_Validate(t *testing.T) {
 		"frequencies.txt":     "trip_id,start_time,end_time,headway_secs\nT3,08:00:00,09:00:00,600",
 	}
 
-	loader := coretest.CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 
 	v := NewForeignKeyValidator()

@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -288,7 +289,7 @@ func TestShapeValidator_Validate(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create test feed loader
-			feedLoader := CreateTestFeedLoader(t, tt.files)
+			feedLoader := testutil.CreateTestFeedLoader(t, tt.files)
 
 			// Create notice container and validator
 			container := notice.NewNoticeContainer()
@@ -444,7 +445,7 @@ func TestShapeValidator_LoadShapes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			feedLoader := CreateTestFeedLoader(t, map[string]string{
+			feedLoader := testutil.CreateTestFeedLoader(t, map[string]string{
 				"shapes.txt": tt.csvData,
 			})
 
@@ -558,7 +559,7 @@ func TestShapeValidator_LoadUsedShapes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			feedLoader := CreateTestFeedLoader(t, map[string]string{
+			feedLoader := testutil.CreateTestFeedLoader(t, map[string]string{
 				"trips.txt": tt.csvData,
 			})
 

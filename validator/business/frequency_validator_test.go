@@ -5,7 +5,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
-	coretest "github.com/theoremus-urban-solutions/gtfs-validator/validator/core"
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
 func TestFrequencyValidator_Validate(t *testing.T) {
@@ -14,7 +14,7 @@ func TestFrequencyValidator_Validate(t *testing.T) {
 		"frequencies.txt": "trip_id,start_time,end_time,headway_secs,exact_times\nT1,08:00:00,07:00:00,-10,2\nT1,08:00:00,09:00:00,20,0\nT1,08:30:00,08:45:00,600,0",
 	}
 
-	loader := coretest.CreateTestFeedLoader(t, files)
+	loader := testutil.CreateTestFeedLoader(t, files)
 	container := notice.NewNoticeContainer()
 
 	v := NewFrequencyValidator()
