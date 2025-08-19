@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
-	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
 	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
+	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
 
 func TestFeedInfoValidator_Validate(t *testing.T) {
