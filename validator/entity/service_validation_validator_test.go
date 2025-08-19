@@ -1,9 +1,10 @@
 package entity
 
 import (
-	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
 	"time"
+
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"

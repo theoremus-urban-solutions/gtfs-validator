@@ -2,8 +2,9 @@ package entity
 
 import (
 	"fmt"
-	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
+
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"

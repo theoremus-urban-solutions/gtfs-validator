@@ -1,8 +1,9 @@
 package core
 
 import (
-	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 	"testing"
+
+	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
