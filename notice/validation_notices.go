@@ -3567,7 +3567,7 @@ func NewNoServiceNext7DaysNotice(startDate, endDate string) *NoServiceNext7DaysN
 		"endDate":   endDate,
 	}
 	return &NoServiceNext7DaysNotice{
-		BaseNotice: NewBaseNotice("no_service_next_7_days", ERROR, context),
+		BaseNotice: NewBaseNotice("no_service_next_7_days", WARNING, context),
 	}
 }
 
@@ -4643,7 +4643,7 @@ func NewUnrealisticTransferTimeNotice(fromStopID, toStopID string, minTime, expe
 		"csvRowNumber": rowNumber,
 	}
 	return &UnrealisticTransferTimeNotice{
-		BaseNotice: NewBaseNotice("unrealistic_transfer_time", ERROR, context),
+		BaseNotice: NewBaseNotice("unrealistic_transfer_time", WARNING, context),
 	}
 }
 

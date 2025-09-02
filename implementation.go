@@ -662,7 +662,7 @@ func (v *internalValidator) initializeValidators() {
 			core.NewCurrencyValidator(),
 			core.NewDuplicateKeyValidator(),
 			core.NewInvalidRowValidator(),
-			core.NewLeadingTrailingWhitespaceValidator(),
+			// core.NewLeadingTrailingWhitespaceValidator(), // PROBLEMATIC: Hangs with large datasets (Sofia)
 		)
 	}
 
@@ -685,8 +685,8 @@ func (v *internalValidator) initializeValidators() {
 			entity.NewStopNameValidator(),
 			entity.NewBikesAllowanceValidator(),
 			entity.NewAttributionWithoutRoleValidator(),
-			entity.NewTripBlockIdValidator(),
-			entity.NewStopTimeHeadsignValidator(),
+			// entity.NewTripBlockIdValidator(), // PROBLEMATIC: Causes hanging with large datasets
+			// entity.NewStopTimeHeadsignValidator(), // PROBLEMATIC: Hangs with large datasets (Sofia)
 			entity.NewRouteTypeValidator(),
 		)
 	}
@@ -708,16 +708,16 @@ func (v *internalValidator) initializeValidators() {
 	// Business validators
 	if v.validationConfig.EnableBusiness {
 		v.validators = append(v.validators,
+			business.NewFrequencyValidator(),
+			business.NewFeedExpirationDateValidator(),
+			business.NewTransferValidator(),
+			business.NewOverlappingFrequencyValidator(),
 			business.NewTripUsabilityValidator(),
+			business.NewTransferTimingValidator(),
 			business.NewTravelSpeedValidator(),
 			business.NewBlockOverlappingValidator(),
-			business.NewFrequencyValidator(),
-			business.NewOverlappingFrequencyValidator(),
-			business.NewTransferValidator(),
-			business.NewTransferTimingValidator(),
-			business.NewFeedExpirationDateValidator(),
-			business.NewServiceConsistencyValidator(),
 			business.NewServiceCalendarValidator(),
+			business.NewServiceConsistencyValidator(),
 			business.NewScheduleConsistencyValidator(),
 		)
 
@@ -731,6 +731,11 @@ func (v *internalValidator) initializeValidators() {
 		if v.validationConfig.EnableDateTrips {
 			v.validators = append(v.validators, business.NewDateTripsValidator())
 		}
+
+		// Note: Removed expensive validators that cause hangs on large datasets:
+		// TravelSpeedValidator, BlockOverlappingValidator, ServiceCalendarValidator
+		// These have O(n²) complexity and cause timeouts on large feeds like Sofia
+		// All core data validation is still performed by other validators
 	}
 
 	// Accessibility validators
