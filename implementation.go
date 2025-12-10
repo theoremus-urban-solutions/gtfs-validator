@@ -119,6 +119,7 @@ func (v *validatorImpl) createInternalConfig() Config {
 		MaxMemory:        v.config.MaxMemory,
 		ParallelWorkers:  v.config.ParallelWorkers,
 		ValidatorVersion: v.config.ValidatorVersion,
+		EnableCaching:    v.config.EnableCaching,
 	}
 }
 
@@ -309,6 +310,11 @@ func (v *internalValidator) ValidateZipWithContext(ctx context.Context, zipPath 
 		}
 	}()
 
+	// Enable caching if configured (Phase 1 optimization)
+	if v.config.EnableCaching {
+		loader.EnableCaching()
+	}
+
 	v.feedLoader = loader
 
 	// Run validation with context
@@ -338,6 +344,11 @@ func (v *internalValidator) ValidateDirectoryWithContext(ctx context.Context, di
 			log.Printf("Warning: failed to close loader: %v", err)
 		}
 	}()
+
+	// Enable caching if configured (Phase 1 optimization)
+	if v.config.EnableCaching {
+		loader.EnableCaching()
+	}
 
 	v.feedLoader = loader
 

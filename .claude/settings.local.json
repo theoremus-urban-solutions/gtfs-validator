@@ -22,7 +22,9 @@
       "Bash(./gtfs-validator:*)",
       "Bash(go clean:*)",
       "Bash(go mod:*)",
-      "Bash(go fmt:*)"
+      "Bash(go fmt:*)",
+      "Bash(git log:*)",
+      "Bash(make lint:*)"
     ],
     "deny": [],
     "ask": [],

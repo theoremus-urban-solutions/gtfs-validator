@@ -13,6 +13,7 @@ func TestNewHTMLFormatter(t *testing.T) {
 	}
 	if formatter == nil {
 		t.Fatal("NewHTMLFormatter() returned nil formatter")
+		return
 	}
 	if formatter.template == nil {
 		t.Fatal("NewHTMLFormatter() returned formatter with nil template")

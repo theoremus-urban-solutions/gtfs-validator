@@ -33,6 +33,7 @@ func TestReportGenerator_GenerateReport(t *testing.T) {
 
 	if r == nil {
 		t.Fatal("GenerateReport returned nil")
+		return
 	}
 
 	// Summary checks

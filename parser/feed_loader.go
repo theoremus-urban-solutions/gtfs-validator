@@ -16,6 +16,7 @@ type FeedLoader struct {
 	zipReader *zip.ReadCloser          // For ZIP files (new approach)
 	zipFiles  map[string]*zip.File     // For ZIP files (new approach)
 	isDir     bool                     // True if loading from directory
+	cache     *ParsedFeedCache         // Optional cache for parsed data (nil = disabled)
 }
 
 // LoadFromZip loads a GTFS feed from a zip file
@@ -176,4 +177,32 @@ var OptionalFiles = []string{
 	"levels.txt",
 	"translations.txt",
 	"attributions.txt",
+}
+
+// EnableCaching enables the parsed feed cache for this loader.
+// When enabled, frequently-accessed files (stop_times, trips, stops, routes)
+// are loaded once and shared across all validators, significantly reducing
+// file I/O and parsing overhead.
+//
+// The cache is thread-safe and uses lazy-loading (files are loaded on first access).
+// Call this method before starting validation to enable caching.
+func (l *FeedLoader) EnableCaching() {
+	if l.cache == nil {
+		l.cache = NewParsedFeedCache(l)
+	}
+}
+
+// GetCache returns the parsed feed cache if caching is enabled, or nil if disabled.
+// Validators should check if the cache is available and use it when present,
+// falling back to direct file loading if nil.
+func (l *FeedLoader) GetCache() *ParsedFeedCache {
+	return l.cache
+}
+
+// ClearCache clears all cached data, freeing memory.
+// This is useful after validation completes or when memory is constrained.
+func (l *FeedLoader) ClearCache() {
+	if l.cache != nil {
+		l.cache.Clear()
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
@@ -64,25 +65,232 @@ type DirectionPattern struct {
 
 // Validate performs comprehensive route consistency validation
 func (v *RouteConsistencyValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
-	// Load and analyze routes
-	routes := v.loadRoutes(loader)
+	var routes map[string]*RouteAnalysis
+
+	// Try to use cache if available (Phase 1 optimization)
+	if cache := loader.GetCache(); cache != nil {
+		routes = v.loadRoutesFromCache(cache)
+	} else {
+		// Fallback to direct file loading
+		routes = v.loadRoutes(loader)
+		if len(routes) == 0 {
+			return
+		}
+		v.enhanceWithTripData(loader, routes)
+		v.enhanceWithStopTimeData(loader, routes)
+	}
+
 	if len(routes) == 0 {
 		return
 	}
 
-	// Enhance route analysis with trip data
-	v.enhanceWithTripData(loader, routes)
-
-	// Enhance with stop time data
-	v.enhanceWithStopTimeData(loader, routes)
-
-	// Validate each route
-	for _, route := range routes {
-		v.validateRoute(container, route)
+	// Use parallel validation if configured (Phase 2 optimization)
+	workers := config.ParallelWorkers
+	if workers > 1 && len(routes) > 10 {
+		v.validateRoutesParallel(container, routes, workers)
+	} else {
+		// Sequential validation for small datasets or single worker
+		for _, route := range routes {
+			v.validateRoute(container, route)
+		}
 	}
 
 	// Validate route network consistency
 	v.validateRouteNetwork(container, routes)
+}
+
+// loadRoutesFromCache builds route analysis using cached data.
+// This eliminates redundant file I/O and the O(routes × trips) nested loop.
+func (v *RouteConsistencyValidator) loadRoutesFromCache(cache *parser.ParsedFeedCache) map[string]*RouteAnalysis {
+	// Load routes from cache
+	cachedRoutes, err := cache.GetRoutes()
+	if err != nil {
+		return make(map[string]*RouteAnalysis)
+	}
+
+	// Pre-allocate routes map with exact capacity
+	routes := make(map[string]*RouteAnalysis, len(cachedRoutes))
+
+	// Initialize route analysis structures
+	for _, r := range cachedRoutes {
+		routes[r.RouteID] = &RouteAnalysis{
+			RouteID:        r.RouteID,
+			RouteShortName: r.RouteShortName,
+			RouteLongName:  r.RouteLongName,
+			RouteType:      r.RouteType,
+			AgencyID:       r.AgencyID,
+			StopUsage:      make(map[string]int, 50),     // Typical: 50 stops per route
+			ServiceUsage:   make(map[string]int, 10),     // Typical: 10 services per route
+			Trips:          make([]*TripAnalysis, 0, 75), // Typical: 75 trips per route
+		}
+	}
+
+	// Use cached trips grouped by route (eliminates nested loop!)
+	tripsByRoute, err := cache.GetTripsByRoute()
+	if err != nil {
+		return routes
+	}
+
+	// Build direction counts - pre-allocate for number of routes
+	directionCounts := make(map[string]map[int]int, len(routes))
+
+	// Populate trip data using pre-built index
+	for routeID, trips := range tripsByRoute {
+		route, exists := routes[routeID]
+		if !exists {
+			continue
+		}
+
+		for _, trip := range trips {
+			tripAnalysis := &TripAnalysis{
+				TripID:    trip.TripID,
+				ServiceID: trip.ServiceID,
+			}
+
+			// Parse direction ID
+			if trip.DirectionID != "" {
+				if dir, err := strconv.Atoi(trip.DirectionID); err == nil {
+					tripAnalysis.DirectionID = dir
+				}
+			}
+
+			route.Trips = append(route.Trips, tripAnalysis)
+			route.TripCount++
+			route.ServiceUsage[trip.ServiceID]++
+
+			// Track direction usage
+			if directionCounts[routeID] == nil {
+				directionCounts[routeID] = make(map[int]int)
+			}
+			directionCounts[routeID][tripAnalysis.DirectionID]++
+		}
+	}
+
+	// Update direction counts
+	for routeID, route := range routes {
+		if directionMap, exists := directionCounts[routeID]; exists {
+			route.DirectionCount = len(directionMap)
+			route.ServiceCount = len(route.ServiceUsage)
+		}
+	}
+
+	// Enhance with stop time data from cache
+	v.enhanceWithStopTimeDataFromCache(cache, routes)
+
+	return routes
+}
+
+// enhanceWithStopTimeDataFromCache populates stop patterns using cached stop times.
+// This eliminates the O(routes × trips) nested loop in the original enhanceWithStopTimeData.
+func (v *RouteConsistencyValidator) enhanceWithStopTimeDataFromCache(cache *parser.ParsedFeedCache, routes map[string]*RouteAnalysis) {
+	// Get stop times grouped by trip from cache
+	stopTimesByTrip, err := cache.GetStopTimesByTrip()
+	if err != nil {
+		return
+	}
+
+	// Build tripID -> routeID mapping for quick lookup (from cache)
+	tripsByRoute, err := cache.GetTripsByRoute()
+	if err != nil {
+		return
+	}
+
+	// Pre-allocate tripToRoute map with estimated total trips
+	estimatedTrips := len(routes) * 75 // Typical: 75 trips per route
+	tripToRoute := make(map[string]string, estimatedTrips)
+
+	for routeID, trips := range tripsByRoute {
+		for _, trip := range trips {
+			tripToRoute[trip.TripID] = routeID
+		}
+	}
+
+	// Process stop times for each trip
+	for tripID, stopTimes := range stopTimesByTrip {
+		routeID, exists := tripToRoute[tripID]
+		if !exists {
+			continue
+		}
+
+		route, exists := routes[routeID]
+		if !exists {
+			continue
+		}
+
+		// Find the trip analysis in the route
+		var tripAnalysis *TripAnalysis
+		for _, trip := range route.Trips {
+			if trip.TripID == tripID {
+				tripAnalysis = trip
+				break
+			}
+		}
+
+		if tripAnalysis == nil {
+			continue
+		}
+
+		// Build stop pattern
+		stops := make([]string, 0, len(stopTimes))
+		hasTimePoints := false
+
+		for _, st := range stopTimes {
+			stops = append(stops, st.StopID)
+			if st.ArrivalTime != "" || st.DepartureTime != "" {
+				hasTimePoints = true
+			}
+			route.StopUsage[st.StopID]++
+		}
+
+		tripAnalysis.StopPattern = stops
+		tripAnalysis.StopCount = len(stops)
+		tripAnalysis.PatternHash = strings.Join(stops, "|")
+		tripAnalysis.HasTimePoints = hasTimePoints
+	}
+
+	// Calculate route-level stop statistics
+	for _, route := range routes {
+		route.StopCount = len(route.StopUsage)
+		route.UniqueStopCount = len(route.StopUsage)
+	}
+}
+
+// validateRoutesParallel validates routes in parallel using a worker pool.
+// This is invoked when config.ParallelWorkers > 1 and there are enough routes to benefit from parallelization.
+func (v *RouteConsistencyValidator) validateRoutesParallel(
+	container *notice.NoticeContainer,
+	routes map[string]*RouteAnalysis,
+	workers int,
+) {
+	// Convert map to slice for work distribution
+	routeList := make([]*RouteAnalysis, 0, len(routes))
+	for _, route := range routes {
+		routeList = append(routeList, route)
+	}
+
+	// Create work channel
+	workChan := make(chan *RouteAnalysis, 50)
+	var wg sync.WaitGroup
+
+	// Start worker goroutines
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for route := range workChan {
+				v.validateRoute(container, route)
+			}
+		}()
+	}
+
+	// Distribute work
+	for _, route := range routeList {
+		workChan <- route
+	}
+	close(workChan)
+
+	// Wait for all workers to complete
+	wg.Wait()
 }
 
 // loadRoutes loads basic route information

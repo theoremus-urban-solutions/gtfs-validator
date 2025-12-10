@@ -6,9 +6,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
+	"github.com/theoremus-urban-solutions/gtfs-validator/schema"
 	"github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
 
@@ -37,15 +39,128 @@ type StopTimeInfo struct {
 
 // Validate checks stop time consistency
 func (v *StopTimeConsistencyValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
-	stopTimes := v.loadStopTimes(loader)
+	var tripStopTimes map[string][]*StopTimeInfo
 
-	// Group stop times by trip
-	tripStopTimes := v.groupByTrip(stopTimes)
-
-	// Validate each trip's stop times
-	for tripID, stopTimes := range tripStopTimes {
-		v.validateTripStopTimes(container, tripID, stopTimes)
+	// Try to use cache if available (Phase 1 optimization)
+	if cache := loader.GetCache(); cache != nil {
+		cachedStopTimes, err := cache.GetStopTimesByTrip()
+		if err == nil {
+			// Convert cached schema.StopTime to StopTimeInfo for validation
+			tripStopTimes = v.convertFromCache(cachedStopTimes)
+		}
 	}
+
+	// Fallback to direct file loading if cache unavailable
+	if tripStopTimes == nil {
+		stopTimes := v.loadStopTimes(loader)
+		tripStopTimes = v.groupByTrip(stopTimes)
+	}
+
+	// Use parallel validation if configured (Phase 2 optimization)
+	workers := config.ParallelWorkers
+	if workers > 1 && len(tripStopTimes) > 10 {
+		v.validateTripsParallel(container, tripStopTimes, workers)
+	} else {
+		// Sequential validation for small datasets or single worker
+		for tripID, stopTimes := range tripStopTimes {
+			v.validateTripStopTimes(container, tripID, stopTimes)
+		}
+	}
+}
+
+// convertFromCache converts cached schema.StopTime entries to StopTimeInfo for validation.
+// The cache groups stop times by trip, so we don't need to re-group them.
+func (v *StopTimeConsistencyValidator) convertFromCache(cachedData map[string][]*schema.StopTime) map[string][]*StopTimeInfo {
+	result := make(map[string][]*StopTimeInfo, len(cachedData))
+
+	for tripID, stopTimes := range cachedData {
+		converted := make([]*StopTimeInfo, 0, len(stopTimes))
+		for _, st := range stopTimes {
+			info := &StopTimeInfo{
+				TripID:        st.TripID,
+				StopID:        st.StopID,
+				StopSequence:  st.StopSequence,
+				ArrivalTime:   st.ArrivalTime,
+				DepartureTime: st.DepartureTime,
+				StopHeadsign:  st.StopHeadsign,
+			}
+
+			// Convert optional fields
+			if st.PickupType != "" {
+				if pt, err := strconv.Atoi(st.PickupType); err == nil {
+					info.PickupType = &pt
+				}
+			}
+			if st.DropOffType != "" {
+				if dt, err := strconv.Atoi(st.DropOffType); err == nil {
+					info.DropOffType = &dt
+				}
+			}
+			if st.ShapeDistTraveled != "" {
+				if sd, err := strconv.ParseFloat(st.ShapeDistTraveled, 64); err == nil {
+					info.ShapeDistTraveled = &sd
+				}
+			}
+			if st.Timepoint != 0 {
+				tp := st.Timepoint
+				info.Timepoint = &tp
+			}
+
+			converted = append(converted, info)
+		}
+
+		// Sort by stop sequence (same as groupByTrip does)
+		sort.Slice(converted, func(i, j int) bool {
+			return converted[i].StopSequence < converted[j].StopSequence
+		})
+
+		result[tripID] = converted
+	}
+
+	return result
+}
+
+// validateTripsParallel validates trips in parallel using a worker pool.
+// This is invoked when config.ParallelWorkers > 1 and there are enough trips to benefit from parallelization.
+func (v *StopTimeConsistencyValidator) validateTripsParallel(
+	container *notice.NoticeContainer,
+	tripStopTimes map[string][]*StopTimeInfo,
+	workers int,
+) {
+	// Convert map to slice for work distribution
+	type tripWork struct {
+		tripID    string
+		stopTimes []*StopTimeInfo
+	}
+
+	work := make([]tripWork, 0, len(tripStopTimes))
+	for tripID, stopTimes := range tripStopTimes {
+		work = append(work, tripWork{tripID, stopTimes})
+	}
+
+	// Create work channel
+	workChan := make(chan tripWork, 100)
+	var wg sync.WaitGroup
+
+	// Start worker goroutines
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for w := range workChan {
+				v.validateTripStopTimes(container, w.tripID, w.stopTimes)
+			}
+		}()
+	}
+
+	// Distribute work
+	for _, w := range work {
+		workChan <- w
+	}
+	close(workChan)
+
+	// Wait for all workers to complete
+	wg.Wait()
 }
 
 // loadStopTimes loads stop time information

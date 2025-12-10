@@ -5,6 +5,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
@@ -29,11 +30,57 @@ func (v *InvalidRowValidator) Validate(loader *parser.FeedLoader, container *not
 		"pathways.txt", "levels.txt", "feed_info.txt", "attributions.txt",
 	}
 
+	// Filter to files that exist
+	existingFiles := make([]string, 0, len(gtfsFiles))
 	for _, filename := range gtfsFiles {
 		if loader.HasFile(filename) {
+			existingFiles = append(existingFiles, filename)
+		}
+	}
+
+	// Use parallel validation if configured (Phase 2 optimization)
+	workers := config.ParallelWorkers
+	if workers > 1 && len(existingFiles) >= 4 {
+		v.validateFilesParallel(loader, container, existingFiles, workers)
+	} else {
+		// Sequential validation for small number of files or single worker
+		for _, filename := range existingFiles {
 			v.validateFile(loader, container, filename)
 		}
 	}
+}
+
+// validateFilesParallel validates multiple files in parallel using a worker pool.
+// This is invoked when config.ParallelWorkers > 1 and there are enough files to benefit from parallelization.
+func (v *InvalidRowValidator) validateFilesParallel(
+	loader *parser.FeedLoader,
+	container *notice.NoticeContainer,
+	files []string,
+	workers int,
+) {
+	// Create work channel
+	fileChan := make(chan string, len(files))
+	var wg sync.WaitGroup
+
+	// Start worker goroutines
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for filename := range fileChan {
+				v.validateFile(loader, container, filename)
+			}
+		}()
+	}
+
+	// Distribute work
+	for _, filename := range files {
+		fileChan <- filename
+	}
+	close(fileChan)
+
+	// Wait for all workers to complete
+	wg.Wait()
 }
 
 // validateFile validates a specific GTFS file for invalid rows
