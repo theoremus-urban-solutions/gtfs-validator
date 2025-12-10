@@ -21,7 +21,7 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			name: "valid service",
 			files: map[string]string{
 				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,1,1,1,1,1,0,0,20250801,20251201",
+					"service1,1,1,1,1,1,0,0,20260801,20261201",
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1,service1",
 			},
@@ -32,7 +32,7 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			name: "service without active days",
 			files: map[string]string{
 				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,0,0,0,0,0,0,0,20250801,20251201",
+					"service1,0,0,0,0,0,0,0,20260801,20261201",
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1,service1",
 			},
@@ -43,7 +43,7 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			name: "invalid date range",
 			files: map[string]string{
 				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,1,1,1,1,1,0,0,20251201,20250801", // End before start
+					"service1,1,1,1,1,1,0,0,20261201,20260801", // End before start
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1,service1",
 			},
@@ -65,8 +65,8 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			name: "unused calendar service",
 			files: map[string]string{
 				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,1,1,1,1,1,0,0,20250801,20251201\n" +
-					"unused_service,1,1,1,1,1,0,0,20250801,20251201",
+					"service1,1,1,1,1,1,0,0,20260801,20261201\n" +
+					"unused_service,1,1,1,1,1,0,0,20260801,20261201",
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1,service1",
 			},
@@ -89,7 +89,7 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			name: "weekend only service",
 			files: map[string]string{
 				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"weekend,0,0,0,0,0,1,1,20250801,20251201",
+					"weekend,0,0,0,0,0,1,1,20260801,20261201",
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1,weekend",
 			},
@@ -111,9 +111,9 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			name: "mixed services",
 			files: map[string]string{
 				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"valid_service,1,1,1,1,1,0,0,20250801,20251201\n" +
-					"no_days,0,0,0,0,0,0,0,20250801,20251201\n" +
-					"invalid_range,1,1,1,1,1,0,0,20251201,20250801",
+					"valid_service,1,1,1,1,1,0,0,20260801,20261201\n" +
+					"no_days,0,0,0,0,0,0,0,20260801,20261201\n" +
+					"invalid_range,1,1,1,1,1,0,0,20261201,20260801",
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1,valid_service\n" +
 					"trip2,route2,no_days\n" +
@@ -138,9 +138,9 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			name: "service in both calendar and calendar_dates",
 			files: map[string]string{
 				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,1,1,1,1,1,0,0,20250801,20251201",
+					"service1,1,1,1,1,1,0,0,20260801,20261201",
 				"calendar_dates.txt": "service_id,date,exception_type\n" +
-					"service1,20250704,2", // Holiday exception
+					"service1,20260704,2", // Holiday exception
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1,service1",
 			},
@@ -151,7 +151,7 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			name: "current date service",
 			files: map[string]string{
 				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"current_service,1,1,1,1,1,0,0,20250801,20251201", // Should not be expired
+					"current_service,1,1,1,1,1,0,0,20260801,20261201", // Should not be expired
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1,current_service",
 			},
@@ -181,7 +181,7 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			name: "service with invalid date format ignored",
 			files: map[string]string{
 				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,1,1,1,1,1,0,0,invalid,20251201",
+					"service1,1,1,1,1,1,0,0,invalid,20261201",
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1,service1",
 			},
@@ -192,7 +192,7 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			name: "single day service",
 			files: map[string]string{
 				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"single_day,0,0,0,0,1,0,0,20250829,20250829", // Single Friday
+					"single_day,0,0,0,0,1,0,0,20260829,20260829", // Single Friday
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1,single_day",
 			},
@@ -203,9 +203,9 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			name: "whitespace handling",
 			files: map[string]string{
 				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					" service1 , 1 , 1 , 1 , 1 , 1 , 0 , 0 , 20250801 , 20251201 ",
+					" service1 , 1 , 1 , 1 , 1 , 1 , 0 , 0 , 20260801 , 20261201 ",
 				"calendar_dates.txt": "service_id,date,exception_type\n" +
-					" service2 , 20250704 , 2 ",
+					" service2 , 20260704 , 2 ",
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1, service1 \n" +
 					"trip2,route2, service2 ",
@@ -287,12 +287,12 @@ func TestServiceValidationValidator_LoadCalendarServices(t *testing.T) {
 		{
 			name: "basic service loading",
 			csvData: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-				"service1,1,1,1,1,1,0,0,20250801,20251201",
+				"service1,1,1,1,1,1,0,0,20260801,20261201",
 			expected: map[string]*ServiceInfo{
 				"service1": {
 					ServiceID: "service1",
-					StartDate: "20250801",
-					EndDate:   "20251201",
+					StartDate: "20260801",
+					EndDate:   "20261201",
 					Days: map[string]bool{
 						"monday":    true,
 						"tuesday":   true,
@@ -309,12 +309,12 @@ func TestServiceValidationValidator_LoadCalendarServices(t *testing.T) {
 		{
 			name: "weekend service",
 			csvData: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-				"weekend,0,0,0,0,0,1,1,20250101,20251231",
+				"weekend,0,0,0,0,0,1,1,20260101,20261231",
 			expected: map[string]*ServiceInfo{
 				"weekend": {
 					ServiceID: "weekend",
-					StartDate: "20250101",
-					EndDate:   "20251231",
+					StartDate: "20260101",
+					EndDate:   "20261231",
 					Days: map[string]bool{
 						"monday":    false,
 						"tuesday":   false,
@@ -353,12 +353,12 @@ func TestServiceValidationValidator_LoadCalendarServices(t *testing.T) {
 		{
 			name: "whitespace trimming",
 			csvData: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-				" service1 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 20250801 , 20251201 ",
+				" service1 , 1 , 0 , 1 , 0 , 1 , 0 , 1 , 20260801 , 20261201 ",
 			expected: map[string]*ServiceInfo{
 				"service1": {
 					ServiceID: "service1",
-					StartDate: "20250801",
-					EndDate:   "20251201",
+					StartDate: "20260801",
+					EndDate:   "20261201",
 					Days: map[string]bool{
 						"monday":    true,
 						"tuesday":   false,
@@ -375,13 +375,13 @@ func TestServiceValidationValidator_LoadCalendarServices(t *testing.T) {
 		{
 			name: "multiple services",
 			csvData: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-				"weekday,1,1,1,1,1,0,0,20250101,20251231\n" +
-				"weekend,0,0,0,0,0,1,1,20250101,20251231",
+				"weekday,1,1,1,1,1,0,0,20260101,20261231\n" +
+				"weekend,0,0,0,0,0,1,1,20260101,20261231",
 			expected: map[string]*ServiceInfo{
 				"weekday": {
 					ServiceID: "weekday",
-					StartDate: "20250101",
-					EndDate:   "20251231",
+					StartDate: "20260101",
+					EndDate:   "20261231",
 					Days: map[string]bool{
 						"monday": true, "tuesday": true, "wednesday": true, "thursday": true,
 						"friday": true, "saturday": false, "sunday": false,
@@ -390,8 +390,8 @@ func TestServiceValidationValidator_LoadCalendarServices(t *testing.T) {
 				},
 				"weekend": {
 					ServiceID: "weekend",
-					StartDate: "20250101",
-					EndDate:   "20251231",
+					StartDate: "20260101",
+					EndDate:   "20261231",
 					Days: map[string]bool{
 						"monday": false, "tuesday": false, "wednesday": false, "thursday": false,
 						"friday": false, "saturday": true, "sunday": true,
