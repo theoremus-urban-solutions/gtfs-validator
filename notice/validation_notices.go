@@ -2143,7 +2143,8 @@ func NewDuplicateStopInTripNotice(tripID string, stopID string, stopSequence int
 	}
 }
 
-// MissingArrivalTimeNotice is generated when arrival time is missing but departure exists
+// MissingArrivalTimeNotice is generated when arrival time is missing but departure exists.
+// ERROR to match MobilityData's stop_time_with_only_arrival_or_departure_time.
 type MissingArrivalTimeNotice struct {
 	*BaseNotice
 }
@@ -2156,11 +2157,12 @@ func NewMissingArrivalTimeNotice(tripID string, stopID string, stopSequence int,
 		"csvRowNumber": rowNumber,
 	}
 	return &MissingArrivalTimeNotice{
-		BaseNotice: NewBaseNotice("missing_arrival_time", WARNING, context),
+		BaseNotice: NewBaseNotice("missing_arrival_time", ERROR, context),
 	}
 }
 
-// MissingDepartureTimeNotice is generated when departure time is missing but arrival exists
+// MissingDepartureTimeNotice is generated when departure time is missing but arrival exists.
+// ERROR to match MobilityData's stop_time_with_only_arrival_or_departure_time.
 type MissingDepartureTimeNotice struct {
 	*BaseNotice
 }
@@ -2173,7 +2175,7 @@ func NewMissingDepartureTimeNotice(tripID string, stopID string, stopSequence in
 		"csvRowNumber": rowNumber,
 	}
 	return &MissingDepartureTimeNotice{
-		BaseNotice: NewBaseNotice("missing_departure_time", WARNING, context),
+		BaseNotice: NewBaseNotice("missing_departure_time", ERROR, context),
 	}
 }
 

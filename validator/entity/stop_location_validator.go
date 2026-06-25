@@ -109,10 +109,14 @@ func (v *StopLocationValidator) loadStops(loader *parser.FeedLoader) map[string]
 			stop.ParentStation = strings.TrimSpace(parentStation)
 		}
 
-		// Check if coordinates are present
-		_, hasLat := row.Values["stop_lat"]
-		_, hasLon := row.Values["stop_lon"]
-		stop.HasCoordinates = hasLat && hasLon
+		// Check if coordinates are present.
+		// A column may exist in the row map but hold an empty value (e.g. a stop
+		// row with empty stop_lat/stop_lon), so test for a non-empty value rather
+		// than mere column presence.
+		latVal, hasLatCol := row.Values["stop_lat"]
+		lonVal, hasLonCol := row.Values["stop_lon"]
+		stop.HasCoordinates = hasLatCol && hasLonCol &&
+			strings.TrimSpace(latVal) != "" && strings.TrimSpace(lonVal) != ""
 
 		stops[stopIDTrimmed] = stop
 	}
