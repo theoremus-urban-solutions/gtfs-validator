@@ -343,43 +343,6 @@ func NewStopTimeDecreasingTimeNotice(tripID string, stopSequence int, arrivalTim
 	}
 }
 
-// DuplicateShapeSequenceNotice is generated when duplicate shape_pt_sequence values are found
-type DuplicateShapeSequenceNotice struct {
-	*BaseNotice
-}
-
-func NewDuplicateShapeSequenceNotice(shapeID string, shapePtSequence int, rowNumber int, duplicateRowNumber int) *DuplicateShapeSequenceNotice {
-	context := map[string]interface{}{
-		"shapeId":            shapeID,
-		"shapePtSequence":    shapePtSequence,
-		"csvRowNumber":       rowNumber,
-		"duplicateRowNumber": duplicateRowNumber,
-	}
-	return &DuplicateShapeSequenceNotice{
-		BaseNotice: NewBaseNotice("duplicate_shape_sequence", WARNING, context),
-	}
-}
-
-// DecreasingOrEqualShapeDistanceNotice is generated when shape_dist_traveled values are decreasing or equal
-type DecreasingOrEqualShapeDistanceNotice struct {
-	*BaseNotice
-}
-
-func NewDecreasingOrEqualShapeDistanceNotice(shapeID string, shapePtSequence int, rowNumber int, shapeDistTraveled float64, prevShapePtSequence int, prevRowNumber int, prevShapeDistTraveled float64) *DecreasingOrEqualShapeDistanceNotice {
-	context := map[string]interface{}{
-		"shapeId":               shapeID,
-		"shapePtSequence":       shapePtSequence,
-		"csvRowNumber":          rowNumber,
-		"shapeDistTraveled":     shapeDistTraveled,
-		"prevShapePtSequence":   prevShapePtSequence,
-		"prevCsvRowNumber":      prevRowNumber,
-		"prevShapeDistTraveled": prevShapeDistTraveled,
-	}
-	return &DecreasingOrEqualShapeDistanceNotice{
-		BaseNotice: NewBaseNotice("decreasing_or_equal_shape_distance", WARNING, context),
-	}
-}
-
 // ExcessiveTravelSpeedNotice is generated when travel speed between stops is unrealistic
 type ExcessiveTravelSpeedNotice struct {
 	*BaseNotice
@@ -1390,39 +1353,6 @@ func NewInsufficientShapePointsNotice(shapeID string, pointCount int) *Insuffici
 	}
 }
 
-// NonIncreasingShapeSequenceNotice is generated when shape sequences don't increase
-type NonIncreasingShapeSequenceNotice struct {
-	*BaseNotice
-}
-
-func NewNonIncreasingShapeSequenceNotice(shapeID string, currentSequence int, previousSequence int, rowNumber int) *NonIncreasingShapeSequenceNotice {
-	context := map[string]interface{}{
-		"shapeId":          shapeID,
-		"currentSequence":  currentSequence,
-		"previousSequence": previousSequence,
-		"csvRowNumber":     rowNumber,
-	}
-	return &NonIncreasingShapeSequenceNotice{
-		BaseNotice: NewBaseNotice("non_increasing_shape_sequence", WARNING, context),
-	}
-}
-
-// InconsistentShapeDistanceNotice is generated when shape distances are inconsistent
-type InconsistentShapeDistanceNotice struct {
-	*BaseNotice
-}
-
-func NewInconsistentShapeDistanceNotice(shapeID string, sequence int, rowNumber int) *InconsistentShapeDistanceNotice {
-	context := map[string]interface{}{
-		"shapeId":         shapeID,
-		"shapePtSequence": sequence,
-		"csvRowNumber":    rowNumber,
-	}
-	return &InconsistentShapeDistanceNotice{
-		BaseNotice: NewBaseNotice("inconsistent_shape_distance", WARNING, context),
-	}
-}
-
 // DecreasingShapeDistanceNotice is generated when shape distances decrease
 type DecreasingShapeDistanceNotice struct {
 	*BaseNotice
@@ -1441,71 +1371,66 @@ func NewDecreasingShapeDistanceNotice(shapeID string, sequence int, currentDista
 	}
 }
 
-// EqualShapeDistanceNotice is generated when consecutive shape points have equal distances
-type EqualShapeDistanceNotice struct {
+// EqualShapeDistanceSameCoordinatesNotice reports two consecutive shape points
+// with the same shape_dist_traveled and the same coordinates — a duplicated
+// shape point rather than a distance error.
+type EqualShapeDistanceSameCoordinatesNotice struct {
 	*BaseNotice
 }
 
-func NewEqualShapeDistanceNotice(shapeID string, currentSequence int, previousSequence int, distance float64, rowNumber int) *EqualShapeDistanceNotice {
-	context := map[string]interface{}{
-		"shapeId":          shapeID,
-		"currentSequence":  currentSequence,
-		"previousSequence": previousSequence,
-		"distance":         distance,
-		"csvRowNumber":     rowNumber,
-	}
-	return &EqualShapeDistanceNotice{
-		BaseNotice: NewBaseNotice("equal_shape_distance", WARNING, context),
+func NewEqualShapeDistanceSameCoordinatesNotice(shapeID string, shapeDistTraveled float64, prevSequence int, sequence int, prevRowNumber int, rowNumber int) *EqualShapeDistanceSameCoordinatesNotice {
+	return &EqualShapeDistanceSameCoordinatesNotice{
+		BaseNotice: NewBaseNotice("equal_shape_distance_same_coordinates", WARNING, shapeDistanceContext(
+			shapeID, shapeDistTraveled, prevSequence, sequence, prevRowNumber, rowNumber, nil,
+		)),
 	}
 }
 
-// DuplicateShapePointNotice is generated when consecutive shape points are identical
-type DuplicateShapePointNotice struct {
+// EqualShapeDistanceDiffCoordinatesNotice reports two consecutive shape points
+// with the same shape_dist_traveled but coordinates more than 1.11 m apart:
+// the shape covers ground without the distance advancing.
+type EqualShapeDistanceDiffCoordinatesNotice struct {
 	*BaseNotice
 }
 
-func NewDuplicateShapePointNotice(shapeID string, currentSequence int, previousSequence int, rowNumber int) *DuplicateShapePointNotice {
-	context := map[string]interface{}{
-		"shapeId":          shapeID,
-		"currentSequence":  currentSequence,
-		"previousSequence": previousSequence,
-		"csvRowNumber":     rowNumber,
-	}
-	return &DuplicateShapePointNotice{
-		BaseNotice: NewBaseNotice("duplicate_shape_point", WARNING, context),
+func NewEqualShapeDistanceDiffCoordinatesNotice(shapeID string, shapeDistTraveled float64, prevSequence int, sequence int, prevRowNumber int, rowNumber int, actualDistance float64) *EqualShapeDistanceDiffCoordinatesNotice {
+	return &EqualShapeDistanceDiffCoordinatesNotice{
+		BaseNotice: NewBaseNotice("equal_shape_distance_diff_coordinates", ERROR, shapeDistanceContext(
+			shapeID, shapeDistTraveled, prevSequence, sequence, prevRowNumber, rowNumber, &actualDistance,
+		)),
 	}
 }
 
-// UnreasonablyLongShapeSegmentNotice is generated when shape segment is unreasonably long
-type UnreasonablyLongShapeSegmentNotice struct {
+// EqualShapeDistanceDiffCoordinatesBelowThresholdNotice reports the same
+// defect within 1.11 m, where the coordinate difference is small enough to be
+// rounding rather than a real gap.
+type EqualShapeDistanceDiffCoordinatesBelowThresholdNotice struct {
 	*BaseNotice
 }
 
-func NewUnreasonablyLongShapeSegmentNotice(shapeID string, fromSequence int, toSequence int, distance float64, rowNumber int) *UnreasonablyLongShapeSegmentNotice {
-	context := map[string]interface{}{
-		"shapeId":      shapeID,
-		"fromSequence": fromSequence,
-		"toSequence":   toSequence,
-		"distance":     distance,
-		"csvRowNumber": rowNumber,
-	}
-	return &UnreasonablyLongShapeSegmentNotice{
-		BaseNotice: NewBaseNotice("unreasonably_long_shape_segment", WARNING, context),
+func NewEqualShapeDistanceDiffCoordinatesBelowThresholdNotice(shapeID string, shapeDistTraveled float64, prevSequence int, sequence int, prevRowNumber int, rowNumber int, actualDistance float64) *EqualShapeDistanceDiffCoordinatesBelowThresholdNotice {
+	return &EqualShapeDistanceDiffCoordinatesBelowThresholdNotice{
+		BaseNotice: NewBaseNotice("equal_shape_distance_diff_coordinates_distance_below_threshold", WARNING, shapeDistanceContext(
+			shapeID, shapeDistTraveled, prevSequence, sequence, prevRowNumber, rowNumber, &actualDistance,
+		)),
 	}
 }
 
-// UnusedShapeNotice is generated when shape is never used
-type UnusedShapeNotice struct {
-	*BaseNotice
-}
-
-func NewUnusedShapeNotice(shapeID string) *UnusedShapeNotice {
+// shapeDistanceContext builds the context the three equal-distance notices
+// share, so they stay reportable as one family.
+func shapeDistanceContext(shapeID string, shapeDistTraveled float64, prevSequence int, sequence int, prevRowNumber int, rowNumber int, actualDistance *float64) map[string]interface{} {
 	context := map[string]interface{}{
-		"shapeId": shapeID,
+		"shapeId":             shapeID,
+		"shapeDistTraveled":   shapeDistTraveled,
+		"prevShapePtSequence": prevSequence,
+		"shapePtSequence":     sequence,
+		"prevCsvRowNumber":    prevRowNumber,
+		"csvRowNumber":        rowNumber,
 	}
-	return &UnusedShapeNotice{
-		BaseNotice: NewBaseNotice("unused_shape", WARNING, context),
+	if actualDistance != nil {
+		context["actualDistanceBetweenShapePoints"] = *actualDistance
 	}
+	return context
 }
 
 // CALENDAR CONSISTENCY VALIDATOR NOTICES
@@ -2729,116 +2654,6 @@ func NewInvalidBikesAllowedValueNotice(tripID string, bikesAllowed, rowNumber in
 }
 
 // === SHAPE DISTANCE NOTICES ===
-
-// ShapeDistanceDecreasingNotice represents decreasing shape distances
-type ShapeDistanceDecreasingNotice struct {
-	*BaseNotice
-}
-
-func NewShapeDistanceDecreasingNotice(shapeID string, prevSequence, currentSequence int, prevDistance, currentDistance float64, rowNumber int) *ShapeDistanceDecreasingNotice {
-	context := map[string]interface{}{
-		"shapeId":         shapeID,
-		"prevSequence":    prevSequence,
-		"currentSequence": currentSequence,
-		"prevDistance":    prevDistance,
-		"currentDistance": currentDistance,
-		"csvRowNumber":    rowNumber,
-	}
-	return &ShapeDistanceDecreasingNotice{
-		BaseNotice: NewBaseNotice("shape_distance_decreasing", WARNING, context),
-	}
-}
-
-// ShapeDistanceNotIncreasingNotice represents non-increasing shape distances
-type ShapeDistanceNotIncreasingNotice struct {
-	*BaseNotice
-}
-
-func NewShapeDistanceNotIncreasingNotice(shapeID string, prevSequence, currentSequence int, distance float64, rowNumber int) *ShapeDistanceNotIncreasingNotice {
-	context := map[string]interface{}{
-		"shapeId":         shapeID,
-		"prevSequence":    prevSequence,
-		"currentSequence": currentSequence,
-		"distance":        distance,
-		"csvRowNumber":    rowNumber,
-	}
-	return &ShapeDistanceNotIncreasingNotice{
-		BaseNotice: NewBaseNotice("shape_distance_not_increasing", WARNING, context),
-	}
-}
-
-// UnrealisticShapeDistanceNotice represents unrealistic shape distances
-type UnrealisticShapeDistanceNotice struct {
-	*BaseNotice
-}
-
-func NewUnrealisticShapeDistanceNotice(shapeID string, prevSequence, currentSequence int, providedDistance, geoDistance, ratio float64, rowNumber int) *UnrealisticShapeDistanceNotice {
-	context := map[string]interface{}{
-		"shapeId":          shapeID,
-		"prevSequence":     prevSequence,
-		"currentSequence":  currentSequence,
-		"providedDistance": providedDistance,
-		"geoDistance":      geoDistance,
-		"ratio":            ratio,
-		"csvRowNumber":     rowNumber,
-	}
-	return &UnrealisticShapeDistanceNotice{
-		BaseNotice: NewBaseNotice("unrealistic_shape_distance", WARNING, context),
-	}
-}
-
-// IncompleteShapeDistanceNotice represents incomplete distance information
-type IncompleteShapeDistanceNotice struct {
-	*BaseNotice
-}
-
-func NewIncompleteShapeDistanceNotice(shapeID string, pointsWithDistance, totalPoints, missingCount int) *IncompleteShapeDistanceNotice {
-	context := map[string]interface{}{
-		"shapeId":            shapeID,
-		"pointsWithDistance": pointsWithDistance,
-		"totalPoints":        totalPoints,
-		"missingCount":       missingCount,
-	}
-	return &IncompleteShapeDistanceNotice{
-		BaseNotice: NewBaseNotice("incomplete_shape_distance", INFO, context),
-	}
-}
-
-// ShapeDistanceNotStartingFromZeroNotice represents distance not starting from zero
-type ShapeDistanceNotStartingFromZeroNotice struct {
-	*BaseNotice
-}
-
-func NewShapeDistanceNotStartingFromZeroNotice(shapeID string, firstSequence int, firstDistance float64, rowNumber int) *ShapeDistanceNotStartingFromZeroNotice {
-	context := map[string]interface{}{
-		"shapeId":       shapeID,
-		"firstSequence": firstSequence,
-		"firstDistance": firstDistance,
-		"csvRowNumber":  rowNumber,
-	}
-	return &ShapeDistanceNotStartingFromZeroNotice{
-		BaseNotice: NewBaseNotice("shape_distance_not_starting_from_zero", INFO, context),
-	}
-}
-
-// LargeShapeDistanceJumpNotice represents large jumps in shape distance
-type LargeShapeDistanceJumpNotice struct {
-	*BaseNotice
-}
-
-func NewLargeShapeDistanceJumpNotice(shapeID string, prevSequence, currentSequence int, jump, geoDistance float64, rowNumber int) *LargeShapeDistanceJumpNotice {
-	context := map[string]interface{}{
-		"shapeId":         shapeID,
-		"prevSequence":    prevSequence,
-		"currentSequence": currentSequence,
-		"jump":            jump,
-		"geoDistance":     geoDistance,
-		"csvRowNumber":    rowNumber,
-	}
-	return &LargeShapeDistanceJumpNotice{
-		BaseNotice: NewBaseNotice("large_shape_distance_jump", WARNING, context),
-	}
-}
 
 // === ADDITIONAL FREQUENCY NOTICES ===
 

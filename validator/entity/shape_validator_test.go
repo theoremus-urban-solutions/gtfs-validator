@@ -17,273 +17,120 @@ func TestShapeValidator_Validate(t *testing.T) {
 		description         string
 	}{
 		{
-			name: "valid shape with distances",
+			name: "increasing distances",
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n" +
 					"shape1,37.7749,-122.4194,0,0.0\n" +
 					"shape1,37.7750,-122.4195,1,100.5\n" +
 					"shape1,37.7751,-122.4196,2,200.8",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
 			},
 			expectedNoticeCodes: []string{},
-			description:         "Valid shape with proper sequences and distances should not generate notices",
+			description:         "shape_dist_traveled increasing along the shape is valid",
 		},
 		{
-			name: "valid shape without distances",
+			name: "no distances at all",
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
 					"shape1,37.7749,-122.4194,0\n" +
 					"shape1,37.7750,-122.4195,1\n" +
 					"shape1,37.7751,-122.4196,2",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
 			},
 			expectedNoticeCodes: []string{},
-			description:         "Valid shape without distances should be acceptable",
+			description:         "shape_dist_traveled is optional",
 		},
 		{
-			name: "insufficient shape points",
+			name: "single point",
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
 					"shape1,37.7749,-122.4194,0",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
 			},
 			expectedNoticeCodes: []string{"single_shape_point"},
-			description:         "Shape with single point should generate error",
+			description:         "A shape needs at least two points to describe a path",
 		},
 		{
-			name: "duplicate shape sequence",
-			files: map[string]string{
-				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
-					"shape1,37.7749,-122.4194,0\n" +
-					"shape1,37.7750,-122.4195,1\n" +
-					"shape1,37.7751,-122.4196,1", // Duplicate sequence
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
-			},
-			expectedNoticeCodes: []string{"duplicate_shape_sequence", "non_increasing_shape_sequence"},
-			description:         "Duplicate sequence numbers should generate error",
-		},
-		{
-			name: "non-increasing shape sequence",
-			files: map[string]string{
-				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
-					"shape1,37.7749,-122.4194,0\n" +
-					"shape1,37.7750,-122.4195,1\n" +
-					"shape1,37.7751,-122.4196,1", // Non-increasing: 1 followed by 1 (equal sequence)
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
-			},
-			expectedNoticeCodes: []string{"duplicate_shape_sequence", "non_increasing_shape_sequence"},
-			description:         "Equal sequence should generate both duplicate and non-increasing notices",
-		},
-		{
-			name: "inconsistent shape distance",
-			files: map[string]string{
-				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n" +
-					"shape1,37.7749,-122.4194,0,0.0\n" +
-					"shape1,37.7750,-122.4195,1,\n" + // Missing distance
-					"shape1,37.7751,-122.4196,2,200.8",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
-			},
-			expectedNoticeCodes: []string{"inconsistent_shape_distance"},
-			description:         "Missing distance when others have it should generate error",
-		},
-		{
-			name: "decreasing shape distance",
+			name: "decreasing distance",
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n" +
 					"shape1,37.7749,-122.4194,0,100.0\n" +
-					"shape1,37.7750,-122.4195,1,50.0\n" + // Decreasing distance
+					"shape1,37.7750,-122.4195,1,50.0\n" +
 					"shape1,37.7751,-122.4196,2,200.0",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
 			},
 			expectedNoticeCodes: []string{"decreasing_shape_distance"},
-			description:         "Decreasing distances should generate error",
+			description:         "shape_dist_traveled must not decrease",
 		},
 		{
-			name: "equal shape distance",
+			name: "equal distance, identical coordinates",
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n" +
 					"shape1,37.7749,-122.4194,0,100.0\n" +
-					"shape1,37.7750,-122.4195,1,100.0\n" + // Equal distance
+					"shape1,37.7749,-122.4194,1,100.0\n" +
 					"shape1,37.7751,-122.4196,2,200.0",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
 			},
-			expectedNoticeCodes: []string{"equal_shape_distance"},
-			description:         "Equal consecutive distances should generate warning",
+			expectedNoticeCodes: []string{"equal_shape_distance_same_coordinates"},
+			description:         "A repeated point is duplicative, not a distance error",
 		},
 		{
-			name: "duplicate shape point coordinates",
+			name: "equal distance, coordinates below the 1.11 m threshold",
 			files: map[string]string{
-				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
-					"shape1,37.7749,-122.4194,0\n" +
-					"shape1,37.7749,-122.4194,1\n" + // Duplicate coordinates
-					"shape1,37.7751,-122.4196,2",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
+				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n" +
+					"shape1,37.774900,-122.419400,0,100.0\n" +
+					"shape1,37.774905,-122.419400,1,100.0\n" +
+					"shape1,37.775100,-122.419600,2,200.0",
 			},
-			expectedNoticeCodes: []string{"duplicate_shape_point"},
-			description:         "Duplicate consecutive coordinates should generate warning",
+			expectedNoticeCodes: []string{"equal_shape_distance_diff_coordinates_distance_below_threshold"},
+			description:         "Sub-metre coordinate differences are rounding, so this is a warning",
 		},
 		{
-			name: "unreasonably long shape segment",
+			name: "equal distance, coordinates far apart",
 			files: map[string]string{
-				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
-					"shape1,37.7749,-122.4194,0\n" +
-					"shape1,38.7749,-121.4194,1\n" + // ~100km+ distance
-					"shape1,37.7751,-122.4196,2",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
+				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n" +
+					"shape1,37.7749,-122.4194,0,100.0\n" +
+					"shape1,37.7760,-122.4194,1,100.0\n" +
+					"shape1,37.7771,-122.4196,2,200.0",
 			},
-			expectedNoticeCodes: []string{"unreasonably_long_shape_segment", "unreasonably_long_shape_segment"},
-			description:         "Very long shape segments should generate warning",
+			expectedNoticeCodes: []string{"equal_shape_distance_diff_coordinates"},
+			description:         "The shape covers ground the distance does not account for",
 		},
 		{
-			name: "unused shape",
-			files: map[string]string{
-				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
-					"shape1,37.7749,-122.4194,0\n" +
-					"shape1,37.7750,-122.4195,1\n" +
-					"shape2,37.7751,-122.4196,0\n" +
-					"shape2,37.7752,-122.4197,1", // shape2 is unused
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1", // Only shape1 is used
-			},
-			expectedNoticeCodes: []string{"unused_shape"},
-			description:         "Unused shapes should generate warning",
-		},
-		{
-			name: "multiple validation issues",
+			name: "partial distances are not compared",
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n" +
 					"shape1,37.7749,-122.4194,0,0.0\n" +
-					"shape1,37.7749,-122.4194,2,\n" + // Duplicate coords + missing distance + no sequence conflict
-					"shape1,37.7751,-122.4196,3", // No duplicate sequence
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
+					"shape1,37.7750,-122.4195,1,\n" +
+					"shape1,37.7751,-122.4196,2,200.8",
 			},
-			expectedNoticeCodes: []string{"duplicate_shape_point", "inconsistent_shape_distance"},
-			description:         "Multiple validation issues should generate multiple notices",
+			expectedNoticeCodes: []string{},
+			description:         "A point without a distance has nothing to compare against",
 		},
 		{
-			name: "shape with negative sequences",
+			name: "negative sequences ordered correctly",
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
 					"shape1,37.7749,-122.4194,-1\n" +
 					"shape1,37.7750,-122.4195,0\n" +
 					"shape1,37.7751,-122.4196,1",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
 			},
 			expectedNoticeCodes: []string{},
-			description:         "Negative sequence numbers should be valid if properly ordered",
-		},
-		{
-			name: "shape with large sequence gaps",
-			files: map[string]string{
-				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
-					"shape1,37.7749,-122.4194,0\n" +
-					"shape1,37.7750,-122.4195,1000\n" +
-					"shape1,37.7751,-122.4196,2000",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
-			},
-			expectedNoticeCodes: []string{},
-			description:         "Large gaps in sequence numbers should be acceptable",
-		},
-		{
-			name: "multiple shapes mixed validation",
-			files: map[string]string{
-				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
-					"shape1,37.7749,-122.4194,0\n" +
-					"shape1,37.7750,-122.4195,1\n" + // Valid shape
-					"shape2,37.7751,-122.4196,0", // Single point - invalid
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1", // shape2 unused
-			},
-			expectedNoticeCodes: []string{"single_shape_point", "unused_shape"},
-			description:         "Mixed valid and invalid shapes should generate appropriate notices",
-		},
-		{
-			name: "shape with coordinate precision",
-			files: map[string]string{
-				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
-					"shape1,37.7749000,-122.4194000,0\n" +
-					"shape1,37.7749001,-122.4194001,1\n" + // Very close but not duplicate
-					"shape1,37.7751000,-122.4196000,2",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
-			},
-			expectedNoticeCodes: []string{},
-			description:         "Very close but distinct coordinates should be valid",
+			description:         "Sequence values only need to increase",
 		},
 		{
 			name: "no shapes file",
 			files: map[string]string{
 				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,service1", // No shape_id
+					"trip1,route1,service1",
 			},
 			expectedNoticeCodes: []string{},
-			description:         "Missing shapes.txt file should not generate errors",
+			description:         "A feed without shapes.txt is valid",
 		},
 		{
-			name: "shapes with missing required fields",
-			files: map[string]string{
-				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon\n" +
-					"shape1,37.7749,-122.4194\n" + // Missing sequence
-					"shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
-					"37.7750,-122.4195,0", // Missing shape_id
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1",
-			},
-			expectedNoticeCodes: []string{},
-			description:         "Shapes with missing required fields should be ignored",
-		},
-		{
-			name: "whitespace handling in shapes",
+			name: "whitespace is trimmed",
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n" +
 					" shape1 , 37.7749 , -122.4194 , 0 , 0.0 \n" +
 					" shape1 , 37.7750 , -122.4195 , 1 , 100.5 ",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1, shape1 ",
 			},
 			expectedNoticeCodes: []string{},
-			description:         "Whitespace should be trimmed properly",
-		},
-		{
-			name: "all shapes used",
-			files: map[string]string{
-				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
-					"shape1,37.7749,-122.4194,0\n" +
-					"shape1,37.7750,-122.4195,1\n" +
-					"shape2,37.7751,-122.4196,0\n" +
-					"shape2,37.7752,-122.4197,1",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,shape1\n" +
-					"trip2,route2,service2,shape2",
-			},
-			expectedNoticeCodes: []string{},
-			description:         "All shapes being used should not generate unused notices",
-		},
-		{
-			name: "empty shape_id in trips",
-			files: map[string]string{
-				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
-					"shape1,37.7749,-122.4194,0\n" +
-					"shape1,37.7750,-122.4195,1",
-				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
-					"trip1,route1,service1,\n" + // Empty shape_id
-					"trip2,route2,service2,shape1",
-			},
-			expectedNoticeCodes: []string{},
-			description:         "Empty shape_id in trips should be ignored for usage tracking",
+			description:         "Padded values parse the same as unpadded ones",
 		},
 	}
 
@@ -502,189 +349,6 @@ func TestShapeValidator_LoadShapes(t *testing.T) {
 							t.Errorf("Point %d: expected distance %f, got %f", i, *expectedPoint.ShapeDistTraveled, *actualPoint.ShapeDistTraveled)
 						}
 					}
-				}
-			}
-		})
-	}
-}
-
-func TestShapeValidator_LoadUsedShapes(t *testing.T) {
-	validator := NewShapeValidator()
-
-	tests := []struct {
-		name     string
-		csvData  string
-		expected map[string]bool
-	}{
-		{
-			name: "basic used shapes",
-			csvData: "trip_id,route_id,service_id,shape_id\n" +
-				"trip1,route1,service1,shape1\n" +
-				"trip2,route1,service1,shape2",
-			expected: map[string]bool{
-				"shape1": true,
-				"shape2": true,
-			},
-		},
-		{
-			name: "duplicate shape usage",
-			csvData: "trip_id,route_id,service_id,shape_id\n" +
-				"trip1,route1,service1,shape1\n" +
-				"trip2,route1,service1,shape1",
-			expected: map[string]bool{
-				"shape1": true,
-			},
-		},
-		{
-			name: "empty and missing shape_id",
-			csvData: "trip_id,route_id,service_id,shape_id\n" +
-				"trip1,route1,service1,shape1\n" +
-				"trip2,route1,service1,\n" + // Empty shape_id
-				"trip_id,route_id,service_id\n" +
-				"trip3,route1,service1", // Missing shape_id column
-			expected: map[string]bool{
-				"shape1": true,
-			},
-		},
-		{
-			name: "whitespace trimming",
-			csvData: "trip_id,route_id,service_id,shape_id\n" +
-				"trip1,route1,service1, shape1 \n" +
-				"trip2,route1,service1,  shape2  ",
-			expected: map[string]bool{
-				"shape1": true,
-				"shape2": true,
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			feedLoader := testutil.CreateTestFeedLoader(t, map[string]string{
-				"trips.txt": tt.csvData,
-			})
-
-			result := validator.loadUsedShapes(feedLoader)
-
-			if len(result) != len(tt.expected) {
-				t.Errorf("Expected %d used shapes, got %d", len(tt.expected), len(result))
-			}
-
-			for shapeID, expected := range tt.expected {
-				if actual, exists := result[shapeID]; !exists || actual != expected {
-					t.Errorf("Shape %s: expected %v, got %v", shapeID, expected, actual)
-				}
-			}
-		})
-	}
-}
-
-func TestShapeValidator_ApproximatelyEqual(t *testing.T) {
-	validator := NewShapeValidator()
-
-	tests := []struct {
-		name     string
-		a, b     float64
-		epsilon  float64
-		expected bool
-	}{
-		{"exactly equal", 1.0, 1.0, 1e-7, true},
-		{"within epsilon", 1.0, 1.0000001, 1e-6, true},
-		{"outside epsilon", 1.0, 1.001, 1e-6, false},
-		{"negative values", -1.0, -1.0000001, 1e-6, true},
-		{"zero comparison", 0.0, 0.0000001, 1e-6, true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := validator.approximatelyEqual(tt.a, tt.b, tt.epsilon)
-			if result != tt.expected {
-				t.Errorf("Expected %v for approximatelyEqual(%f, %f, %e), got %v",
-					tt.expected, tt.a, tt.b, tt.epsilon, result)
-			}
-		})
-	}
-}
-
-func TestShapeValidator_ValidateShapeSequence(t *testing.T) {
-	validator := NewShapeValidator()
-
-	tests := []struct {
-		name                string
-		shape               *ShapeInfo
-		expectedNoticeCodes []string
-	}{
-		{
-			name: "valid sequence",
-			shape: &ShapeInfo{
-				ShapeID: "shape1",
-				Points: []*ShapePointDetailed{
-					{ShapeID: "shape1", ShapePtSequence: 0, RowNumber: 1},
-					{ShapeID: "shape1", ShapePtSequence: 1, RowNumber: 2},
-					{ShapeID: "shape1", ShapePtSequence: 2, RowNumber: 3},
-				},
-			},
-			expectedNoticeCodes: []string{},
-		},
-		{
-			name: "duplicate sequence",
-			shape: &ShapeInfo{
-				ShapeID: "shape1",
-				Points: []*ShapePointDetailed{
-					{ShapeID: "shape1", ShapePtSequence: 0, RowNumber: 1},
-					{ShapeID: "shape1", ShapePtSequence: 1, RowNumber: 2},
-					{ShapeID: "shape1", ShapePtSequence: 1, RowNumber: 3}, // Duplicate
-				},
-			},
-			expectedNoticeCodes: []string{"duplicate_shape_sequence", "non_increasing_shape_sequence"},
-		},
-		{
-			name: "non-increasing sequence",
-			shape: &ShapeInfo{
-				ShapeID: "shape1",
-				Points: []*ShapePointDetailed{
-					{ShapeID: "shape1", ShapePtSequence: 0, RowNumber: 1},
-					{ShapeID: "shape1", ShapePtSequence: 2, RowNumber: 2},
-					{ShapeID: "shape1", ShapePtSequence: 1, RowNumber: 3}, // Non-increasing (after sort)
-				},
-			},
-			expectedNoticeCodes: []string{"non_increasing_shape_sequence"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			container := notice.NewNoticeContainer()
-
-			validator.validateShapeSequence(container, tt.shape)
-
-			notices := container.GetNotices()
-			var actualNoticeCodes []string
-			for _, n := range notices {
-				actualNoticeCodes = append(actualNoticeCodes, n.Code())
-			}
-
-			expectedSet := make(map[string]bool)
-			for _, code := range tt.expectedNoticeCodes {
-				expectedSet[code] = true
-			}
-
-			for _, code := range actualNoticeCodes {
-				if !expectedSet[code] {
-					t.Errorf("Unexpected notice code: %s", code)
-				}
-			}
-
-			for expectedCode := range expectedSet {
-				found := false
-				for _, actualCode := range actualNoticeCodes {
-					if actualCode == expectedCode {
-						found = true
-						break
-					}
-				}
-				if !found {
-					t.Errorf("Expected notice code '%s' not found", expectedCode)
 				}
 			}
 		})
