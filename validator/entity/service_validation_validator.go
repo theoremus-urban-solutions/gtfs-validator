@@ -20,7 +20,7 @@ func NewServiceValidationValidator() *ServiceValidationValidator {
 	return &ServiceValidationValidator{}
 }
 
-// ServiceInfo represents service information
+// ServiceInfo represents information about a calendar.txt service
 type ServiceInfo struct {
 	ServiceID string
 	StartDate string
@@ -29,23 +29,33 @@ type ServiceInfo struct {
 	RowNumber int
 }
 
+// CalendarDateService represents what calendar_dates.txt says about a service.
+// LastAddedDate is the latest date the service is added on, which is what
+// decides whether the service has expired; removals do not extend a service.
+type CalendarDateService struct {
+	ServiceID     string
+	LastAddedDate *time.Time
+	RowNumber     int
+}
+
 // Validate checks service definitions for consistency
 func (v *ServiceValidationValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
-	// Load calendar services
-	calendarServices := v.loadCalendarServices(loader)
+	currentDate, ok := config.CurrentDate.(time.Time)
+	if !ok {
+		currentDate = time.Now()
+	}
 
-	// Load calendar date services
+	calendarServices := v.loadCalendarServices(loader)
 	calendarDateServices := v.loadCalendarDateServices(loader)
 
-	// Validate calendar services
-	v.validateCalendarServices(container, calendarServices)
-
-	// Validate calendar date services
-	v.validateCalendarDateServices(container, calendarDateServices)
-
-	// Check for unused services
+	v.validateActiveDays(container, calendarServices)
+	v.validateServiceDates(container, calendarServices, calendarDateServices, currentDate)
 	v.validateServiceUsage(loader, container, calendarServices, calendarDateServices)
 }
+
+// farFutureServiceYears is how far ahead a service may end before its dates
+// stop being a plan and start being a placeholder.
+const farFutureServiceYears = 2
 
 // loadCalendarServices loads services from calendar.txt
 func (v *ServiceValidationValidator) loadCalendarServices(loader *parser.FeedLoader) map[string]*ServiceInfo {
@@ -111,8 +121,8 @@ func (v *ServiceValidationValidator) loadCalendarServices(loader *parser.FeedLoa
 }
 
 // loadCalendarDateServices loads services from calendar_dates.txt
-func (v *ServiceValidationValidator) loadCalendarDateServices(loader *parser.FeedLoader) map[string]bool {
-	services := make(map[string]bool)
+func (v *ServiceValidationValidator) loadCalendarDateServices(loader *parser.FeedLoader) map[string]*CalendarDateService {
+	services := make(map[string]*CalendarDateService)
 
 	reader, err := loader.GetFile("calendar_dates.txt")
 	if err != nil {
@@ -139,75 +149,116 @@ func (v *ServiceValidationValidator) loadCalendarDateServices(loader *parser.Fee
 		}
 
 		serviceID, hasServiceID := row.Values["service_id"]
-		if hasServiceID {
-			services[strings.TrimSpace(serviceID)] = true
+		if !hasServiceID {
+			continue
+		}
+		serviceIDTrimmed := strings.TrimSpace(serviceID)
+
+		service, exists := services[serviceIDTrimmed]
+		if !exists {
+			service = &CalendarDateService{
+				ServiceID: serviceIDTrimmed,
+				RowNumber: row.RowNumber,
+			}
+			services[serviceIDTrimmed] = service
+		}
+
+		exceptionType, hasExceptionType := row.Values["exception_type"]
+		if !hasExceptionType || strings.TrimSpace(exceptionType) != "1" {
+			continue
+		}
+
+		date, err := v.parseGTFSDate(strings.TrimSpace(row.Values["date"]))
+		if err != nil {
+			continue
+		}
+		if service.LastAddedDate == nil || date.After(*service.LastAddedDate) {
+			service.LastAddedDate = date
+			service.RowNumber = row.RowNumber
 		}
 	}
 
 	return services
 }
 
-// validateCalendarServices validates calendar.txt services
-func (v *ServiceValidationValidator) validateCalendarServices(container *notice.NoticeContainer, services map[string]*ServiceInfo) {
+// validateActiveDays reports a calendar.txt service that runs on no day of the
+// week. Its date window is then irrelevant — the service never runs.
+func (v *ServiceValidationValidator) validateActiveDays(container *notice.NoticeContainer, services map[string]*ServiceInfo) {
 	for _, service := range services {
-		v.validateCalendarService(container, service)
+		hasActiveDay := false
+		for _, isActive := range service.Days {
+			if isActive {
+				hasActiveDay = true
+				break
+			}
+		}
+
+		if !hasActiveDay {
+			container.AddNotice(notice.NewServiceWithoutActiveDaysNotice(
+				service.ServiceID,
+				service.RowNumber,
+			))
+		}
 	}
 }
 
-// validateCalendarService validates a single calendar service
-func (v *ServiceValidationValidator) validateCalendarService(container *notice.NoticeContainer, service *ServiceInfo) {
-	// Check if service has at least one active day
-	hasActiveDay := false
-	for _, isActive := range service.Days {
-		if isActive {
-			hasActiveDay = true
-			break
+// validateServiceDates reports every service whose last active date sits
+// outside the span worth planning on — already in the past, or so far ahead
+// that nobody has checked the schedule that far.
+//
+// A calendar_dates.txt addition after the calendar.txt end_date keeps a service
+// alive, so both files decide the last active date together.
+func (v *ServiceValidationValidator) validateServiceDates(container *notice.NoticeContainer, calendarServices map[string]*ServiceInfo, calendarDateServices map[string]*CalendarDateService, currentDate time.Time) {
+	report := func(serviceID string, lastActive time.Time, rowNumber int) {
+		switch {
+		case lastActive.Before(currentDate):
+			container.AddNotice(notice.NewExpiredCalendarNotice(
+				rowNumber,
+				serviceID,
+				lastActive.Format("20060102"),
+				currentDate.Format("20060102"),
+			))
+		case lastActive.After(currentDate.AddDate(farFutureServiceYears, 0, 0)):
+			container.AddNotice(notice.NewServiceExtendsFarInTheFutureNotice(
+				rowNumber,
+				serviceID,
+				lastActive.Format("20060102"),
+				currentDate.Format("20060102"),
+			))
 		}
 	}
 
-	if !hasActiveDay {
-		container.AddNotice(notice.NewServiceWithoutActiveDaysNotice(
-			service.ServiceID,
-			service.RowNumber,
-		))
+	for serviceID, service := range calendarServices {
+		lastActive, err := v.parseGTFSDate(service.EndDate)
+		if err != nil {
+			continue // Invalid or absent date - other validators handle this
+		}
+		rowNumber := service.RowNumber
+
+		if added, exists := calendarDateServices[serviceID]; exists && added.LastAddedDate != nil && added.LastAddedDate.After(*lastActive) {
+			lastActive = added.LastAddedDate
+			rowNumber = added.RowNumber
+		}
+
+		report(serviceID, *lastActive, rowNumber)
 	}
 
-	// Validate date range
-	if service.StartDate != "" && service.EndDate != "" {
-	}
+	// Services that exist only in calendar_dates.txt run until their last added
+	// date; ones that are only ever removed have no active date at all.
+	for serviceID, service := range calendarDateServices {
+		if _, inCalendar := calendarServices[serviceID]; inCalendar {
+			continue
+		}
+		if service.LastAddedDate == nil {
+			continue
+		}
 
-	// Check if service is expired
-	if service.EndDate != "" {
-		v.validateServiceExpiration(container, service)
+		report(serviceID, *service.LastAddedDate, service.RowNumber)
 	}
-}
-
-// validateServiceExpiration checks if service is expired
-func (v *ServiceValidationValidator) validateServiceExpiration(container *notice.NoticeContainer, service *ServiceInfo) {
-	endDate, err := v.parseGTFSDate(service.EndDate)
-	if err != nil {
-		return // Invalid date - other validators handle this
-	}
-
-	// Check if service ended more than 30 days ago
-	thirtyDaysAgo := time.Now().AddDate(0, 0, -30)
-	if endDate.Before(thirtyDaysAgo) {
-		container.AddNotice(notice.NewExpiredServiceNotice(
-			service.ServiceID,
-			service.EndDate,
-			service.RowNumber,
-		))
-	}
-}
-
-// validateCalendarDateServices validates calendar_dates.txt
-func (v *ServiceValidationValidator) validateCalendarDateServices(container *notice.NoticeContainer, services map[string]bool) {
-	// Load and validate calendar_dates.txt records
-	// This is a placeholder - full implementation would validate exception types, dates, etc.
 }
 
 // validateServiceUsage checks if services are actually used by trips
-func (v *ServiceValidationValidator) validateServiceUsage(loader *parser.FeedLoader, container *notice.NoticeContainer, calendarServices map[string]*ServiceInfo, calendarDateServices map[string]bool) {
+func (v *ServiceValidationValidator) validateServiceUsage(loader *parser.FeedLoader, container *notice.NoticeContainer, calendarServices map[string]*ServiceInfo, calendarDateServices map[string]*CalendarDateService) {
 	// Load services used by trips
 	usedServices := v.loadUsedServices(loader)
 
@@ -223,12 +274,15 @@ func (v *ServiceValidationValidator) validateServiceUsage(loader *parser.FeedLoa
 	}
 
 	// Check for unused calendar_dates services
-	for serviceID := range calendarDateServices {
+	for serviceID, service := range calendarDateServices {
+		if _, inCalendar := calendarServices[serviceID]; inCalendar {
+			continue
+		}
 		if !usedServices[serviceID] {
 			container.AddNotice(notice.NewUnusedServiceNotice(
 				serviceID,
 				"calendar_dates.txt",
-				0, // Row number not tracked for calendar_dates
+				service.RowNumber,
 			))
 		}
 	}

@@ -54,6 +54,9 @@ def emitters(ctors):
             for name in set(re.findall(r"\bnotice\.(New\w+Notice)\b", text)):
                 if name in ctors:
                     out[ctors[name]].add(rel)
+            # A few notices are built inline rather than through a constructor.
+            for code in set(re.findall(r'\bnotice\.NewBaseNotice\("([a-z0-9_]+)"', text)):
+                out[code].add(rel)
     return out
 
 

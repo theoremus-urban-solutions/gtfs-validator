@@ -123,6 +123,54 @@ func TestShapeValidator_Validate(t *testing.T) {
 			description:         "A feed without shapes.txt is valid",
 		},
 		{
+			name: "shape a trip draws",
+			files: map[string]string{
+				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
+					"shape1,37.7749,-122.4194,0\n" +
+					"shape1,37.7750,-122.4195,1",
+				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
+					"trip1,route1,service1,shape1",
+			},
+			expectedNoticeCodes: []string{},
+			description:         "a referenced shape is doing its job",
+		},
+		{
+			name: "shape no trip draws",
+			files: map[string]string{
+				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
+					"shape1,37.7749,-122.4194,0\n" +
+					"shape1,37.7750,-122.4195,1\n" +
+					"shape2,37.7749,-122.4194,0\n" +
+					"shape2,37.7750,-122.4195,1",
+				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
+					"trip1,route1,service1,shape1",
+			},
+			expectedNoticeCodes: []string{"unused_shape"},
+			description:         "shape2 is drawn by nothing, so it is dead weight or a missing reference",
+		},
+		{
+			name: "trips without shape_id at all",
+			files: map[string]string{
+				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
+					"shape1,37.7749,-122.4194,0\n" +
+					"shape1,37.7750,-122.4195,1",
+				"trips.txt": "trip_id,route_id,service_id\n" +
+					"trip1,route1,service1",
+			},
+			expectedNoticeCodes: []string{"unused_shape"},
+			description:         "shape_id is optional on a trip, but a shape nothing names is still unused",
+		},
+		{
+			name: "no trips file to compare against",
+			files: map[string]string{
+				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\n" +
+					"shape1,37.7749,-122.4194,0\n" +
+					"shape1,37.7750,-122.4195,1",
+			},
+			expectedNoticeCodes: []string{},
+			description:         "with no references to check, every shape would look unused; that is the missing-file check's to report",
+		},
+		{
 			name: "whitespace is trimmed",
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n" +

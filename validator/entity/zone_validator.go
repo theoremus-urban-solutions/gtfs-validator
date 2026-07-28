@@ -157,10 +157,8 @@ func (v *ZoneValidator) validateZones(container *notice.NoticeContainer, zones m
 		}
 	}
 
-	// Check for referenced but undefined zones
-	for zoneID := range usedZones {
-		if _, exists := zones[zoneID]; !exists {
-			container.AddNotice(notice.NewUndefinedZoneNotice(zoneID))
-		}
-	}
+	// A fare rule naming a zone no stop defines is reported by
+	// relationship/foreign_key_validator.go as foreign_key_violation, which
+	// resolves origin_id, destination_id and contains_id against the zone_id
+	// column of stops.txt.
 }

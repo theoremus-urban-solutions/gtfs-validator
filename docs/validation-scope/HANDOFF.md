@@ -1,5 +1,13 @@
 # Handoff: validation scope rework
 
+> **Done.** This file described work that has since been carried out; it is kept
+> for the reasoning, not as a to-do list. The proposal's own header records what
+> was executed and the three points where the spec turned out to be wrong.
+>
+> The open question at the bottom of this file was resolved by implementing both
+> `stop_access_*` rules: they are inert on feeds that do not populate
+> `stop_access`, so they cost nothing either way and no confirmation was needed.
+
 You are picking up an audit that is **complete and agreed**. Nothing in
 `validator/` or `notice/` has been touched yet. Your job is to execute it.
 

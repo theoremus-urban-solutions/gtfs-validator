@@ -119,14 +119,10 @@ func (v *InvalidRowValidator) validateFile(loader *parser.FeedLoader, container 
 					headerCount,
 					0, // unknown actual count
 				))
-			} else {
-				// Other CSV parsing errors - treat as generic invalid row
-				container.AddNotice(notice.NewInvalidRowNotice(
-					filename,
-					headerCount+1, // approximate first data row
-					"CSV parsing error: "+err.Error(),
-				))
 			}
+			// Any other parse error is reported by file_structure_validator.go
+			// as csv_parsing_failed, which reads every file in the feed rather
+			// than the spec files listed here.
 			continue
 		}
 

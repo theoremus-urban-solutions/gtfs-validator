@@ -34,9 +34,12 @@ type TransferInfo struct {
 
 // stopReference is what the transfer checks need to know about a stop: whether
 // a transfer may name it at all, which only stops/platforms and stations may
-// be.
+// be, and where it is, so the walk between the two ends can be measured.
+// Location is nil for a stop with unusable coordinates, which the coordinate
+// checks report.
 type stopReference struct {
 	LocationType int
+	Location     *StopLocation
 }
 
 // tripReference is the route a trip belongs to, and the stops it calls at, so
@@ -176,6 +179,11 @@ func (v *TransferValidator) loadStops(loader *parser.FeedLoader) map[string]*sto
 		stop := &stopReference{}
 		if locationType, err := strconv.Atoi(strings.TrimSpace(row.Values["location_type"])); err == nil {
 			stop.LocationType = locationType
+		}
+		lat, latErr := strconv.ParseFloat(strings.TrimSpace(row.Values["stop_lat"]), 64)
+		lon, lonErr := strconv.ParseFloat(strings.TrimSpace(row.Values["stop_lon"]), 64)
+		if latErr == nil && lonErr == nil {
+			stop.Location = &StopLocation{Latitude: lat, Longitude: lon}
 		}
 		stops[strings.TrimSpace(stopID)] = stop
 	}
@@ -349,6 +357,47 @@ func (v *TransferValidator) validateTransfer(container *notice.NoticeContainer, 
 
 	// Validate min_transfer_time requirements
 	v.validateMinTransferTime(container, transfer)
+
+	v.validateTransferDistance(container, transfer, stops)
+}
+
+const (
+	// maxTransferDistanceMetres is the distance beyond which a transfer stops
+	// describing a connection anyone can make and starts describing a typo in
+	// one of the two stop_ids.
+	maxTransferDistanceMetres = 10000.0
+
+	// noteworthyTransferDistanceMetres is long enough to be worth a look — a
+	// sprawling station complex or a deliberate timed connection can reach it
+	// — without being wrong on its face.
+	noteworthyTransferDistanceMetres = 2000.0
+)
+
+// validateTransferDistance measures the walk a transfer asks a passenger to
+// make. The two thresholds report the same measurement at different
+// confidences, so only the worse of the two fires on any one row.
+func (v *TransferValidator) validateTransferDistance(container *notice.NoticeContainer, transfer *TransferInfo, stops map[string]*stopReference) {
+	from, hasFrom := stops[transfer.FromStopID]
+	to, hasTo := stops[transfer.ToStopID]
+	if !hasFrom || !hasTo || from.Location == nil || to.Location == nil {
+		return
+	}
+
+	metres := haversineMetres(
+		from.Location.Latitude, from.Location.Longitude,
+		to.Location.Latitude, to.Location.Longitude,
+	)
+
+	switch {
+	case metres > maxTransferDistanceMetres:
+		container.AddNotice(notice.NewTransferDistanceTooLargeNotice(
+			transfer.FromStopID, transfer.ToStopID, metres, transfer.RowNumber,
+		))
+	case metres > noteworthyTransferDistanceMetres:
+		container.AddNotice(notice.NewTransferDistanceAbove2KmNotice(
+			transfer.FromStopID, transfer.ToStopID, metres, transfer.RowNumber,
+		))
+	}
 }
 
 // validateMinTransferTime validates min_transfer_time field

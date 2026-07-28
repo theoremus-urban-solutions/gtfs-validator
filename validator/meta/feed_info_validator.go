@@ -4,7 +4,6 @@ import (
 	"io"
 	"log"
 	"strings"
-	"time"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
@@ -42,12 +41,8 @@ func (v *FeedInfoValidator) Validate(loader *parser.FeedLoader, container *notic
 		return
 	}
 
-	if len(feedInfos) > 1 {
-		// Multiple feed info entries
-		container.AddNotice(notice.NewMultipleFeedInfoEntriesNotice(len(feedInfos)))
-	}
-
-	// Validate each feed info (should be only one)
+	// A second row is reported as more_than_one_entity by
+	// core/duplicate_key_validator, which sees every single-record file.
 	for _, feedInfo := range feedInfos {
 		v.validateFeedInfo(container, feedInfo, config)
 	}
@@ -164,10 +159,37 @@ func (v *FeedInfoValidator) validateFeedInfo(container *notice.NoticeContainer, 
 	v.validateLanguageCodes(container, feedInfo)
 
 	// Validate date range
-	v.validateDateRange(container, feedInfo, config)
 
 	// Validate email format
 	v.validateEmail(container, feedInfo)
+
+	// Validate the recommended contact and date pairs
+	v.validateDatePair(container, feedInfo)
+	v.validateContact(container, feedInfo)
+}
+
+// validateDatePair reports a feed validity range given from only one end.
+// Both fields are optional, but one without the other does not bound anything.
+func (v *FeedInfoValidator) validateDatePair(container *notice.NoticeContainer, feedInfo *FeedInfo) {
+	switch {
+	case feedInfo.FeedStartDate != "" && feedInfo.FeedEndDate == "":
+		container.AddNotice(notice.NewMissingFeedInfoDateNotice(
+			feedInfo.RowNumber,
+			"feed_end_date",
+		))
+	case feedInfo.FeedStartDate == "" && feedInfo.FeedEndDate != "":
+		container.AddNotice(notice.NewMissingFeedInfoDateNotice(
+			feedInfo.RowNumber,
+			"feed_start_date",
+		))
+	}
+}
+
+// validateContact reports a feed that names no way to reach its publisher.
+func (v *FeedInfoValidator) validateContact(container *notice.NoticeContainer, feedInfo *FeedInfo) {
+	if feedInfo.FeedContactEmail == "" && feedInfo.FeedContactURL == "" {
+		container.AddNotice(notice.NewMissingFeedContactEmailAndUrlNotice(feedInfo.RowNumber))
+	}
 }
 
 // validateURLs validates URL formats
@@ -217,51 +239,6 @@ func (v *FeedInfoValidator) validateLanguageCodes(container *notice.NoticeContai
 			"feed_info.txt",
 			"default_lang",
 			feedInfo.DefaultLang,
-			feedInfo.RowNumber,
-		))
-	}
-}
-
-// validateDateRange validates feed date range
-func (v *FeedInfoValidator) validateDateRange(container *notice.NoticeContainer, feedInfo *FeedInfo, config validator.Config) {
-	if feedInfo.FeedStartDate == "" || feedInfo.FeedEndDate == "" {
-		return
-	}
-
-	startDate, startErr := time.Parse("20060102", feedInfo.FeedStartDate)
-	endDate, endErr := time.Parse("20060102", feedInfo.FeedEndDate)
-
-	if startErr != nil || endErr != nil {
-		return // Format validation handled elsewhere
-	}
-
-	// Check if end date is before start date
-	if endDate.Before(startDate) {
-		container.AddNotice(notice.NewFeedInfoEndDateBeforeStartDateNotice(
-			feedInfo.FeedStartDate,
-			feedInfo.FeedEndDate,
-			feedInfo.RowNumber,
-		))
-	}
-
-	// Cast CurrentDate to time.Time
-	currentDate, ok := config.CurrentDate.(time.Time)
-	if !ok {
-		currentDate = time.Now()
-	}
-
-	// Check if feed has expired
-	if endDate.Before(currentDate.AddDate(0, 0, -7)) {
-		container.AddNotice(notice.NewExpiredFeedNotice(
-			feedInfo.FeedEndDate,
-			feedInfo.RowNumber,
-		))
-	}
-
-	// Check if feed is too far in the future
-	if startDate.After(currentDate.AddDate(1, 0, 0)) {
-		container.AddNotice(notice.NewFutureFeedStartDateNotice(
-			feedInfo.FeedStartDate,
 			feedInfo.RowNumber,
 		))
 	}

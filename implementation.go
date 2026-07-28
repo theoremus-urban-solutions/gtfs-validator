@@ -221,6 +221,7 @@ type validationConfig struct {
 	EnableFare          bool
 	EnableMeta          bool
 	EnableGeospatial    bool
+	EnableShapeGeometry bool
 	EnableDateTrips     bool
 	MaxNoticesPerType   int
 }
@@ -257,6 +258,7 @@ func comprehensiveValidationConfig() validationConfig {
 		EnableFare:          true,
 		EnableMeta:          true,
 		EnableGeospatial:    true,
+		EnableShapeGeometry: true,
 		EnableDateTrips:     true,
 		MaxNoticesPerType:   0, // No limit: see NewNoticeContainer
 	}
@@ -684,6 +686,11 @@ func (v *internalValidator) initializeValidators() {
 			core.NewDuplicateKeyValidator(),
 			core.NewInvalidRowValidator(),
 			core.NewFieldTypeValidator(),
+			// Registered here rather than in the core package because it lives
+			// in the validator package itself. It was previously constructed
+			// nowhere at all, so csv_parsing_failed and unknown_column counted
+			// as implemented while never being emitted.
+			validator.NewFileStructureValidator(),
 			// core.NewLeadingTrailingWhitespaceValidator(), // PROBLEMATIC: Hangs with large datasets (Sofia)
 		)
 	}
@@ -704,6 +711,8 @@ func (v *internalValidator) initializeValidators() {
 			entity.NewStopNameValidator(),
 			entity.NewAttributionWithoutRoleValidator(),
 			entity.NewRouteTypeValidator(),
+			entity.NewNameComparisonValidator(),
+			entity.NewBikeAllowanceValidator(),
 		)
 	}
 
@@ -715,6 +724,9 @@ func (v *internalValidator) initializeValidators() {
 			relationship.NewStopTimeSequenceTimeValidator(),
 			relationship.NewStopTimeFieldValidator(),
 			relationship.NewUsageValidator(),
+			relationship.NewTranslationValidator(),
+			relationship.NewTripHeadsignValidator(),
+			relationship.NewTripShapeDistanceValidator(),
 			relationship.NewStopTimeConsistencyValidator(),
 			relationship.NewAttributionValidator(),
 			relationship.NewRouteConsistencyValidator(),
@@ -731,11 +743,15 @@ func (v *internalValidator) initializeValidators() {
 			business.NewTravelSpeedValidator(),
 			business.NewBlockOverlappingValidator(),
 			business.NewServiceConsistencyValidator(),
+			business.NewInSeatTransferValidator(),
 		)
 
 		// Expensive business validators (optional)
 		if v.validationConfig.EnableGeospatial {
 			v.validators = append(v.validators, business.NewGeospatialValidator())
+		}
+		if v.validationConfig.EnableShapeGeometry {
+			v.validators = append(v.validators, business.NewShapeGeometryValidator())
 		}
 		if v.validationConfig.EnableDateTrips {
 			v.validators = append(v.validators, business.NewDateTripsValidator())

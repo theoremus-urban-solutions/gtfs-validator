@@ -19,21 +19,14 @@ func NewStopLocationValidator() *StopLocationValidator {
 	return &StopLocationValidator{}
 }
 
-// validLocationTypes contains valid GTFS location types
-var validLocationTypes = map[int]bool{
-	0: true, // Stop/platform
-	1: true, // Station
-	2: true, // Entrance/exit
-	3: true, // Generic node
-	4: true, // Boarding area
-}
-
 // StopInfo represents stop information for validation
 type StopInfo struct {
 	StopID         string
 	StopName       string
 	LocationType   int
 	ParentStation  string
+	ZoneID         string
+	StopAccess     string
 	RowNumber      int
 	HasCoordinates bool
 }
@@ -49,6 +42,9 @@ func (v *StopLocationValidator) Validate(loader *parser.FeedLoader, container *n
 
 	// Validate parent-child relationships
 	v.validateStopHierarchy(container, stops)
+
+	// Validate that zone-priced routes reach only stops that declare a zone
+	v.validateZoneCoverage(loader, container, stops)
 }
 
 // loadStops loads stop information from stops.txt
@@ -109,6 +105,9 @@ func (v *StopLocationValidator) loadStops(loader *parser.FeedLoader) map[string]
 			stop.ParentStation = strings.TrimSpace(parentStation)
 		}
 
+		stop.ZoneID = strings.TrimSpace(row.Values["zone_id"])
+		stop.StopAccess = strings.TrimSpace(row.Values["stop_access"])
+
 		// Check if coordinates are present.
 		// A column may exist in the row map but hold an empty value (e.g. a stop
 		// row with empty stop_lat/stop_lon), so test for a non-empty value rather
@@ -134,6 +133,9 @@ func (v *StopLocationValidator) validateStop(container *notice.NoticeContainer, 
 
 	// Validate location type specific rules
 	v.validateLocationTypeRules(container, stop, allStops)
+
+	// Validate stop_access, which only a platform inside a station may declare
+	v.validateStopAccess(container, stop)
 }
 
 // expectedParentLocationType gives the location_type a parent must have for a
@@ -206,6 +208,17 @@ func (v *StopLocationValidator) validateParentStationReference(container *notice
 // validateLocationTypeRules validates location type specific rules
 func (v *StopLocationValidator) validateLocationTypeRules(container *notice.NoticeContainer, stop *StopInfo, allStops map[string]*StopInfo) {
 	switch stop.LocationType {
+	case 0: // Stop/platform
+		// A platform outside a station is legal — a lone bus stop is exactly
+		// that — so this is an advisory rather than the error raised for the
+		// location types that only exist within a station.
+		if stop.ParentStation == "" {
+			container.AddNotice(notice.NewPlatformWithoutParentStationNotice(
+				stop.StopID,
+				stop.RowNumber,
+			))
+		}
+
 	case 1: // Station
 		if stop.ParentStation != "" {
 			container.AddNotice(notice.NewStationWithParentStationNotice(
@@ -226,6 +239,199 @@ func (v *StopLocationValidator) validateLocationTypeRules(container *notice.Noti
 			))
 		}
 	}
+}
+
+// validateStopAccess reports stop_access on a location that cannot carry it.
+// The field says how a passenger reaches a platform relative to the station
+// around it, so it needs both a platform and a station to be about.
+func (v *StopLocationValidator) validateStopAccess(container *notice.NoticeContainer, stop *StopInfo) {
+	if stop.StopAccess == "" {
+		return
+	}
+	if stop.LocationType != 0 {
+		container.AddNotice(notice.NewStopAccessSpecifiedForIncorrectLocationNotice(
+			stop.StopID,
+			stop.RowNumber,
+			stop.LocationType,
+			stop.StopAccess,
+		))
+		return
+	}
+	if stop.ParentStation == "" {
+		container.AddNotice(notice.NewStopAccessSpecifiedForStopWithNoParentStationNotice(
+			stop.StopID,
+			stop.RowNumber,
+			stop.StopAccess,
+		))
+	}
+}
+
+// validateZoneCoverage reports platforms served by a zone-priced route but
+// carrying no zone of their own, which leaves the fare rule inapplicable to
+// any journey through them.
+//
+// The join it needs — fare rules to routes to trips to stop times — is only
+// walked when fare_rules.txt actually prices by zone, which most feeds do not.
+func (v *StopLocationValidator) validateZoneCoverage(loader *parser.FeedLoader, container *notice.NoticeContainer, stops map[string]*StopInfo) {
+	routeIDs, allRoutes := v.loadZoneFareRoutes(loader)
+	if !allRoutes && len(routeIDs) == 0 {
+		return
+	}
+
+	tripIDs := v.loadTripsForRoutes(loader, routeIDs, allRoutes)
+	if len(tripIDs) == 0 {
+		return
+	}
+
+	for _, stop := range v.loadStopsWithoutZone(loader, tripIDs, stops) {
+		container.AddNotice(notice.NewStopWithoutZoneIDNotice(
+			stop.StopID,
+			stop.StopName,
+			stop.RowNumber,
+		))
+	}
+}
+
+// loadZoneFareRoutes returns the routes named by a fare rule that prices by
+// zone. A qualifying rule with no route_id prices every route, which the
+// second return value reports.
+func (v *StopLocationValidator) loadZoneFareRoutes(loader *parser.FeedLoader) (map[string]bool, bool) {
+	routeIDs := make(map[string]bool)
+
+	reader, err := loader.GetFile("fare_rules.txt")
+	if err != nil {
+		return routeIDs, false
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+
+	csvFile, err := parser.NewCSVFile(reader, "fare_rules.txt")
+	if err != nil {
+		return routeIDs, false
+	}
+
+	allRoutes := false
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			break
+		}
+
+		zonePriced := false
+		for _, field := range []string{"origin_id", "destination_id", "contains_id"} {
+			if strings.TrimSpace(row.Values[field]) != "" {
+				zonePriced = true
+				break
+			}
+		}
+		if !zonePriced {
+			continue
+		}
+
+		routeID := strings.TrimSpace(row.Values["route_id"])
+		if routeID == "" {
+			allRoutes = true
+			continue
+		}
+		routeIDs[routeID] = true
+	}
+
+	return routeIDs, allRoutes
+}
+
+// loadTripsForRoutes returns the trips running on the given routes.
+func (v *StopLocationValidator) loadTripsForRoutes(loader *parser.FeedLoader, routeIDs map[string]bool, allRoutes bool) map[string]bool {
+	tripIDs := make(map[string]bool)
+
+	reader, err := loader.GetFile("trips.txt")
+	if err != nil {
+		return tripIDs
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+
+	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
+	if err != nil {
+		return tripIDs
+	}
+
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			break
+		}
+
+		tripID := strings.TrimSpace(row.Values["trip_id"])
+		if tripID == "" {
+			continue
+		}
+		if allRoutes || routeIDs[strings.TrimSpace(row.Values["route_id"])] {
+			tripIDs[tripID] = true
+		}
+	}
+
+	return tripIDs
+}
+
+// loadStopsWithoutZone streams stop_times.txt and returns the platforms those
+// trips call at that declare no zone, in the order they are first served.
+func (v *StopLocationValidator) loadStopsWithoutZone(loader *parser.FeedLoader, tripIDs map[string]bool, stops map[string]*StopInfo) []*StopInfo {
+	var offenders []*StopInfo
+
+	reader, err := loader.GetFile("stop_times.txt")
+	if err != nil {
+		return offenders
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+
+	csvFile, err := parser.NewCSVFile(reader, "stop_times.txt")
+	if err != nil {
+		return offenders
+	}
+
+	reported := make(map[string]bool)
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			break
+		}
+
+		if !tripIDs[strings.TrimSpace(row.Values["trip_id"])] {
+			continue
+		}
+		stopID := strings.TrimSpace(row.Values["stop_id"])
+		if reported[stopID] {
+			continue
+		}
+		reported[stopID] = true
+
+		stop, exists := stops[stopID]
+		if !exists || stop.LocationType != 0 || stop.ZoneID != "" {
+			continue
+		}
+		offenders = append(offenders, stop)
+	}
+
+	return offenders
 }
 
 // validateStopHierarchy validates the overall stop hierarchy

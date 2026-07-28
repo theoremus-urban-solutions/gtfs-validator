@@ -81,16 +81,8 @@ func (v *LeadingTrailingWhitespaceValidator) validateFile(loader *parser.FeedLoa
 
 // validateFieldWhitespace checks a specific field for whitespace issues
 func (v *LeadingTrailingWhitespaceValidator) validateFieldWhitespace(container *notice.NoticeContainer, filename, fieldName, fieldValue string, rowNumber int) {
-	trimmed := strings.TrimSpace(fieldValue)
-
-	// Check for fields that are only whitespace
-	if trimmed == "" {
-		container.AddNotice(notice.NewWhitespaceOnlyFieldNotice(
-			filename,
-			fieldName,
-			rowNumber,
-		))
-	}
+	// A field holding nothing but whitespace has both leading and trailing
+	// whitespace, so the two checks below already report it.
 
 	// Check for leading whitespace
 	if strings.HasPrefix(fieldValue, " ") || strings.HasPrefix(fieldValue, "\t") {

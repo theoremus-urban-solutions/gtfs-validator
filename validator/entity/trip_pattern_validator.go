@@ -146,41 +146,17 @@ func (v *TripPatternValidator) groupStopTimesByTrip(stopTimes []*TripStopTime) m
 
 // validateTripStopSequence validates the stop sequence for a single trip
 func (v *TripPatternValidator) validateTripStopSequence(container *notice.NoticeContainer, tripID string, stopTimes []*TripStopTime) {
+	// A trip with fewer than two stops is reported by
+	// business/trip_usability_validator.go as unusable_trip.
 	if len(stopTimes) < 2 {
-		container.AddNotice(notice.NewInsufficientStopTimesNotice(
-			tripID,
-			len(stopTimes),
-		))
 		return
 	}
 
-	// Check for duplicate stop sequences
-	seqMap := make(map[int]*TripStopTime)
-	for _, stopTime := range stopTimes {
-		if existing, exists := seqMap[stopTime.StopSequence]; exists {
-			container.AddNotice(notice.NewDuplicateStopSequenceNotice(
-				tripID,
-				stopTime.StopSequence,
-				stopTime.StopID,
-				existing.RowNumber,
-				stopTime.RowNumber,
-			))
-		} else {
-			seqMap[stopTime.StopSequence] = stopTime
-		}
-	}
-
-	// Check for non-increasing sequences
-	for i := 1; i < len(stopTimes); i++ {
-		if stopTimes[i].StopSequence <= stopTimes[i-1].StopSequence {
-			container.AddNotice(notice.NewNonIncreasingStopSequenceNotice(
-				tripID,
-				stopTimes[i].StopSequence,
-				stopTimes[i-1].StopSequence,
-				stopTimes[i].RowNumber,
-			))
-		}
-	}
+	// A stop_sequence repeated within a trip is reported by
+	// core/duplicate_key_validator.go, which keys stop_times.txt on
+	// trip_id + stop_sequence. A trip whose rows do not ascend is reported by
+	// relationship/stop_time_field_validator.go as unsorted_stop_times, which
+	// reads them in file order rather than sorted as they are here.
 
 	// Gaps in stop_sequence are legal: the spec requires the values to
 	// increase along the trip, not to be contiguous.

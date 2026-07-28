@@ -137,21 +137,22 @@ func (v *StopNameValidator) validateStopName(container *notice.NoticeContainer, 
 
 	// Additional validations only if name exists
 	if stop.StopName != "" {
-		// Check for generic/placeholder names
-		v.checkGenericStopName(container, stop)
-
-		// Check for excessive length
-
 		// Check for problematic characters
 		v.checkProblematicCharacters(container, stop)
 
 		// Check if name and description are identical
 		v.checkNameDescriptionDuplicate(container, stop)
 
-		// Check for all caps names (poor readability)
-
-		// Check for repeated words
-		v.checkRepeatedWords(container, stop)
+		// stop_name is announced and displayed to riders, so a single-case
+		// name reaches them degraded.
+		if needsMixedCase(stop.StopName) {
+			container.AddNotice(notice.NewMixedCaseRecommendedFieldNotice(
+				"stops.txt",
+				"stop_name",
+				stop.StopName,
+				stop.RowNumber,
+			))
+		}
 	}
 }
 
@@ -165,35 +166,6 @@ func (v *StopNameValidator) isStopNameRequired(locationType int) bool {
 	// 3 = Generic Node
 	// 4 = Boarding Area
 	return locationType <= 2
-}
-
-// checkGenericStopName checks for generic or placeholder stop names
-func (v *StopNameValidator) checkGenericStopName(container *notice.NoticeContainer, stop *StopNameInfo) {
-	genericNames := []string{
-		"stop",
-		"station",
-		"platform",
-		"entrance",
-		"exit",
-		"node",
-		"boarding",
-		"test",
-		"temp",
-		"placeholder",
-		"unnamed",
-		"unknown",
-		"tbd",
-		"todo",
-		"xxx",
-		"???",
-	}
-
-	lowerName := strings.ToLower(stop.StopName)
-	for _, generic := range genericNames {
-		if lowerName == generic || lowerName == generic+" "+generic {
-			break
-		}
-	}
 }
 
 // checkProblematicCharacters checks for problematic characters in stop names
@@ -213,22 +185,20 @@ func (v *StopNameValidator) checkProblematicCharacters(container *notice.NoticeC
 
 }
 
-// checkNameDescriptionDuplicate checks if stop_name and stop_desc are identical
+// checkNameDescriptionDuplicate checks if stop_name and stop_desc are identical.
+//
+// stop_desc is asked for information the name does not already give — where in
+// the station the stop is, which entrance to use. A copy of the name adds a
+// line to the rider's screen and nothing to what they know. Casing does not
+// make it informative, so "MAIN ST" describing "Main St" is still a duplicate.
 func (v *StopNameValidator) checkNameDescriptionDuplicate(container *notice.NoticeContainer, stop *StopNameInfo) {
-}
-
-// checkRepeatedWords checks for repeated words in stop names
-func (v *StopNameValidator) checkRepeatedWords(container *notice.NoticeContainer, stop *StopNameInfo) {
-	// Split name into words
-	words := strings.Fields(stop.StopName)
-	if len(words) < 2 {
+	if stop.StopDesc == "" || !strings.EqualFold(stop.StopDesc, stop.StopName) {
 		return
 	}
 
-	// Check for consecutive repeated words
-	for i := 1; i < len(words); i++ {
-		if strings.EqualFold(words[i], words[i-1]) && len(words[i]) > 2 {
-			break
-		}
-	}
+	container.AddNotice(notice.NewSameNameAndDescriptionForStopNotice(
+		stop.StopID,
+		stop.StopDesc,
+		stop.RowNumber,
+	))
 }

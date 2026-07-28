@@ -126,8 +126,60 @@ var (
 // this map either carry their file in the notice context (structural checks
 // that run over every file) or describe the feed as a whole (summaries).
 var codeFiles = map[string][]string{
+	// Added by the scope rework. Codes that carry their own filename in the
+	// notice context are deliberately absent: FileName() resolves those from
+	// the notice itself.
+	"inconsistent_agency_lang":                agency,
+	"feed_info_lang_and_agency_lang_mismatch": {"agency.txt", "feed_info.txt"},
+	"future_feed":                                             feedInfo,
+	"missing_feed_info_date":                                  feedInfo,
+	"missing_feed_contact_email_and_url":                      feedInfo,
+	"big_gap_in_service":                                      calendars,
+	"expired_calendar":                                        calendars,
+	"future_calendar":                                         calendars,
+	"service_extends_far_in_the_future":                       calendars,
+	"feed_valid_beyond_total_service_window":                  {"feed_info.txt", "calendar.txt"},
+	"service_window_outside_feed_period":                      {"feed_info.txt", "calendar.txt"},
+	"bidirectional_exit_gate":                                 pathways,
+	"pathway_loop":                                            pathways,
+	"pathway_dangling_generic_node":                           pathways,
+	"pathway_unreachable_location":                            pathways,
+	"pathway_to_wrong_location_type":                          {"pathways.txt", "stops.txt"},
+	"pathway_to_platform_with_boarding_areas":                 {"pathways.txt", "stops.txt"},
+	"pathway_to_stop_with_access_outside_of_station_pathways": {"pathways.txt", "stops.txt"},
+	"missing_level_id":                                        {"stops.txt", "levels.txt"},
+	"route_long_name_contains_short_name":                     routes,
+	"same_name_and_description_for_route":                     routes,
+	"same_route_and_agency_url":                               {"routes.txt", "agency.txt"},
+	"same_name_and_description_for_stop":                      stops,
+	"same_stop_and_agency_url":                                {"stops.txt", "agency.txt"},
+	"same_stop_and_route_url":                                 {"stops.txt", "routes.txt"},
+	"platform_without_parent_station":                         stops,
+	"stop_without_zone_id":                                    stops,
+	"stop_access_specified_for_incorrect_location":            stops,
+	"stop_access_specified_for_stop_with_no_parent_station":   stops,
+	"unused_shape":                                            {"shapes.txt", "trips.txt"},
+	"stop_too_far_from_shape":                                 {"shapes.txt", "stop_times.txt"},
+	"stop_too_far_from_shape_using_user_distance":             {"shapes.txt", "stop_times.txt"},
+	"stops_match_shape_out_of_order":                          {"shapes.txt", "stop_times.txt"},
+	"stop_has_too_many_matches_for_shape":                     {"shapes.txt", "stop_times.txt"},
+	"trip_distance_exceeds_shape_distance":                    {"shapes.txt", "stop_times.txt"},
+	"trip_distance_exceeds_shape_distance_below_threshold":    {"shapes.txt", "stop_times.txt"},
+	"fast_travel_between_far_stops":                           stopTimesTrip,
+	"trip_headsign_matches_intermediate_stop":                 stopTimesTrip,
+	"trip_with_shape_dist_traveled_but_no_shape_distances":    stopTimesTrip,
+	"trip_coverage_not_active_for_next7_days":                 trips,
+	"inconsistent_route_type_for_block_id":                    routesTrips,
+	"missing_bike_allowance":                                  routesTrips,
+	"inconsistent_route_type_for_in_seat_transfer":            {"transfers.txt", "routes.txt"},
+	"transfer_with_suspicious_mid_trip_in_seat":               {"transfers.txt", "stop_times.txt"},
+	"transfer_distance_too_large":                             network,
+	"transfer_distance_above_2_km":                            network,
+	"translation_foreign_key_violation":                       {"translations.txt"},
+	"translation_unexpected_value":                            {"translations.txt"},
+	"translation_unknown_table_name":                          {"translations.txt"},
+
 	// agency.txt
-	"invalid_agency_reference":     {"routes.txt", "agency.txt"},
 	"invalid_timezone":             {"agency.txt", "stops.txt"},
 	"invalid_language_code":        {"agency.txt", "feed_info.txt"},
 	"inconsistent_agency_timezone": {"agency.txt"},
@@ -139,7 +191,6 @@ var codeFiles = map[string][]string{
 	"conflicting_attribution_scope":  attributions,
 	"duplicate_attribution_scope":    attributions,
 	"missing_attribution_contact":    attributions,
-	"missing_attribution_role":       attributions,
 	"multiple_attribution_scopes":    attributions,
 
 	// calendar.txt
@@ -150,37 +201,19 @@ var codeFiles = map[string][]string{
 	"duplicate_calendar_exception":   calendarDates,
 
 	// calendar.txt + calendar_dates.txt
-	"expired_service":                          calendars,
-	"service_expired":                          calendars,
-	"service_never_active":                     calendars,
-	"future_service":                           calendars,
-	"service_expires_within_7_days":            calendars,
-	"service_expires_within_30_days":           calendars,
 	"missing_calendar_and_calendar_date_files": calendars,
-	"no_service_date_found":                    calendars,
-	"no_service_next_7_days":                   calendars,
-	"undefined_service":                        {"trips.txt", "calendar.txt"},
-	"unused_service":                           {"calendar.txt", "trips.txt"},
+	"unused_service": {"calendar.txt", "trips.txt"},
 
 	// fares
 	"unused_fare_attribute":         fareAttrs,
-	"missing_fare_attributes":       fareAttrs,
 	"unnecessary_transfer_duration": fareAttrs,
 	"empty_fare_rule":               fareRules,
 	"conflicting_fare_rule_fields":  fareRules,
-	"undefined_zone":                {"fare_rules.txt", "stops.txt"},
 	"unused_zone":                   {"stops.txt", "fare_rules.txt"},
 
 	// feed_info.txt
-	"feed_info_end_date_before_start_date": feedInfo,
-	"feed_info_end_date_missing":           feedInfo,
-	"missing_feed_info":                    feedInfo,
-	"multiple_feed_info_entries":           feedInfo,
-	"feed_expired":                         feedInfo,
-	"expired_feed":                         feedInfo,
-	"feed_expiration_date7_days":           feedInfo,
-	"feed_expiration_date30_days":          feedInfo,
-	"future_feed_start_date":               feedInfo,
+	"feed_expiration_date7_days":  feedInfo,
+	"feed_expiration_date30_days": feedInfo,
 
 	// frequencies.txt
 	"frequency_duration_shorter_than_headway": frequencies,
@@ -190,19 +223,16 @@ var codeFiles = map[string][]string{
 	// levels.txt
 	"duplicate_level_index": levels,
 	"unused_level":          levels,
-	"missing_levels":        levels,
 
 	// pathways.txt
 	"duplicate_pathway":                  pathways,
 	"inconsistent_bidirectional_pathway": pathways,
-	"pathway_to_same_stop":               pathways,
 
 	// routes.txt
 	"deprecated_route_type":                  routes,
 	"duplicate_route_name":                   routes,
 	"route_short_name_too_long":              routes,
 	"route_both_short_and_long_name_missing": routes,
-	"same_name_and_description":              routes,
 	"invalid_color":                          routes,
 	"route_color_contrast":                   routes,
 	"route_without_trips":                    routesTrips,
@@ -212,16 +242,12 @@ var codeFiles = map[string][]string{
 	"equal_shape_distance_same_coordinates":                          shapes,
 	"equal_shape_distance_diff_coordinates":                          shapes,
 	"equal_shape_distance_diff_coordinates_distance_below_threshold": shapes,
-	"shape_distance_inconsistent_with_geography":                     shapes,
 	"single_shape_point":                                             shapes,
-	"shape_point_outside_feed_bounds":                                shapes,
 	"inconsistent_stop_time_shape_distance":                          {"stop_times.txt", "shapes.txt"},
 
 	// stops.txt
 	"missing_stop_name":                    stops,
 	"stop_name_contains_control_character": stops,
-	"invalid_latitude":                     stops,
-	"invalid_longitude":                    stops,
 	"station_with_parent_station":          stops,
 	"circular_station_reference":           stops,
 	"child_station_too_far_from_parent":    stops,
@@ -236,11 +262,8 @@ var codeFiles = map[string][]string{
 	"missing_trip_edge":                                     stopTimes,
 	"stop_time_arrival_after_departure":                     stopTimes,
 	"stop_time_with_arrival_before_previous_departure_time": stopTimes,
-	"duplicate_stop_sequence":                               stopTimes,
-	"non_increasing_stop_sequence":                          stopTimes,
 	"duplicate_stop_in_trip":                                stopTimes,
 	"consecutive_duplicate_stops":                           stopTimes,
-	"insufficient_stop_times":                               stopTimes,
 	"all_stops_no_pickup":                                   stopTimes,
 	"all_stops_no_drop_off":                                 stopTimes,
 	"first_stop_no_pickup":                                  stopTimes,
@@ -273,7 +296,6 @@ var codeFiles = map[string][]string{
 	"block_service_mismatch":                  trips,
 	"block_trips_with_overlapping_stop_times": trips,
 	"unusable_trip":                           trips,
-	"no_trips_next_7_days":                    trips,
 	"unused_trip":                             {"trips.txt", "stop_times.txt"},
 
 	// network-wide geometry, spanning stops and their connections

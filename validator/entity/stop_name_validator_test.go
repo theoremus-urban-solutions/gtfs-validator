@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
@@ -112,6 +113,97 @@ func TestStopNameValidator_LoadStops(t *testing.T) {
 				}
 				if actualStop.RowNumber != expectedStop.RowNumber {
 					t.Errorf("Stop %d: expected RowNumber %d, got %d", i, expectedStop.RowNumber, actualStop.RowNumber)
+				}
+			}
+		})
+	}
+}
+
+func TestStopNameValidator_ValidateStopName(t *testing.T) {
+	validator := NewStopNameValidator()
+
+	tests := []struct {
+		name          string
+		stop          *StopNameInfo
+		expectedCodes []string
+	}{
+		{
+			name:          "name and description say different things",
+			stop:          &StopNameInfo{StopID: "stop1", StopName: "Main St", StopDesc: "Northbound platform"},
+			expectedCodes: []string{},
+		},
+		{
+			name:          "description duplicates the name",
+			stop:          &StopNameInfo{StopID: "stop1", StopName: "Main St", StopDesc: "Main St"},
+			expectedCodes: []string{"same_name_and_description_for_stop"},
+		},
+		{
+			name:          "description duplicates the name in another case",
+			stop:          &StopNameInfo{StopID: "stop1", StopName: "Main St", StopDesc: "MAIN ST"},
+			expectedCodes: []string{"same_name_and_description_for_stop"},
+		},
+		{
+			name:          "no description",
+			stop:          &StopNameInfo{StopID: "stop1", StopName: "Main St"},
+			expectedCodes: []string{},
+		},
+		{
+			name:          "name in upper case only",
+			stop:          &StopNameInfo{StopID: "stop1", StopName: "GALLERIA MALL"},
+			expectedCodes: []string{"mixed_case_recommended_field"},
+		},
+		{
+			name:          "name in lower case only",
+			stop:          &StopNameInfo{StopID: "stop1", StopName: "central station"},
+			expectedCodes: []string{"mixed_case_recommended_field"},
+		},
+		{
+			name:          "name in a script without case",
+			stop:          &StopNameInfo{StopID: "stop1", StopName: "東京駅"},
+			expectedCodes: []string{},
+		},
+		{
+			name:          "single case name duplicated in the description",
+			stop:          &StopNameInfo{StopID: "stop1", StopName: "GALLERIA MALL", StopDesc: "GALLERIA MALL"},
+			expectedCodes: []string{"mixed_case_recommended_field", "same_name_and_description_for_stop"},
+		},
+		{
+			name:          "missing name on a platform",
+			stop:          &StopNameInfo{StopID: "stop1", LocationType: 0},
+			expectedCodes: []string{"missing_stop_name"},
+		},
+		{
+			name:          "missing name on a generic node",
+			stop:          &StopNameInfo{StopID: "stop1", LocationType: 3},
+			expectedCodes: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			container := notice.NewNoticeContainer()
+
+			validator.validateStopName(container, tt.stop, map[string]*StopNameInfo{})
+
+			expectedCounts := make(map[string]int)
+			for _, code := range tt.expectedCodes {
+				expectedCounts[code]++
+			}
+
+			actualCounts := make(map[string]int)
+			for _, n := range container.GetNotices() {
+				actualCounts[n.Code()]++
+			}
+
+			for code, expected := range expectedCounts {
+				if actualCounts[code] != expected {
+					t.Errorf("Expected %d notices with code '%s', got %d", expected, code, actualCounts[code])
+				}
+			}
+
+			for code := range actualCounts {
+				if expectedCounts[code] == 0 {
+					t.Errorf("Unexpected notice code: %s", code)
 				}
 			}
 		})

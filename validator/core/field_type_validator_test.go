@@ -105,6 +105,14 @@ func TestFieldTypeValidator_Validate(t *testing.T) {
 			description:         "Latitude runs -90 to 90",
 		},
 		{
+			name: "longitude past the antimeridian",
+			files: map[string]string{
+				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,34.05,200.0",
+			},
+			expectedNoticeCodes: []string{"number_out_of_range"},
+			description:         "Longitude runs -180 to 180",
+		},
+		{
 			name: "non-numeric coordinate",
 			files: map[string]string{
 				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,north,-118.25",

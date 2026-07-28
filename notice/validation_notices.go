@@ -198,24 +198,6 @@ func NewMissingCalendarAndCalendarDateFilesNotice() *MissingCalendarAndCalendarD
 	}
 }
 
-// DuplicateStopSequenceNotice is generated when duplicate stop_sequence values are found for the same trip
-type DuplicateStopSequenceNotice struct {
-	*BaseNotice
-}
-
-func NewDuplicateStopSequenceNotice(tripID string, stopSequence int, stopID string, rowNumber int, duplicateRowNumber int) *DuplicateStopSequenceNotice {
-	context := map[string]interface{}{
-		"tripId":             tripID,
-		"stopSequence":       stopSequence,
-		"stopId":             stopID,
-		"csvRowNumber":       rowNumber,
-		"duplicateRowNumber": duplicateRowNumber,
-	}
-	return &DuplicateStopSequenceNotice{
-		BaseNotice: NewBaseNotice("duplicate_stop_sequence", WARNING, context),
-	}
-}
-
 // DecreasingOrEqualStopTimeDistanceNotice is generated when shape_dist_traveled values are decreasing or equal
 type DecreasingOrEqualStopTimeDistanceNotice struct {
 	*BaseNotice
@@ -250,24 +232,6 @@ func NewMissingRouteNameNotice(routeID string, rowNumber int) *MissingRouteNameN
 	}
 	return &MissingRouteNameNotice{
 		BaseNotice: NewBaseNotice("route_both_short_and_long_name_missing", ERROR, context),
-	}
-}
-
-// SameNameAndDescriptionNotice is generated when route_short_name and route_long_name are identical
-type SameNameAndDescriptionNotice struct {
-	*BaseNotice
-}
-
-func NewSameNameAndDescriptionNotice(routeID string, fieldName1 string, fieldName2 string, fieldValue string, rowNumber int) *SameNameAndDescriptionNotice {
-	context := map[string]interface{}{
-		"routeId":      routeID,
-		"fieldName1":   fieldName1,
-		"fieldName2":   fieldName2,
-		"fieldValue":   fieldValue,
-		"csvRowNumber": rowNumber,
-	}
-	return &SameNameAndDescriptionNotice{
-		BaseNotice: NewBaseNotice("same_name_and_description", WARNING, context),
 	}
 }
 
@@ -392,48 +356,6 @@ func NewBlockTripsOverlapNotice(blockID string, trip1ID string, trip2ID string, 
 	}
 }
 
-// MissingFeedInfoNotice is generated when feed_info.txt is required but missing
-type MissingFeedInfoNotice struct {
-	*BaseNotice
-}
-
-func NewMissingFeedInfoNotice() *MissingFeedInfoNotice {
-	context := map[string]interface{}{
-		"message": "feed_info.txt is required when translations.txt is present",
-	}
-	return &MissingFeedInfoNotice{
-		BaseNotice: NewBaseNotice("missing_feed_info", WARNING, context),
-	}
-}
-
-// MissingFareAttributesNotice is generated when fare_attributes.txt is required but missing
-type MissingFareAttributesNotice struct {
-	*BaseNotice
-}
-
-func NewMissingFareAttributesNotice() *MissingFareAttributesNotice {
-	context := map[string]interface{}{
-		"message": "fare_attributes.txt is required when fare_rules.txt is present",
-	}
-	return &MissingFareAttributesNotice{
-		BaseNotice: NewBaseNotice("missing_fare_attributes", WARNING, context),
-	}
-}
-
-// MissingLevelsNotice is generated when levels.txt is required but missing
-type MissingLevelsNotice struct {
-	*BaseNotice
-}
-
-func NewMissingLevelsNotice() *MissingLevelsNotice {
-	context := map[string]interface{}{
-		"message": "levels.txt is required when pathways.txt is present",
-	}
-	return &MissingLevelsNotice{
-		BaseNotice: NewBaseNotice("missing_levels", WARNING, context),
-	}
-}
-
 // UnknownFileNotice is generated when an unknown file is found in the feed
 type UnknownFileNotice struct {
 	*BaseNotice
@@ -479,22 +401,6 @@ func NewMissingRequiredColumnNotice(filename string, columnName string) *Missing
 	}
 }
 
-// InvalidAgencyReferenceNotice is generated when a route references an invalid agency
-type InvalidAgencyReferenceNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidAgencyReferenceNotice(routeID string, agencyID string, rowNumber int) *InvalidAgencyReferenceNotice {
-	context := map[string]interface{}{
-		"routeId":      routeID,
-		"agencyId":     agencyID,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidAgencyReferenceNotice{
-		BaseNotice: NewBaseNotice("invalid_agency_reference", WARNING, context),
-	}
-}
-
 // InvalidColorNotice is generated when a color field has invalid format
 type InvalidColorNotice struct {
 	*BaseNotice
@@ -524,22 +430,6 @@ func NewServiceWithoutActiveDaysNotice(serviceID string, rowNumber int) *Service
 	}
 	return &ServiceWithoutActiveDaysNotice{
 		BaseNotice: NewBaseNotice("service_has_no_active_day_of_the_week", WARNING, context),
-	}
-}
-
-// ExpiredServiceNotice is generated when a service is expired
-type ExpiredServiceNotice struct {
-	*BaseNotice
-}
-
-func NewExpiredServiceNotice(serviceID string, endDate string, rowNumber int) *ExpiredServiceNotice {
-	context := map[string]interface{}{
-		"serviceId":    serviceID,
-		"endDate":      endDate,
-		"csvRowNumber": rowNumber,
-	}
-	return &ExpiredServiceNotice{
-		BaseNotice: NewBaseNotice("expired_service", WARNING, context),
 	}
 }
 
@@ -710,22 +600,6 @@ func NewDuplicateTransferNotice(fromStopID string, toStopID string, rowNumber in
 }
 
 // PATHWAY VALIDATOR NOTICES
-
-// PathwayToSameStopNotice is generated when pathway connects stop to itself
-type PathwayToSameStopNotice struct {
-	*BaseNotice
-}
-
-func NewPathwayToSameStopNotice(pathwayID string, stopID string, rowNumber int) *PathwayToSameStopNotice {
-	context := map[string]interface{}{
-		"pathwayId":    pathwayID,
-		"stopId":       stopID,
-		"csvRowNumber": rowNumber,
-	}
-	return &PathwayToSameStopNotice{
-		BaseNotice: NewBaseNotice("pathway_to_same_stop", WARNING, context),
-	}
-}
 
 // DuplicatePathwayNotice is generated when duplicate pathways are defined
 type DuplicatePathwayNotice struct {
@@ -958,51 +832,6 @@ func shapeDistanceContext(shapeID string, shapeDistTraveled float64, prevSequenc
 
 // CALENDAR CONSISTENCY VALIDATOR NOTICES
 
-// ServiceNeverActiveNotice is generated when service runs on no days
-type ServiceNeverActiveNotice struct {
-	*BaseNotice
-}
-
-func NewServiceNeverActiveNotice(serviceID string, rowNumber int) *ServiceNeverActiveNotice {
-	context := map[string]interface{}{
-		"serviceId":    serviceID,
-		"csvRowNumber": rowNumber,
-	}
-	return &ServiceNeverActiveNotice{
-		BaseNotice: NewBaseNotice("service_never_active", WARNING, context),
-	}
-}
-
-// FutureServiceNotice is generated when service period is too far in the future
-type FutureServiceNotice struct {
-	*BaseNotice
-}
-
-func NewFutureServiceNotice(serviceID string, startDate string, rowNumber int) *FutureServiceNotice {
-	context := map[string]interface{}{
-		"serviceId":    serviceID,
-		"startDate":    startDate,
-		"csvRowNumber": rowNumber,
-	}
-	return &FutureServiceNotice{
-		BaseNotice: NewBaseNotice("future_service", WARNING, context),
-	}
-}
-
-// UndefinedServiceNotice is generated when service is used but not defined
-type UndefinedServiceNotice struct {
-	*BaseNotice
-}
-
-func NewUndefinedServiceNotice(serviceID string) *UndefinedServiceNotice {
-	context := map[string]interface{}{
-		"serviceId": serviceID,
-	}
-	return &UndefinedServiceNotice{
-		BaseNotice: NewBaseNotice("undefined_service", WARNING, context),
-	}
-}
-
 // ConflictingCalendarExceptionNotice is generated when conflicting exceptions exist
 type ConflictingCalendarExceptionNotice struct {
 	*BaseNotice
@@ -1038,21 +867,6 @@ func NewDuplicateCalendarExceptionNotice(serviceID string, date string, rowNumbe
 }
 
 // ATTRIBUTION VALIDATOR NOTICES
-
-// MissingAttributionRoleNotice is generated when no attribution role is specified
-type MissingAttributionRoleNotice struct {
-	*BaseNotice
-}
-
-func NewMissingAttributionRoleNotice(attributionID string, rowNumber int) *MissingAttributionRoleNotice {
-	context := map[string]interface{}{
-		"attributionId": attributionID,
-		"csvRowNumber":  rowNumber,
-	}
-	return &MissingAttributionRoleNotice{
-		BaseNotice: NewBaseNotice("missing_attribution_role", WARNING, context),
-	}
-}
 
 // MultipleAttributionScopesNotice is generated when multiple scopes are specified
 type MultipleAttributionScopesNotice struct {
@@ -1119,20 +933,6 @@ func NewDuplicateAttributionScopeNotice(attributionID1 string, attributionID2 st
 
 // FEED INFO VALIDATOR NOTICES
 
-// MultipleFeedInfoEntriesNotice is generated when multiple feed info entries exist
-type MultipleFeedInfoEntriesNotice struct {
-	*BaseNotice
-}
-
-func NewMultipleFeedInfoEntriesNotice(count int) *MultipleFeedInfoEntriesNotice {
-	context := map[string]interface{}{
-		"count": count,
-	}
-	return &MultipleFeedInfoEntriesNotice{
-		BaseNotice: NewBaseNotice("multiple_feed_info_entries", WARNING, context),
-	}
-}
-
 // InvalidLanguageCodeNotice is generated when language code is invalid
 type InvalidLanguageCodeNotice struct {
 	*BaseNotice
@@ -1150,52 +950,6 @@ func NewInvalidLanguageCodeNotice(filename string, fieldName string, languageCod
 	}
 }
 
-// FeedInfoEndDateBeforeStartDateNotice is generated when feed end date is before start date
-type FeedInfoEndDateBeforeStartDateNotice struct {
-	*BaseNotice
-}
-
-func NewFeedInfoEndDateBeforeStartDateNotice(startDate string, endDate string, rowNumber int) *FeedInfoEndDateBeforeStartDateNotice {
-	context := map[string]interface{}{
-		"startDate":    startDate,
-		"endDate":      endDate,
-		"csvRowNumber": rowNumber,
-	}
-	return &FeedInfoEndDateBeforeStartDateNotice{
-		BaseNotice: NewBaseNotice("feed_info_end_date_before_start_date", WARNING, context),
-	}
-}
-
-// ExpiredFeedNotice is generated when feed has expired
-type ExpiredFeedNotice struct {
-	*BaseNotice
-}
-
-func NewExpiredFeedNotice(endDate string, rowNumber int) *ExpiredFeedNotice {
-	context := map[string]interface{}{
-		"endDate":      endDate,
-		"csvRowNumber": rowNumber,
-	}
-	return &ExpiredFeedNotice{
-		BaseNotice: NewBaseNotice("expired_feed", WARNING, context),
-	}
-}
-
-// FutureFeedStartDateNotice is generated when feed start date is too far in future
-type FutureFeedStartDateNotice struct {
-	*BaseNotice
-}
-
-func NewFutureFeedStartDateNotice(startDate string, rowNumber int) *FutureFeedStartDateNotice {
-	context := map[string]interface{}{
-		"startDate":    startDate,
-		"csvRowNumber": rowNumber,
-	}
-	return &FutureFeedStartDateNotice{
-		BaseNotice: NewBaseNotice("future_feed_start_date", WARNING, context),
-	}
-}
-
 // ZONE VALIDATOR NOTICES
 
 // UnusedZoneNotice is generated when zone is defined but not used
@@ -1210,20 +964,6 @@ func NewUnusedZoneNotice(zoneID string, rowNumber int) *UnusedZoneNotice {
 	}
 	return &UnusedZoneNotice{
 		BaseNotice: NewBaseNotice("unused_zone", WARNING, context),
-	}
-}
-
-// UndefinedZoneNotice is generated when zone is used but not defined
-type UndefinedZoneNotice struct {
-	*BaseNotice
-}
-
-func NewUndefinedZoneNotice(zoneID string) *UndefinedZoneNotice {
-	context := map[string]interface{}{
-		"zoneId": zoneID,
-	}
-	return &UndefinedZoneNotice{
-		BaseNotice: NewBaseNotice("undefined_zone", WARNING, context),
 	}
 }
 
@@ -1387,22 +1127,6 @@ func NewMultipleRecordsInSingleRecordFileNotice(filename string, recordCount int
 	}
 }
 
-// InvalidRowNotice represents an invalid row structure
-type InvalidRowNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidRowNotice(filename string, rowNumber int, reason string) *InvalidRowNotice {
-	context := map[string]interface{}{
-		"filename":  filename,
-		"rowNumber": rowNumber,
-		"reason":    reason,
-	}
-	return &InvalidRowNotice{
-		BaseNotice: NewBaseNotice("invalid_row", WARNING, context),
-	}
-}
-
 // WrongNumberOfFieldsNotice represents a row with wrong number of fields
 type WrongNumberOfFieldsNotice struct {
 	*BaseNotice
@@ -1451,54 +1175,6 @@ func NewTrailingWhitespaceNotice(filename, fieldName, fieldValue string, rowNumb
 	}
 	return &TrailingWhitespaceNotice{
 		BaseNotice: NewBaseNotice("leading_or_trailing_whitespaces", WARNING, context),
-	}
-}
-
-// WhitespaceOnlyFieldNotice represents a field containing only whitespace
-type WhitespaceOnlyFieldNotice struct {
-	*BaseNotice
-}
-
-func NewWhitespaceOnlyFieldNotice(filename, fieldName string, rowNumber int) *WhitespaceOnlyFieldNotice {
-	context := map[string]interface{}{
-		"filename":  filename,
-		"fieldName": fieldName,
-		"rowNumber": rowNumber,
-	}
-	return &WhitespaceOnlyFieldNotice{
-		BaseNotice: NewBaseNotice("whitespace_only_field", WARNING, context),
-	}
-}
-
-// InsufficientStopTimesNotice represents a trip with insufficient stop times
-type InsufficientStopTimesNotice struct {
-	*BaseNotice
-}
-
-func NewInsufficientStopTimesNotice(tripID string, stopCount int) *InsufficientStopTimesNotice {
-	context := map[string]interface{}{
-		"tripId":    tripID,
-		"stopCount": stopCount,
-	}
-	return &InsufficientStopTimesNotice{
-		BaseNotice: NewBaseNotice("insufficient_stop_times", WARNING, context),
-	}
-}
-
-// NonIncreasingStopSequenceNotice represents non-increasing stop sequences
-type NonIncreasingStopSequenceNotice struct {
-	*BaseNotice
-}
-
-func NewNonIncreasingStopSequenceNotice(tripID string, currentSeq, previousSeq, rowNumber int) *NonIncreasingStopSequenceNotice {
-	context := map[string]interface{}{
-		"tripId":      tripID,
-		"currentSeq":  currentSeq,
-		"previousSeq": previousSeq,
-		"rowNumber":   rowNumber,
-	}
-	return &NonIncreasingStopSequenceNotice{
-		BaseNotice: NewBaseNotice("non_increasing_stop_sequence", WARNING, context),
 	}
 }
 
@@ -1552,38 +1228,6 @@ func NewRouteWithoutTripsNotice(routeID string, rowNumber int) *RouteWithoutTrip
 	}
 }
 
-// InvalidLatitudeNotice represents invalid latitude coordinates
-type InvalidLatitudeNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidLatitudeNotice(stopID string, latitude float64, rowNumber int) *InvalidLatitudeNotice {
-	context := map[string]interface{}{
-		"stopId":    stopID,
-		"latitude":  latitude,
-		"rowNumber": rowNumber,
-	}
-	return &InvalidLatitudeNotice{
-		BaseNotice: NewBaseNotice("invalid_latitude", WARNING, context),
-	}
-}
-
-// InvalidLongitudeNotice represents invalid longitude coordinates
-type InvalidLongitudeNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidLongitudeNotice(stopID string, longitude float64, rowNumber int) *InvalidLongitudeNotice {
-	context := map[string]interface{}{
-		"stopId":    stopID,
-		"longitude": longitude,
-		"rowNumber": rowNumber,
-	}
-	return &InvalidLongitudeNotice{
-		BaseNotice: NewBaseNotice("invalid_longitude", WARNING, context),
-	}
-}
-
 // ChildStationTooFarFromParentNotice represents child station too far from parent
 type ChildStationTooFarFromParentNotice struct {
 	*BaseNotice
@@ -1601,76 +1245,9 @@ func NewChildStationTooFarFromParentNotice(childID, parentID string, distance fl
 	}
 }
 
-// ShapePointOutsideFeedBoundsNotice represents shape point outside feed bounds
-type ShapePointOutsideFeedBoundsNotice struct {
-	*BaseNotice
-}
-
-func NewShapePointOutsideFeedBoundsNotice(shapeID string, sequence int, lat, lon float64, rowNumber int) *ShapePointOutsideFeedBoundsNotice {
-	context := map[string]interface{}{
-		"shapeId":   shapeID,
-		"sequence":  sequence,
-		"latitude":  lat,
-		"longitude": lon,
-		"rowNumber": rowNumber,
-	}
-	return &ShapePointOutsideFeedBoundsNotice{
-		BaseNotice: NewBaseNotice("shape_point_outside_feed_bounds", WARNING, context),
-	}
-}
-
-// ShapeDistanceInconsistentWithGeographyNotice represents shape distance inconsistent with geography
-type ShapeDistanceInconsistentWithGeographyNotice struct {
-	*BaseNotice
-}
-
-func NewShapeDistanceInconsistentWithGeographyNotice(shapeID string, sequence int, providedDist, geoDist, difference float64, rowNumber int) *ShapeDistanceInconsistentWithGeographyNotice {
-	context := map[string]interface{}{
-		"shapeId":        shapeID,
-		"sequence":       sequence,
-		"providedDist":   providedDist,
-		"geographicDist": geoDist,
-		"difference":     difference,
-		"rowNumber":      rowNumber,
-	}
-	return &ShapeDistanceInconsistentWithGeographyNotice{
-		BaseNotice: NewBaseNotice("shape_distance_inconsistent_with_geography", WARNING, context),
-	}
-}
-
 // === NETWORK TOPOLOGY NOTICES ===
 
 // === FEED EXPIRATION NOTICES ===
-
-// FeedInfoEndDateMissingNotice represents missing feed end date
-type FeedInfoEndDateMissingNotice struct {
-	*BaseNotice
-}
-
-func NewFeedInfoEndDateMissingNotice(rowNumber int) *FeedInfoEndDateMissingNotice {
-	context := map[string]interface{}{
-		"csvRowNumber": rowNumber,
-	}
-	return &FeedInfoEndDateMissingNotice{
-		BaseNotice: NewBaseNotice("feed_info_end_date_missing", WARNING, context),
-	}
-}
-
-// FeedExpiredNotice represents an expired feed
-type FeedExpiredNotice struct {
-	*BaseNotice
-}
-
-func NewFeedExpiredNotice(endDate, currentDate string, daysExpired int) *FeedExpiredNotice {
-	context := map[string]interface{}{
-		"endDate":     endDate,
-		"currentDate": currentDate,
-		"daysExpired": daysExpired,
-	}
-	return &FeedExpiredNotice{
-		BaseNotice: NewBaseNotice("feed_expired", WARNING, context),
-	}
-}
 
 // FeedExpiresWithin7DaysNotice represents feed expiring within 7 days
 type FeedExpiresWithin7DaysNotice struct {
@@ -1701,96 +1278,6 @@ func NewFeedExpiresWithin30DaysNotice(endDate, currentDate string, daysUntilExpi
 	}
 	return &FeedExpiresWithin30DaysNotice{
 		BaseNotice: NewBaseNotice("feed_expiration_date30_days", WARNING, context),
-	}
-}
-
-// ServiceExpiredNotice represents expired service based on calendar
-type ServiceExpiredNotice struct {
-	*BaseNotice
-}
-
-func NewServiceExpiredNotice(lastServiceDate, currentDate string, daysExpired int) *ServiceExpiredNotice {
-	context := map[string]interface{}{
-		"lastServiceDate": lastServiceDate,
-		"currentDate":     currentDate,
-		"daysExpired":     daysExpired,
-	}
-	return &ServiceExpiredNotice{
-		BaseNotice: NewBaseNotice("service_expired", WARNING, context),
-	}
-}
-
-// ServiceExpiresWithin7DaysNotice represents service expiring within 7 days
-type ServiceExpiresWithin7DaysNotice struct {
-	*BaseNotice
-}
-
-func NewServiceExpiresWithin7DaysNotice(lastServiceDate, currentDate string, daysUntilExpiration int) *ServiceExpiresWithin7DaysNotice {
-	context := map[string]interface{}{
-		"lastServiceDate":     lastServiceDate,
-		"currentDate":         currentDate,
-		"daysUntilExpiration": daysUntilExpiration,
-	}
-	return &ServiceExpiresWithin7DaysNotice{
-		BaseNotice: NewBaseNotice("service_expires_within_7_days", WARNING, context),
-	}
-}
-
-// ServiceExpiresWithin30DaysNotice represents service expiring within 30 days
-type ServiceExpiresWithin30DaysNotice struct {
-	*BaseNotice
-}
-
-func NewServiceExpiresWithin30DaysNotice(lastServiceDate, currentDate string, daysUntilExpiration int) *ServiceExpiresWithin30DaysNotice {
-	context := map[string]interface{}{
-		"lastServiceDate":     lastServiceDate,
-		"currentDate":         currentDate,
-		"daysUntilExpiration": daysUntilExpiration,
-	}
-	return &ServiceExpiresWithin30DaysNotice{
-		BaseNotice: NewBaseNotice("service_expires_within_30_days", WARNING, context),
-	}
-}
-
-// NoServiceDateFoundNotice represents no service dates found
-type NoServiceDateFoundNotice struct {
-	*BaseNotice
-}
-
-func NewNoServiceDateFoundNotice() *NoServiceDateFoundNotice {
-	return &NoServiceDateFoundNotice{
-		BaseNotice: NewBaseNotice("no_service_date_found", WARNING, map[string]interface{}{}),
-	}
-}
-
-// NoServiceNext7DaysNotice represents no service in next 7 days
-type NoServiceNext7DaysNotice struct {
-	*BaseNotice
-}
-
-func NewNoServiceNext7DaysNotice(startDate, endDate string) *NoServiceNext7DaysNotice {
-	context := map[string]interface{}{
-		"startDate": startDate,
-		"endDate":   endDate,
-	}
-	return &NoServiceNext7DaysNotice{
-		BaseNotice: NewBaseNotice("no_service_next_7_days", WARNING, context),
-	}
-}
-
-// NoTripsNext7DaysNotice represents no trips in next 7 days
-type NoTripsNext7DaysNotice struct {
-	*BaseNotice
-}
-
-func NewNoTripsNext7DaysNotice(startDate, endDate string, serviceCount int) *NoTripsNext7DaysNotice {
-	context := map[string]interface{}{
-		"startDate":    startDate,
-		"endDate":      endDate,
-		"serviceCount": serviceCount,
-	}
-	return &NoTripsNext7DaysNotice{
-		BaseNotice: NewBaseNotice("no_trips_next_7_days", WARNING, context),
 	}
 }
 

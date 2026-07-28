@@ -48,6 +48,72 @@ func (v *ShapeValidator) Validate(loader *parser.FeedLoader, container *notice.N
 	for _, shape := range shapes {
 		v.validateShape(container, shape)
 	}
+
+	v.validateShapesAreUsed(container, shapes, loader)
+}
+
+// validateShapesAreUsed reports shapes no trip draws. A feed that cannot be
+// read for trips at all is left alone: with no references to compare against,
+// every shape would look unused, and the missing-file check owns that failure.
+func (v *ShapeValidator) validateShapesAreUsed(container *notice.NoticeContainer, shapes map[string]*ShapeInfo, loader *parser.FeedLoader) {
+	referenced, ok := v.loadReferencedShapeIDs(loader)
+	if !ok {
+		return
+	}
+
+	// Sorted so the report does not reshuffle between runs.
+	shapeIDs := make([]string, 0, len(shapes))
+	for shapeID := range shapes {
+		shapeIDs = append(shapeIDs, shapeID)
+	}
+	sort.Strings(shapeIDs)
+
+	for _, shapeID := range shapeIDs {
+		if referenced[shapeID] {
+			continue
+		}
+		container.AddNotice(notice.NewUnusedShapeNotice(
+			shapeID,
+			shapes[shapeID].Points[0].RowNumber,
+		))
+	}
+}
+
+// loadReferencedShapeIDs collects every shape_id trips.txt names, reporting
+// whether the file could be read at all.
+func (v *ShapeValidator) loadReferencedShapeIDs(loader *parser.FeedLoader) (map[string]bool, bool) {
+	referenced := make(map[string]bool)
+
+	reader, err := loader.GetFile("trips.txt")
+	if err != nil {
+		return nil, false
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+
+	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
+	if err != nil {
+		return nil, false
+	}
+
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			break
+		}
+
+		if shapeID := strings.TrimSpace(row.Values["shape_id"]); shapeID != "" {
+			referenced[shapeID] = true
+		}
+	}
+
+	return referenced, true
 }
 
 // loadShapes loads shape information from shapes.txt

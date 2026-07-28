@@ -5,6 +5,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -73,26 +74,103 @@ func (v *RouteNameValidator) validateRoute(container *notice.NoticeContainer, ro
 		return
 	}
 
-	// Check for identical short and long names
-	if !shortNameEmpty && !longNameEmpty {
-		shortName := strings.TrimSpace(routeShortName)
-		longName := strings.TrimSpace(routeLongName)
+	shortName := strings.TrimSpace(routeShortName)
+	longName := strings.TrimSpace(routeLongName)
 
-		if shortName == longName {
-			container.AddNotice(notice.NewSameNameAndDescriptionNotice(
-				strings.TrimSpace(routeID),
-				"route_short_name",
-				"route_long_name",
-				shortName,
-				row.RowNumber,
-			))
-		}
+	// Applications routinely render the two names side by side, so a long name
+	// that already carries the short one shows it twice ("14 Route 14").
+	if !shortNameEmpty && !longNameEmpty && containsAsWord(longName, shortName) {
+		container.AddNotice(notice.NewRouteLongNameContainsShortNameNotice(
+			strings.TrimSpace(routeID),
+			shortName,
+			longName,
+			row.RowNumber,
+		))
+	}
+
+	v.validateRouteDescription(container, row, strings.TrimSpace(routeID), shortName, longName)
+
+	// route_long_name is prose read by riders, unlike route_short_name, which
+	// is normally a code and legitimately upper case.
+	if needsMixedCase(longName) {
+		container.AddNotice(notice.NewMixedCaseRecommendedFieldNotice(
+			"routes.txt",
+			"route_long_name",
+			longName,
+			row.RowNumber,
+		))
 	}
 
 	// Validate route type specific naming conventions
 	if hasRouteType {
 		v.validateRouteTypeNaming(container, row, routeType, routeShortName, routeLongName)
 	}
+}
+
+// validateRouteDescription checks that route_desc says something the names do
+// not. The spec asks it for "useful, quality information" precisely because a
+// description that restates the name costs a line of the rider's screen and
+// tells them nothing.
+func (v *RouteNameValidator) validateRouteDescription(container *notice.NoticeContainer, row *parser.CSVRow, routeID string, shortName string, longName string) {
+	routeDesc := strings.TrimSpace(row.Values["route_desc"])
+	if routeDesc == "" {
+		return
+	}
+
+	// Casing alone does not make a description informative, so "RED LINE" as
+	// the description of "Red Line" is still a duplicate.
+	duplicatedField := ""
+	switch {
+	case shortName != "" && strings.EqualFold(routeDesc, shortName):
+		duplicatedField = "route_short_name"
+	case longName != "" && strings.EqualFold(routeDesc, longName):
+		duplicatedField = "route_long_name"
+	default:
+		return
+	}
+
+	container.AddNotice(notice.NewSameNameAndDescriptionForRouteNotice(
+		routeID,
+		routeDesc,
+		duplicatedField,
+		row.RowNumber,
+	))
+}
+
+// containsAsWord reports whether needle occurs in haystack bounded by
+// something other than a letter or a digit.
+//
+// A plain substring test would flag route "1" for the long name "Route 100",
+// which is not the defect the rule describes: the complaint is that the short
+// name is repeated, and "100" is a different name that merely starts with the
+// same digit.
+func containsAsWord(haystack string, needle string) bool {
+	text := []rune(strings.ToLower(haystack))
+	word := []rune(strings.ToLower(needle))
+	if len(word) == 0 || len(word) > len(text) {
+		return false
+	}
+
+	for i := 0; i+len(word) <= len(text); i++ {
+		if string(text[i:i+len(word)]) != string(word) {
+			continue
+		}
+		if i > 0 && isNameWordRune(text[i-1]) {
+			continue
+		}
+		if end := i + len(word); end < len(text) && isNameWordRune(text[end]) {
+			continue
+		}
+		return true
+	}
+
+	return false
+}
+
+// isNameWordRune reports whether a rune continues a word rather than
+// delimiting one.
+func isNameWordRune(r rune) bool {
+	return unicode.IsLetter(r) || unicode.IsDigit(r)
 }
 
 // validateRouteTypeNaming validates naming conventions specific to route types

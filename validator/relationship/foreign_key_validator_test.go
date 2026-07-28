@@ -39,3 +39,81 @@ func TestForeignKeyValidator_Validate(t *testing.T) {
 		t.Fatalf("expected at least one foreign_key_violation notice, got 0: %+v", codes)
 	}
 }
+
+// TestForeignKeyValidator_ResolvesAgainstTheDefiningFile covers the references
+// that used to have validators of their own: a route's agency_id and a fare
+// rule's zones. Each is run with the cache both off and on, because the two
+// paths build their lookup maps from different sources and a lookup built from
+// the referencing file rather than the defining one can never fail.
+func TestForeignKeyValidator_ResolvesAgainstTheDefiningFile(t *testing.T) {
+	tests := []struct {
+		name        string
+		files       map[string]string
+		expected    int
+		description string
+	}{
+		{
+			name: "route naming an agency that agency.txt does not define",
+			files: map[string]string{
+				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\nA1,Agency,http://a,UTC",
+				"routes.txt": "route_id,route_short_name,route_type,agency_id\nR1,1,3,A999",
+			},
+			expected:    1,
+			description: "A999 appears only in routes.txt",
+		},
+		{
+			name: "route naming an agency in the wrong case",
+			files: map[string]string{
+				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\nAgency1,Agency,http://a,UTC",
+				"routes.txt": "route_id,route_short_name,route_type,agency_id\nR1,1,3,agency1",
+			},
+			expected:    1,
+			description: "IDs match exactly or not at all",
+		},
+		{
+			name: "route naming an agency that exists",
+			files: map[string]string{
+				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\nA1,Agency,http://a,UTC",
+				"routes.txt": "route_id,route_short_name,route_type,agency_id\nR1,1,3,A1",
+			},
+			expected:    0,
+			description: "The reference resolves",
+		},
+		{
+			name: "fare rule naming a zone no stop defines",
+			files: map[string]string{
+				"stops.txt":           "stop_id,stop_name,stop_lat,stop_lon,zone_id\nS1,Stop 1,0,0,Z1",
+				"fare_attributes.txt": "fare_id,price,currency_type\nF1,2.50,USD",
+				"fare_rules.txt":      "fare_id,origin_id,destination_id\nF1,Z1,Z999",
+			},
+			expected:    1,
+			description: "Z999 is referenced but never defined",
+		},
+	}
+
+	for _, tt := range tests {
+		for _, caching := range []bool{false, true} {
+			t.Run(tt.name, func(t *testing.T) {
+				loader := testutil.CreateTestFeedLoader(t, tt.files)
+				if caching {
+					loader.EnableCaching()
+				}
+				container := notice.NewNoticeContainer()
+
+				NewForeignKeyValidator().Validate(loader, container, gtfsvalidator.Config{})
+
+				violations := 0
+				for _, n := range container.GetNotices() {
+					if n.Code() == "foreign_key_violation" {
+						violations++
+					}
+				}
+
+				if violations != tt.expected {
+					t.Errorf("caching=%v: expected %d foreign_key_violation notices, got %d (%s)",
+						caching, tt.expected, violations, tt.description)
+				}
+			})
+		}
+	}
+}

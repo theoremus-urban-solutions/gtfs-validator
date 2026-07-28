@@ -334,6 +334,91 @@ func (v *TravelSpeedValidator) validateTripTravelSpeeds(container *notice.Notice
 
 		v.validateStopPairSpeed(container, tripID, prev, curr, speedLimit, routeType)
 	}
+
+	v.validateFarStopSpeeds(container, tripID, stopTimes)
+}
+
+const (
+	// farStopDistanceKm is the separation beyond which two stops count as
+	// "far" for fast_travel_between_far_stops.
+	farStopDistanceKm = 10.0
+
+	// farStopSpeedLimitKph is flat across modes, unlike the consecutive-stop
+	// limits: no scheduled surface transit sustains 200 km/h over 10 km, and
+	// the canonical rule does not distinguish route types here.
+	farStopSpeedLimitKph = 200.0
+
+	// farStopWindow bounds how many stops ahead the scan looks. A stretch that
+	// takes more than this many calls to reach 10 km is a local service where
+	// the consecutive-stop check already has the coverage.
+	farStopWindow = 20
+)
+
+// validateFarStopSpeeds looks past consecutive stops for stretches of more than
+// 10 km covered faster than any transit vehicle manages. Over a distance that
+// long one mistyped time cannot account for the speed, so it points at the
+// trip's whole timetable or at its stop locations rather than at a single row.
+func (v *TravelSpeedValidator) validateFarStopSpeeds(container *notice.NoticeContainer, tripID string, stopTimes []StopTimeWithLocation) {
+	for i := range stopTimes {
+		from := &stopTimes[i]
+		departure := departureOrArrival(from)
+		if departure == nil {
+			continue
+		}
+
+		// The walk stops as soon as the stretch is long enough to judge, which
+		// keeps the pass linear in the length of the trip.
+		accumulatedKm := 0.0
+		for j := i + 1; j < len(stopTimes) && j-i <= farStopWindow; j++ {
+			accumulatedKm += v.haversineDistance(
+				*stopTimes[j-1].Latitude, *stopTimes[j-1].Longitude,
+				*stopTimes[j].Latitude, *stopTimes[j].Longitude,
+			)
+			if accumulatedKm <= farStopDistanceKm {
+				continue
+			}
+
+			to := &stopTimes[j]
+			arrival := arrivalOrDeparture(to)
+			if arrival == nil {
+				continue // no time to judge against; keep looking ahead
+			}
+
+			seconds := *arrival - *departure
+			if seconds <= 0 {
+				break // backwards or zero-length; the sequence checks own this
+			}
+
+			if speed := accumulatedKm / (float64(seconds) / 3600.0); speed > farStopSpeedLimitKph {
+				container.AddNotice(notice.NewFastTravelBetweenFarStopsNotice(
+					tripID,
+					from.StopID, from.StopSequence,
+					to.StopID, to.StopSequence,
+					speed, accumulatedKm,
+					from.RowNumber, to.RowNumber,
+				))
+			}
+			break
+		}
+	}
+}
+
+// departureOrArrival is when the vehicle leaves a stop, falling back to when it
+// arrived for stop times that give only one of the two.
+func departureOrArrival(stopTime *StopTimeWithLocation) *int {
+	if stopTime.DepartureTime != nil {
+		return stopTime.DepartureTime
+	}
+	return stopTime.ArrivalTime
+}
+
+// arrivalOrDeparture is the mirror of departureOrArrival, for the far end of a
+// stretch.
+func arrivalOrDeparture(stopTime *StopTimeWithLocation) *int {
+	if stopTime.ArrivalTime != nil {
+		return stopTime.ArrivalTime
+	}
+	return stopTime.DepartureTime
 }
 
 // validateStopPairSpeed validates travel speed between two consecutive stops

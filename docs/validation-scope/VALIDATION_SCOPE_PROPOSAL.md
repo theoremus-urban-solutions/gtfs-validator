@@ -1,5 +1,36 @@
 # Validation scope proposal
 
+> **Status: executed.** All 133 in-scope canonical rules are implemented, no
+> non-canonical code is ERROR, and no severity disagrees with canonical. Run
+> `python3 scripts/scope_audit.py` for the live reconciliation and see
+> `CANONICAL_PARITY.md` for the resulting parity statement.
+>
+> Three things in this document turned out to be wrong, and were corrected
+> rather than followed:
+>
+> 1. **§2 Tier 1 says `forbidden_pickup_type` / `forbidden_drop_off_type` are
+>    "what our `first_stop_no_pickup` / `last_stop_no_drop_off` become".** They
+>    are not. Both canonical rules are about GTFS-Flex pickup/drop-off windows
+>    and say nothing about the first or last stop of a trip. The same applies to
+>    `missing_stop_times_record`, `forbidden_arrival_or_departure_time`,
+>    `forbidden_shape_dist_traveled` and `forbidden_continuous_pickup_drop_off`,
+>    which §3 would otherwise have declined as Flex. All six are implemented to
+>    the canonical meaning, which makes them inert on non-Flex feeds; the two
+>    private codes are kept, at WARNING, because nothing canonical covers them.
+> 2. **`unused_shape` is a canonical code**, not one of ours. §1c dropped it as
+>    part of the shape-cluster collapse; it has been restored.
+> 3. **§4's "duplicate emissions: 0" is not reachable as stated.** The 44 figure
+>    counts generic codes such as `foreign_key_violation`,
+>    `missing_required_field` and `invalid_url`, which are legitimately raised
+>    from many validators with different context. Genuine duplicates — the same
+>    check written twice — are gone.
+>
+> §5's list of 14 surviving non-canonical codes was also written against the
+> pre-rework tree and undercounts. Its stated test is the right one — "does a
+> canonical rule already cover this?" — and that test, not the list, is what was
+> applied. Codes it expected to disappear but which nothing canonical covers
+> were kept at WARNING rather than deleted, so no coverage was lost silently.
+
 Scope criteria, in priority order:
 
 1. **Canonical MobilityData rules, minus extensions.** These are the contract.

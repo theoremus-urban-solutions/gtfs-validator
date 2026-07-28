@@ -11,267 +11,205 @@ import (
 )
 
 func TestServiceValidationValidator_Validate(t *testing.T) {
+	currentDate := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	const calendarHeader = "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n"
+
 	tests := []struct {
-		name                string
-		files               map[string]string
-		expectedNoticeCodes []string
-		description         string
+		name        string
+		files       map[string]string
+		wantCodes   []string
+		description string
 	}{
 		{
 			name: "valid service",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,1,1,1,1,1,0,0,20260801,20261201",
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,service1",
+				"calendar.txt": calendarHeader + "service1,1,1,1,1,1,0,0,20240101,20241201",
+				"trips.txt":    "trip_id,route_id,service_id\ntrip1,route1,service1",
 			},
-			expectedNoticeCodes: []string{},
-			description:         "Valid service should not generate notices",
+			wantCodes:   nil,
+			description: "A used service still running generates nothing",
 		},
 		{
 			name: "service without active days",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,0,0,0,0,0,0,0,20260801,20261201",
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,service1",
+				"calendar.txt": calendarHeader + "service1,0,0,0,0,0,0,0,20240101,20241201",
+				"trips.txt":    "trip_id,route_id,service_id\ntrip1,route1,service1",
 			},
-			expectedNoticeCodes: []string{"service_has_no_active_day_of_the_week"},
-			description:         "Service with no active days should generate error",
-		},
-		{
-			name: "invalid date range",
-			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,1,1,1,1,1,0,0,20261201,20260801", // End before start
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,service1",
-			},
-			expectedNoticeCodes: []string{}, // reported as start_and_end_range_out_of_order by the type layer
-			description:         "Service with end date before start date should generate error",
+			wantCodes:   []string{"service_has_no_active_day_of_the_week"},
+			description: "A service running on no weekday never runs at all",
 		},
 		{
 			name: "expired service",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,1,1,1,1,1,0,0,20230101,20230228", // Ended more than 30 days ago
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,service1",
+				"calendar.txt": calendarHeader + "service1,1,1,1,1,1,0,0,20230101,20230228",
+				"trips.txt":    "trip_id,route_id,service_id\ntrip1,route1,service1",
 			},
-			expectedNoticeCodes: []string{"expired_service"},
-			description:         "Service that ended more than 30 days ago should generate warning",
+			wantCodes:   []string{"expired_calendar"},
+			description: "A service whose end_date has passed can no longer be planned on",
+		},
+		{
+			name: "added exception keeps an otherwise expired service alive",
+			files: map[string]string{
+				"calendar.txt":       calendarHeader + "service1,1,1,1,1,1,0,0,20230101,20230228",
+				"calendar_dates.txt": "service_id,date,exception_type\nservice1,20241225,1",
+				"trips.txt":          "trip_id,route_id,service_id\ntrip1,route1,service1",
+			},
+			wantCodes:   nil,
+			description: "calendar_dates.txt additions extend the last active date past end_date",
+		},
+		{
+			name: "removed exception does not extend a service",
+			files: map[string]string{
+				"calendar.txt":       calendarHeader + "service1,1,1,1,1,1,0,0,20230101,20230228",
+				"calendar_dates.txt": "service_id,date,exception_type\nservice1,20241225,2",
+				"trips.txt":          "trip_id,route_id,service_id\ntrip1,route1,service1",
+			},
+			wantCodes:   []string{"expired_calendar"},
+			description: "A removal adds no service, so the service is still expired",
+		},
+		{
+			name: "calendar_dates-only service entirely in the past",
+			files: map[string]string{
+				"calendar_dates.txt": "service_id,date,exception_type\nholiday,20240101,1\nholiday,20240215,1",
+				"trips.txt":          "trip_id,route_id,service_id\ntrip1,route1,holiday",
+			},
+			wantCodes:   []string{"expired_calendar"},
+			description: "The last added date is what such a service expires on",
+		},
+		{
+			name: "calendar_dates-only service still to come",
+			files: map[string]string{
+				"calendar_dates.txt": "service_id,date,exception_type\nholiday,20240704,1\nholiday,20241225,1",
+				"trips.txt":          "trip_id,route_id,service_id\ntrip1,route1,holiday",
+			},
+			wantCodes:   nil,
+			description: "Additions in the future are exactly what the feed is for",
+		},
+		{
+			name: "service ending more than two years out",
+			files: map[string]string{
+				"calendar.txt": calendarHeader + "service1,1,1,1,1,1,0,0,20240101,20281231",
+				"trips.txt":    "trip_id,route_id,service_id\ntrip1,route1,service1",
+			},
+			wantCodes:   []string{"service_extends_far_in_the_future"},
+			description: "Dates that far ahead are a placeholder, not a schedule anyone has checked",
+		},
+		{
+			name: "service ending just inside two years",
+			files: map[string]string{
+				"calendar.txt": calendarHeader + "service1,1,1,1,1,1,0,0,20240101,20260101",
+				"trips.txt":    "trip_id,route_id,service_id\ntrip1,route1,service1",
+			},
+			wantCodes:   nil,
+			description: "Two years of published schedule is committed, not speculative",
+		},
+		{
+			name: "calendar_dates-only service far in the future",
+			files: map[string]string{
+				"calendar_dates.txt": "service_id,date,exception_type\nholiday,20281225,1",
+				"trips.txt":          "trip_id,route_id,service_id\ntrip1,route1,holiday",
+			},
+			wantCodes:   []string{"service_extends_far_in_the_future"},
+			description: "The last added date decides this for such a service too",
 		},
 		{
 			name: "unused calendar service",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,1,1,1,1,1,0,0,20260801,20261201\n" +
-					"unused_service,1,1,1,1,1,0,0,20260801,20261201",
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,service1",
+				"calendar.txt": calendarHeader +
+					"service1,1,1,1,1,1,0,0,20240101,20241201\n" +
+					"spare,1,1,1,1,1,0,0,20240101,20241201",
+				"trips.txt": "trip_id,route_id,service_id\ntrip1,route1,service1",
 			},
-			expectedNoticeCodes: []string{"unused_service"},
-			description:         "Unused service should generate warning",
+			wantCodes:   []string{"unused_service"},
+			description: "A calendar entry no trip references is dead weight",
 		},
 		{
 			name: "unused calendar_dates service",
 			files: map[string]string{
 				"calendar_dates.txt": "service_id,date,exception_type\n" +
-					"used_service,20240704,2\n" +
-					"unused_service,20241225,2",
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,used_service",
+					"used,20241225,1\n" +
+					"spare,20241225,1",
+				"trips.txt": "trip_id,route_id,service_id\ntrip1,route1,used",
 			},
-			expectedNoticeCodes: []string{"unused_service"},
-			description:         "Unused calendar_dates service should generate warning",
+			wantCodes:   []string{"unused_service"},
+			description: "Same for a service defined only in calendar_dates.txt",
 		},
 		{
-			name: "weekend only service",
+			name: "service present in both files is counted once",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"weekend,0,0,0,0,0,1,1,20260801,20261201",
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,weekend",
+				"calendar.txt":       calendarHeader + "service1,1,1,1,1,1,0,0,20240101,20241201",
+				"calendar_dates.txt": "service_id,date,exception_type\nservice1,20240704,2",
+				"trips.txt":          "trip_id,route_id,service_id\ntrip1,route1,service1",
 			},
-			expectedNoticeCodes: []string{},
-			description:         "Weekend-only service should be valid",
+			wantCodes:   nil,
+			description: "A service is not unused just because it appears twice",
 		},
 		{
 			name: "service without dates",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday\n" +
-					"service1,1,1,1,1,1,0,0",
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,service1",
+				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday\nservice1,1,1,1,1,1,0,0",
+				"trips.txt":    "trip_id,route_id,service_id\ntrip1,route1,service1",
 			},
-			expectedNoticeCodes: []string{},
-			description:         "Service without dates should not generate date-related errors",
+			wantCodes:   nil,
+			description: "Missing dates are a required-field problem, not an expiry one",
 		},
 		{
-			name: "mixed services",
+			name: "unparseable end date",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"valid_service,1,1,1,1,1,0,0,20260801,20261201\n" +
-					"no_days,0,0,0,0,0,0,0,20260801,20261201\n" +
-					"invalid_range,1,1,1,1,1,0,0,20261201,20260801",
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,valid_service\n" +
-					"trip2,route2,no_days\n" +
-					"trip3,route3,invalid_range",
+				"calendar.txt": calendarHeader + "service1,1,1,1,1,1,0,0,20240101,not-a-date",
+				"trips.txt":    "trip_id,route_id,service_id\ntrip1,route1,service1",
 			},
-			expectedNoticeCodes: []string{"service_has_no_active_day_of_the_week"},
-			description:         "Multiple services with different issues should generate appropriate notices",
+			wantCodes:   nil,
+			description: "Reported as invalid_date by the type layer",
 		},
 		{
-			name: "service only in calendar_dates",
-			files: map[string]string{
-				"calendar_dates.txt": "service_id,date,exception_type\n" +
-					"holiday_service,20240704,1\n" +
-					"holiday_service,20241225,1",
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,holiday_service",
-			},
-			expectedNoticeCodes: []string{},
-			description:         "Service defined only in calendar_dates should be valid",
-		},
-		{
-			name: "service in both calendar and calendar_dates",
-			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,1,1,1,1,1,0,0,20260801,20261201",
-				"calendar_dates.txt": "service_id,date,exception_type\n" +
-					"service1,20260704,2", // Holiday exception
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,service1",
-			},
-			expectedNoticeCodes: []string{},
-			description:         "Service in both files should be valid",
-		},
-		{
-			name: "current date service",
-			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"current_service,1,1,1,1,1,0,0,20260801,20261201", // Should not be expired
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,current_service",
-			},
-			expectedNoticeCodes: []string{},
-			description:         "Current date service should not be marked as expired",
-		},
-		{
-			name: "no calendar files",
-			files: map[string]string{
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,service1",
-			},
-			expectedNoticeCodes: []string{},
-			description:         "Missing calendar files should not generate errors",
-		},
-		{
-			name: "empty calendar file",
-			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n",
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,service1",
-			},
-			expectedNoticeCodes: []string{},
-			description:         "Empty calendar file should not generate errors",
-		},
-		{
-			name: "service with invalid date format ignored",
-			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"service1,1,1,1,1,1,0,0,invalid,20261201",
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,service1",
-			},
-			expectedNoticeCodes: []string{},
-			description:         "Service with invalid date format should not cause date-related validations",
-		},
-		{
-			name: "single day service",
-			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"single_day,0,0,0,0,1,0,0,20260829,20260829", // Single Friday
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,single_day",
-			},
-			expectedNoticeCodes: []string{},
-			description:         "Single day service should be valid",
+			name:        "no calendar files",
+			files:       map[string]string{"trips.txt": "trip_id,route_id,service_id\ntrip1,route1,service1"},
+			wantCodes:   nil,
+			description: "Reported as missing_calendar_and_calendar_date_files elsewhere",
 		},
 		{
 			name: "whitespace handling",
 			files: map[string]string{
-				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					" service1 , 1 , 1 , 1 , 1 , 1 , 0 , 0 , 20260801 , 20261201 ",
-				"calendar_dates.txt": "service_id,date,exception_type\n" +
-					" service2 , 20260704 , 2 ",
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1, service1 \n" +
-					"trip2,route2, service2 ",
+				"calendar.txt":       calendarHeader + " service1 , 1 , 1 , 1 , 1 , 1 , 0 , 0 , 20240101 , 20241201 ",
+				"calendar_dates.txt": "service_id,date,exception_type\n service2 , 20241225 , 1 ",
+				"trips.txt":          "trip_id,route_id,service_id\ntrip1,route1, service1 \ntrip2,route2, service2 ",
 			},
-			expectedNoticeCodes: []string{},
-			description:         "Whitespace should be trimmed properly",
+			wantCodes:   nil,
+			description: "Whitespace should be trimmed on both sides of every join",
 		},
 		{
-			name: "service without service_id ignored",
+			name: "calendar entry without service_id ignored",
 			files: map[string]string{
-				"calendar.txt": "monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-					"1,1,1,1,1,0,0,20240601,20241201",
-				"trips.txt": "trip_id,route_id,service_id\n" +
-					"trip1,route1,service1",
+				"calendar.txt": "monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n1,1,1,1,1,0,0,20240101,20241201",
+				"trips.txt":    "trip_id,route_id,service_id\ntrip1,route1,service1",
 			},
-			expectedNoticeCodes: []string{},
-			description:         "Calendar entries without service_id should be ignored",
+			wantCodes:   nil,
+			description: "A row with no key cannot be reported against a service",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create test feed loader
 			feedLoader := testutil.CreateTestFeedLoader(t, tt.files)
-
-			// Create notice container and validator
 			container := notice.NewNoticeContainer()
-			validator := NewServiceValidationValidator()
-			config := gtfsvalidator.Config{}
 
-			// Run validation
-			validator.Validate(feedLoader, container, config)
+			v := NewServiceValidationValidator()
+			v.Validate(feedLoader, container, gtfsvalidator.Config{CurrentDate: currentDate})
 
-			// Get all notices
-			allNotices := container.GetNotices()
-
-			// Extract notice codes
-			var actualNoticeCodes []string
-			for _, n := range allNotices {
-				actualNoticeCodes = append(actualNoticeCodes, n.Code())
+			got := map[string]int{}
+			for _, n := range container.GetNotices() {
+				got[n.Code()]++
 			}
 
-			// Check if we got the expected notice codes
-			expectedSet := make(map[string]bool)
-			for _, code := range tt.expectedNoticeCodes {
-				expectedSet[code] = true
-			}
-
-			actualSet := make(map[string]bool)
-			for _, code := range actualNoticeCodes {
-				actualSet[code] = true
-			}
-
-			// Verify expected codes are present
-			for expectedCode := range expectedSet {
-				if !actualSet[expectedCode] {
-					t.Errorf("Expected notice code '%s' not found. Got: %v", expectedCode, actualNoticeCodes)
+			for _, code := range tt.wantCodes {
+				if got[code] == 0 {
+					t.Errorf("expected %s: %s (got %v)", code, tt.description, got)
 				}
 			}
-
-			// If no notices expected, ensure no notices were generated
-			if len(tt.expectedNoticeCodes) == 0 && len(actualNoticeCodes) > 0 {
-				t.Errorf("Expected no notices, but got: %v", actualNoticeCodes)
+			if len(got) != len(tt.wantCodes) {
+				t.Errorf("expected exactly %v, got %v: %s", tt.wantCodes, got, tt.description)
 			}
-
-			t.Logf("Test '%s': Expected %v, Got %v", tt.name, tt.expectedNoticeCodes, actualNoticeCodes)
 		})
 	}
 }
@@ -301,28 +239,6 @@ func TestServiceValidationValidator_LoadCalendarServices(t *testing.T) {
 						"friday":    true,
 						"saturday":  false,
 						"sunday":    false,
-					},
-					RowNumber: 2,
-				},
-			},
-		},
-		{
-			name: "weekend service",
-			csvData: "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-				"weekend,0,0,0,0,0,1,1,20260101,20261231",
-			expected: map[string]*ServiceInfo{
-				"weekend": {
-					ServiceID: "weekend",
-					StartDate: "20260101",
-					EndDate:   "20261231",
-					Days: map[string]bool{
-						"monday":    false,
-						"tuesday":   false,
-						"wednesday": false,
-						"thursday":  false,
-						"friday":    false,
-						"saturday":  true,
-						"sunday":    true,
 					},
 					RowNumber: 2,
 				},
@@ -449,41 +365,43 @@ func TestServiceValidationValidator_LoadCalendarDateServices(t *testing.T) {
 	validator := NewServiceValidationValidator()
 
 	tests := []struct {
-		name     string
-		csvData  string
-		expected map[string]bool
+		name        string
+		csvData     string
+		expected    map[string]string // service_id -> last added date, "" for none
+		description string
 	}{
 		{
-			name: "single service",
-			csvData: "service_id,date,exception_type\n" +
-				"service1,20240704,2",
-			expected: map[string]bool{
-				"service1": true,
-			},
+			name:        "removal only",
+			csvData:     "service_id,date,exception_type\nservice1,20240704,2",
+			expected:    map[string]string{"service1": ""},
+			description: "A service only ever removed has no active date",
 		},
 		{
-			name: "multiple services",
+			name: "latest addition wins",
 			csvData: "service_id,date,exception_type\n" +
-				"service1,20240704,2\n" +
-				"service2,20241225,2\n" +
-				"service1,20240101,1", // Duplicate service - should still appear once
-			expected: map[string]bool{
-				"service1": true,
-				"service2": true,
-			},
+				"service1,20240704,1\n" +
+				"service2,20241225,1\n" +
+				"service1,20240101,1",
+			expected:    map[string]string{"service1": "20240704", "service2": "20241225"},
+			description: "Rows arrive in no particular order",
 		},
 		{
-			name: "whitespace trimming",
-			csvData: "service_id,date,exception_type\n" +
-				" service1 , 20240704 , 2 ",
-			expected: map[string]bool{
-				"service1": true,
-			},
+			name:        "removals do not count as additions",
+			csvData:     "service_id,date,exception_type\nservice1,20240101,1\nservice1,20241225,2",
+			expected:    map[string]string{"service1": "20240101"},
+			description: "A later removal must not extend the service",
 		},
 		{
-			name:     "empty file",
-			csvData:  "service_id,date,exception_type\n",
-			expected: map[string]bool{},
+			name:        "whitespace trimming",
+			csvData:     "service_id,date,exception_type\n service1 , 20240704 , 1 ",
+			expected:    map[string]string{"service1": "20240704"},
+			description: "Values are padded in real feeds",
+		},
+		{
+			name:        "empty file",
+			csvData:     "service_id,date,exception_type\n",
+			expected:    map[string]string{},
+			description: "A header-only file defines no services",
 		},
 	}
 
@@ -496,12 +414,22 @@ func TestServiceValidationValidator_LoadCalendarDateServices(t *testing.T) {
 			result := validator.loadCalendarDateServices(feedLoader)
 
 			if len(result) != len(tt.expected) {
-				t.Errorf("Expected %d services, got %d", len(tt.expected), len(result))
+				t.Errorf("Expected %d services, got %d: %s", len(tt.expected), len(result), tt.description)
 			}
 
-			for serviceID, expectedValue := range tt.expected {
-				if actualValue, exists := result[serviceID]; !exists || actualValue != expectedValue {
-					t.Errorf("Service %s: expected %v, got %v", serviceID, expectedValue, actualValue)
+			for serviceID, expectedDate := range tt.expected {
+				service, exists := result[serviceID]
+				if !exists {
+					t.Errorf("Expected service %s not found: %s", serviceID, tt.description)
+					continue
+				}
+
+				got := ""
+				if service.LastAddedDate != nil {
+					got = service.LastAddedDate.Format("20060102")
+				}
+				if got != expectedDate {
+					t.Errorf("Service %s: expected last added date %q, got %q: %s", serviceID, expectedDate, got, tt.description)
 				}
 			}
 		})

@@ -26,8 +26,8 @@ func TestMissingFilesValidator_Validate(t *testing.T) {
 				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,1,1",
 				"calendar.txt":   "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250101,20251231",
 			},
-			expectedNoticeCodes: []string{},
-			description:         "Valid GTFS feed with all required files",
+			expectedNoticeCodes: []string{"missing_recommended_file"},
+			description:         "Valid GTFS feed with all required files, but no recommended feed_info.txt",
 		},
 		{
 			name: "missing agency.txt",
@@ -37,7 +37,7 @@ func TestMissingFilesValidator_Validate(t *testing.T) {
 				"trips.txt":      "route_id,service_id,trip_id\n1,S1,T1",
 				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,1,1",
 			},
-			expectedNoticeCodes: []string{"missing_required_file", "missing_calendar_and_calendar_date_files"},
+			expectedNoticeCodes: []string{"missing_required_file", "missing_calendar_and_calendar_date_files", "missing_recommended_file"},
 			description:         "Missing required agency.txt file and calendar files",
 		},
 		{
@@ -45,7 +45,7 @@ func TestMissingFilesValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 			},
-			expectedNoticeCodes: []string{"missing_required_file", "missing_required_file", "missing_required_file", "missing_required_file", "missing_calendar_and_calendar_date_files"},
+			expectedNoticeCodes: []string{"missing_required_file", "missing_required_file", "missing_required_file", "missing_required_file", "missing_calendar_and_calendar_date_files", "missing_recommended_file"},
 			description:         "Missing stops.txt, routes.txt, trips.txt, stop_times.txt, and calendar files",
 		},
 		{
@@ -57,7 +57,7 @@ func TestMissingFilesValidator_Validate(t *testing.T) {
 				"trips.txt":      "route_id,service_id,trip_id\n1,S1,T1",
 				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,1,1",
 			},
-			expectedNoticeCodes: []string{"missing_calendar_and_calendar_date_files"},
+			expectedNoticeCodes: []string{"missing_calendar_and_calendar_date_files", "missing_recommended_file"},
 			description:         "Missing both calendar.txt and calendar_dates.txt",
 		},
 		{
@@ -70,7 +70,7 @@ func TestMissingFilesValidator_Validate(t *testing.T) {
 				"stop_times.txt":     "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,1,1",
 				"calendar_dates.txt": "service_id,date,exception_type\nS1,20250101,1",
 			},
-			expectedNoticeCodes: []string{},
+			expectedNoticeCodes: []string{"missing_recommended_file"},
 			description:         "Valid with only calendar_dates.txt (no calendar.txt needed)",
 		},
 		{
@@ -84,8 +84,8 @@ func TestMissingFilesValidator_Validate(t *testing.T) {
 				"calendar.txt":     "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250101,20251231",
 				"translations.txt": "table_name,field_name,language,translation\nstops,stop_name,es,Calle Principal",
 			},
-			expectedNoticeCodes: []string{"missing_feed_info"},
-			description:         "translations.txt requires feed_info.txt",
+			expectedNoticeCodes: []string{"missing_required_file"},
+			description:         "translations.txt makes feed_info.txt required, not merely recommended",
 		},
 		{
 			name: "fare_rules.txt without fare_attributes.txt",
@@ -98,7 +98,7 @@ func TestMissingFilesValidator_Validate(t *testing.T) {
 				"calendar.txt":   "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250101,20251231",
 				"fare_rules.txt": "fare_id,route_id\nF1,1",
 			},
-			expectedNoticeCodes: []string{"missing_fare_attributes"},
+			expectedNoticeCodes: []string{"missing_required_file", "missing_recommended_file"},
 			description:         "fare_rules.txt requires fare_attributes.txt",
 		},
 		{
@@ -112,8 +112,8 @@ func TestMissingFilesValidator_Validate(t *testing.T) {
 				"calendar.txt":   "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nS1,1,1,1,1,1,0,0,20250101,20251231",
 				"pathways.txt":   "pathway_id,from_stop_id,to_stop_id,pathway_mode\nP1,1,2,1",
 			},
-			expectedNoticeCodes: []string{"missing_levels"},
-			description:         "pathways.txt requires levels.txt",
+			expectedNoticeCodes: []string{"missing_recommended_file", "missing_recommended_file"},
+			description:         "pathways.txt recommends levels.txt, and feed_info.txt is absent too",
 		},
 		{
 			name: "complete valid feed with optional files",
@@ -246,6 +246,61 @@ func TestMissingFilesValidator_ValidateRequiredFiles(t *testing.T) {
 
 			if missingFileNotices != len(tt.expectedMissing) {
 				t.Errorf("Expected %d missing file notices, got %d", len(tt.expectedMissing), missingFileNotices)
+			}
+		})
+	}
+}
+
+func TestMissingFilesValidator_ValidateRecommendedFiles(t *testing.T) {
+	tests := []struct {
+		name                string
+		files               map[string]string
+		expectedNoticeCodes []string
+	}{
+		{
+			name:                "feed_info.txt absent",
+			files:               map[string]string{},
+			expectedNoticeCodes: []string{"missing_recommended_file"},
+		},
+		{
+			name: "feed_info.txt present",
+			files: map[string]string{
+				"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,en",
+			},
+			expectedNoticeCodes: []string{},
+		},
+		{
+			name: "translations.txt present without feed_info.txt",
+			files: map[string]string{
+				"translations.txt": "table_name,field_name,language,translation\nstops,stop_name,es,Calle Principal",
+			},
+			// Required rather than recommended here, and reported as such by
+			// validateConditionalFiles.
+			expectedNoticeCodes: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			loader := testutil.CreateTestFeedLoader(t, tt.files)
+			container := notice.NewNoticeContainer()
+			validator := NewMissingFilesValidator()
+
+			validator.validateRecommendedFiles(loader, container)
+
+			actualCodes := make([]string, 0)
+			for _, n := range container.GetNotices() {
+				actualCodes = append(actualCodes, n.Code())
+			}
+
+			if len(actualCodes) != len(tt.expectedNoticeCodes) {
+				t.Errorf("Expected %v, got %v", tt.expectedNoticeCodes, actualCodes)
+				return
+			}
+			for i, expectedCode := range tt.expectedNoticeCodes {
+				if actualCodes[i] != expectedCode {
+					t.Errorf("Expected notice code '%s' at index %d, got '%v'", expectedCode, i, actualCodes)
+				}
 			}
 		})
 	}

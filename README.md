@@ -2,18 +2,29 @@
 
 [![Go Version](https://img.shields.io/badge/go-1.21+-blue.svg)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Validation Rules](https://img.shields.io/badge/Validation%20Rules-201-brightgreen.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
+[![Validation Rules](https://img.shields.io/badge/Validation%20Rules-176-brightgreen.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
+[![Canonical Parity](https://img.shields.io/badge/Canonical%20Parity-133%2F133-brightgreen.svg)](CANONICAL_PARITY.md)
 [![Test Coverage](https://img.shields.io/badge/Test%20Coverage-100%25-brightgreen.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
 [![Performance](https://img.shields.io/badge/Performance-5s%20for%20588k%20stops-orange.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
 
-A fast, comprehensive GTFS (General Transit Feed Specification) validator library for Go. 201 validation rules covering the GTFS specification plus business-logic checks that matter to downstream consumers such as OpenTripPlanner.
+A fast, comprehensive GTFS (General Transit Feed Specification) validator library for Go. 176 validation rules: every applicable rule from the Canonical GTFS Schedule Validator, plus business-logic checks that matter to downstream consumers such as OpenTripPlanner.
 
-> **📊 Scope**: 201 rules. 40 share a code with the [Canonical GTFS Schedule Validator](https://gtfs-validator.mobilitydata.org/rules.html); 137 of its rules are not yet implemented. The remaining 161 are additional checks, kept because they cover failure modes that break OpenTripPlanner graph builds. See [CANONICAL_PARITY.md](CANONICAL_PARITY.md).
+> **📊 Scope**: 176 rules. **All 133 applicable rules from the
+> [Canonical GTFS Schedule Validator](https://gtfs-validator.mobilitydata.org/rules.html)
+> are implemented**, at the severity it gives them. The 48 canonical rules not
+> implemented are GTFS-Flex, GTFS-Fares v2, deprecated upstream, or artefacts of
+> that validator's own execution model rather than feed defects.
+>
+> The other 43 rules are ours, covering failure modes the canonical set does not
+> model — several of which break OpenTripPlanner graph builds. None of them is
+> ERROR: a code MobilityData does not define is our opinion, and an opinion
+> should not fail your feed. See [CANONICAL_PARITY.md](CANONICAL_PARITY.md) and
+> [VALIDATOR_RULES.md](VALIDATOR_RULES.md).
 
 ## Features
 
 - **🚀 Fast Validation**: Optimized for large feeds with parallel processing and memory pools
-- **📋 Comprehensive**: 201 validation rules across 59 validators
+- **📋 Comprehensive**: 176 validation rules across 50 validators, in full parity with the canonical validator
 - **🔧 Multiple Modes**: Performance, default, and comprehensive validation modes
 - **⚡ Concurrent**: Thread-safe with configurable worker pools
 - **⏰ Context Support**: Cancellation, timeouts, and progress reporting
