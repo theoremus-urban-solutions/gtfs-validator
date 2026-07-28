@@ -48,7 +48,7 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles\n,Bus,http://bus.example,America/Los_Angeles", // Missing agency_id
 			},
-			expectedNoticeCodes: []string{"missing_agency_id"},
+			expectedNoticeCodes: []string{"missing_required_agency_id"},
 			description:         "Multiple agencies require agency_id for all",
 		},
 		{
@@ -66,7 +66,7 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles\n2,Bus,http://bus.example,America/Los_Angeles",
 				"routes.txt": "route_id,route_short_name,route_type\nR1,Red,3", // Missing agency_id
 			},
-			expectedNoticeCodes: []string{"missing_route_agency_id"},
+			expectedNoticeCodes: []string{"missing_required_agency_id"},
 			description:         "Route without agency_id when multiple agencies exist should generate notice",
 		},
 		{
@@ -83,7 +83,7 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n,Metro,http://metro.example,America/Los_Angeles\n2,Bus,http://bus.example,America/Los_Angeles",
 			},
-			expectedNoticeCodes: []string{"missing_agency_id"},
+			expectedNoticeCodes: []string{"missing_required_agency_id"},
 			description:         "Empty agency_id should be treated as missing",
 		},
 		{
@@ -91,7 +91,7 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n   ,Metro,http://metro.example,America/Los_Angeles\n2,Bus,http://bus.example,America/Los_Angeles",
 			},
-			expectedNoticeCodes: []string{"missing_agency_id"},
+			expectedNoticeCodes: []string{"missing_required_agency_id"},
 			description:         "Whitespace-only agency_id should be treated as missing",
 		},
 		{
@@ -178,7 +178,7 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles\n,Bus,http://bus.example,America/Los_Angeles\n3,Rail,http://rail.example,America/Los_Angeles\n,Subway,http://subway.example,America/Los_Angeles", // Two missing agency_ids
 			},
-			expectedNoticeCodes: []string{"missing_agency_id", "missing_agency_id"},
+			expectedNoticeCodes: []string{"missing_required_agency_id", "missing_required_agency_id"},
 			description:         "Multiple agencies with missing agency_ids should generate multiple notices",
 		},
 		{
@@ -496,7 +496,7 @@ func TestAgencyConsistencyValidator_ValidateRouteAgencyReferences(t *testing.T) 
 				{AgencyID: "2", AgencyName: "Bus", RowNumber: 3},
 			},
 			expectedNoticeCount: 1,
-			expectedCodes:       []string{"missing_route_agency_id"},
+			expectedCodes:       []string{"missing_required_agency_id"},
 			description:         "Route without agency_id should generate notice with multiple agencies",
 		},
 		{

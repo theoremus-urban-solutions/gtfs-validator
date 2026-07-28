@@ -12,7 +12,9 @@ import (
 	"github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
 
-// DateTripsValidator validates that trips exist for the next 7 days with majority service coverage
+// DateTripsValidator reports feeds whose trips stop running within the coming
+// week. A feed that expires mid-week strands every consumer that refreshes on
+// a weekly cadence.
 type DateTripsValidator struct{}
 
 // NewDateTripsValidator creates a new date trips validator
@@ -55,17 +57,13 @@ func (v *DateTripsValidator) Validate(loader *parser.FeedLoader, container *noti
 	services := v.loadServices(loader)
 	exceptions := v.loadCalendarExceptions(loader)
 
-	// Check if we have any services at all (both calendar.txt and calendar_dates.txt can define services)
+	// A feed with no services at all is reported as
+	// missing_calendar_and_calendar_date_files by core/missing_files_validator.
 	if len(services) == 0 && len(exceptions) == 0 {
-		container.AddNotice(notice.NewNoServiceDefinedNotice())
 		return
 	}
 
-	// Check service coverage for the next 7 days
 	v.validateNext7DaysService(container, services, exceptions, currentDate)
-
-	// Check service coverage for the next 30 days (warning level)
-	v.validateNext30DaysService(container, services, exceptions, currentDate)
 }
 
 // loadServices loads service information from calendar.txt
@@ -98,9 +96,16 @@ func (v *DateTripsValidator) loadServices(loader *parser.FeedLoader) map[string]
 
 		service := v.parseService(row)
 		if service != nil {
-			// Count trips for this service
-			service.TripCount = v.countTripsForService(loader, service.ServiceID)
 			services[service.ServiceID] = service
+		}
+	}
+
+	// Counting trips per service in one pass over trips.txt, rather than
+	// re-reading the file for each service, keeps this linear in the feed
+	// size instead of quadratic.
+	for serviceID, count := range v.countTripsByService(loader) {
+		if service, exists := services[serviceID]; exists {
+			service.TripCount = count
 		}
 	}
 
@@ -206,11 +211,13 @@ func (v *DateTripsValidator) parseCalendarException(row *parser.CSVRow) *Calenda
 	}
 }
 
-// countTripsForService counts trips that use a specific service
-func (v *DateTripsValidator) countTripsForService(loader *parser.FeedLoader, serviceID string) int {
+// countTripsByService counts the trips of every service in one pass.
+func (v *DateTripsValidator) countTripsByService(loader *parser.FeedLoader) map[string]int {
+	counts := make(map[string]int)
+
 	reader, err := loader.GetFile("trips.txt")
 	if err != nil {
-		return 0
+		return counts
 	}
 	defer func() {
 		if closeErr := reader.Close(); closeErr != nil {
@@ -220,10 +227,9 @@ func (v *DateTripsValidator) countTripsForService(loader *parser.FeedLoader, ser
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {
-		return 0
+		return counts
 	}
 
-	count := 0
 	for {
 		row, err := csvFile.ReadRow()
 		if err == io.EOF {
@@ -232,15 +238,12 @@ func (v *DateTripsValidator) countTripsForService(loader *parser.FeedLoader, ser
 		if err != nil {
 			continue
 		}
-
-		if tripServiceID, hasServiceID := row.Values["service_id"]; hasServiceID {
-			if strings.TrimSpace(tripServiceID) == serviceID {
-				count++
-			}
+		if serviceID, hasServiceID := row.Values["service_id"]; hasServiceID {
+			counts[strings.TrimSpace(serviceID)]++
 		}
 	}
 
-	return count
+	return counts
 }
 
 // parseGTFSDate parses GTFS date format (YYYYMMDD)
@@ -270,75 +273,34 @@ func (v *DateTripsValidator) formatGTFSDate(date time.Time) string {
 	return date.Format("20060102")
 }
 
-// validateNext7DaysService validates service coverage for next 7 days
+// validateNext7DaysService reports a feed whose trips do not cover the coming
+// week. Canonical counts the feed as covered while a significant share of its
+// trips still run, so a day is only counted when trips are scheduled on it.
 func (v *DateTripsValidator) validateNext7DaysService(container *notice.NoticeContainer, services map[string]*ServiceInfo, exceptions []CalendarException, currentDate time.Time) {
-	daysWithService := 0
-	totalTrips := 0
+	lastCoveredDay := -1
 
-	// Check each of the next 7 days
 	for i := 0; i < 7; i++ {
 		checkDate := currentDate.AddDate(0, 0, i)
-		activeServices := v.getActiveServicesForDate(services, exceptions, checkDate)
 
 		dayTripCount := 0
-		for _, serviceID := range activeServices {
+		for _, serviceID := range v.getActiveServicesForDate(services, exceptions, checkDate) {
 			if service, exists := services[serviceID]; exists {
 				dayTripCount += service.TripCount
 			}
 		}
-
 		if dayTripCount > 0 {
-			daysWithService++
-			totalTrips += dayTripCount
+			lastCoveredDay = i
 		}
 	}
 
-	// Critical: No service in next 7 days
-	if daysWithService == 0 {
-		container.AddNotice(notice.NewNoServiceNext7DaysNotice(
-			v.formatGTFSDate(currentDate),
-			v.formatGTFSDate(currentDate.AddDate(0, 0, 7)),
-		))
-		return
+	if lastCoveredDay == 6 {
+		return // Covered through the whole week.
 	}
 
-	// Warning: Less than majority service coverage (< 4 out of 7 days)
-	if daysWithService < 4 {
-		container.AddNotice(notice.NewInsufficientServiceNext7DaysNotice(
-			daysWithService,
-			7,
-			v.formatGTFSDate(currentDate),
-			v.formatGTFSDate(currentDate.AddDate(0, 0, 7)),
-		))
-	}
-
-}
-
-// validateNext30DaysService validates service coverage for next 30 days
-func (v *DateTripsValidator) validateNext30DaysService(container *notice.NoticeContainer, services map[string]*ServiceInfo, exceptions []CalendarException, currentDate time.Time) {
-	daysWithService := 0
-
-	// Check each of the next 30 days
-	for i := 0; i < 30; i++ {
-		checkDate := currentDate.AddDate(0, 0, i)
-		activeServices := v.getActiveServicesForDate(services, exceptions, checkDate)
-
-		if len(activeServices) > 0 {
-			daysWithService++
-		}
-	}
-
-	// Warning: Less than 50% service coverage in next 30 days
-	serviceRatio := float64(daysWithService) / 30.0
-	if serviceRatio < 0.5 {
-		container.AddNotice(notice.NewInsufficientServiceNext30DaysNotice(
-			daysWithService,
-			30,
-			serviceRatio,
-			v.formatGTFSDate(currentDate),
-			v.formatGTFSDate(currentDate.AddDate(0, 0, 30)),
-		))
-	}
+	container.AddNotice(notice.NewTripCoverageNotActiveForNext7DaysNotice(
+		v.formatGTFSDate(currentDate),
+		v.formatGTFSDate(currentDate.AddDate(0, 0, lastCoveredDay)),
+	))
 }
 
 // getActiveServicesForDate returns service IDs active on a specific date

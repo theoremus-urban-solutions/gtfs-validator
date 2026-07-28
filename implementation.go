@@ -716,6 +716,8 @@ func (v *internalValidator) initializeValidators() {
 			relationship.NewForeignKeyValidator(),
 			relationship.NewStopTimeSequenceValidator(),
 			relationship.NewStopTimeSequenceTimeValidator(),
+			relationship.NewStopTimeFieldValidator(),
+			relationship.NewUsageValidator(),
 			relationship.NewStopTimeConsistencyValidator(),
 			relationship.NewAttributionValidator(),
 			relationship.NewRouteConsistencyValidator(),

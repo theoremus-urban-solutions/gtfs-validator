@@ -292,8 +292,8 @@ func (v *StopTimeConsistencyValidator) validateTripStopTimes(container *notice.N
 	// Check for duplicate stops
 	v.validateDuplicateStops(container, tripID, stopTimes)
 
-	// Check for arrival/departure consistency
-	v.validateArrivalDepartureConsistency(container, stopTimes)
+	// A row giving only one of arrival_time and departure_time is reported by
+	// stop_time_field_validator.go, which sees the raw row.
 
 	// Check for timepoint consistency
 	v.validateTimepointConsistency(container, stopTimes)
@@ -371,33 +371,6 @@ func (v *StopTimeConsistencyValidator) validateDuplicateStops(container *notice.
 	}
 }
 
-// validateArrivalDepartureConsistency checks arrival/departure time consistency
-func (v *StopTimeConsistencyValidator) validateArrivalDepartureConsistency(container *notice.NoticeContainer, stopTimes []*StopTimeInfo) {
-	for _, stopTime := range stopTimes {
-		// Skip if both times are empty
-		if stopTime.ArrivalTime == "" && stopTime.DepartureTime == "" {
-			continue
-		}
-
-		// Check if only one time is provided
-		if stopTime.ArrivalTime == "" && stopTime.DepartureTime != "" {
-			container.AddNotice(notice.NewMissingArrivalTimeNotice(
-				stopTime.TripID,
-				stopTime.StopID,
-				stopTime.StopSequence,
-				stopTime.RowNumber,
-			))
-		} else if stopTime.ArrivalTime != "" && stopTime.DepartureTime == "" {
-			container.AddNotice(notice.NewMissingDepartureTimeNotice(
-				stopTime.TripID,
-				stopTime.StopID,
-				stopTime.StopSequence,
-				stopTime.RowNumber,
-			))
-		}
-	}
-}
-
 // validateTimepointConsistency checks timepoint field consistency
 func (v *StopTimeConsistencyValidator) validateTimepointConsistency(container *notice.NoticeContainer, stopTimes []*StopTimeInfo) {
 	for _, stopTime := range stopTimes {
@@ -414,8 +387,6 @@ func (v *StopTimeConsistencyValidator) validateTimepointConsistency(container *n
 				stopTime.RowNumber,
 			))
 		}
-
-		// Check if timepoint=0 but times are provided
 	}
 }
 

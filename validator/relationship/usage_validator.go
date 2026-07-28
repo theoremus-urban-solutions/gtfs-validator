@@ -1,0 +1,199 @@
+package relationship
+
+import (
+	"io"
+	"log"
+	"strconv"
+	"strings"
+
+	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
+	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
+	"github.com/theoremus-urban-solutions/gtfs-validator/validator"
+)
+
+// UsageValidator reports entities nothing in the feed refers to: stops no trip
+// calls at, trips with no stop times, and stations with no children. Each is
+// usually a typo in the referring file rather than a deliberate omission.
+type UsageValidator struct{}
+
+// NewUsageValidator creates a new usage validator
+func NewUsageValidator() *UsageValidator {
+	return &UsageValidator{}
+}
+
+// stopRecord is the part of a stops.txt row this validator needs.
+type stopRecord struct {
+	StopID        string
+	StopName      string
+	LocationType  int
+	ParentStation string
+	RowNumber     int
+}
+
+// Validate reports unreferenced stops, trips and stations.
+func (v *UsageValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
+	stops := v.loadStops(loader)
+	trips := v.loadTrips(loader)
+	if len(stops) == 0 && len(trips) == 0 {
+		return
+	}
+
+	visitedStops, tripsWithStopTimes := v.scanStopTimes(loader)
+
+	for _, stop := range stops {
+		// Only stops and platforms are called at; a station is reached
+		// through its children, and entrances and nodes never appear in
+		// stop_times.txt at all.
+		if stop.LocationType != 0 {
+			continue
+		}
+		if !visitedStops[stop.StopID] {
+			container.AddNotice(notice.NewStopWithoutStopTimeNotice(
+				stop.StopID, stop.StopName, stop.RowNumber,
+			))
+		}
+	}
+
+	for tripID, rowNumber := range trips {
+		if !tripsWithStopTimes[tripID] {
+			container.AddNotice(notice.NewUnusedTripNotice(tripID, rowNumber))
+		}
+	}
+
+	childStations := make(map[string]bool, len(stops))
+	for _, stop := range stops {
+		if stop.ParentStation != "" {
+			childStations[stop.ParentStation] = true
+		}
+	}
+	for _, stop := range stops {
+		if stop.LocationType == 1 && !childStations[stop.StopID] {
+			container.AddNotice(notice.NewUnusedStationNotice(
+				stop.StopID, stop.StopName, stop.RowNumber,
+			))
+		}
+	}
+}
+
+// scanStopTimes returns the set of stops any trip calls at, and the set of
+// trips that have at least one stop time.
+func (v *UsageValidator) scanStopTimes(loader *parser.FeedLoader) (map[string]bool, map[string]bool) {
+	visitedStops := make(map[string]bool)
+	tripsWithStopTimes := make(map[string]bool)
+
+	reader, err := loader.GetFile("stop_times.txt")
+	if err != nil {
+		return visitedStops, tripsWithStopTimes
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+
+	csvFile, err := parser.NewCSVFile(reader, "stop_times.txt")
+	if err != nil {
+		return visitedStops, tripsWithStopTimes
+	}
+
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			continue
+		}
+		if stopID := strings.TrimSpace(row.Values["stop_id"]); stopID != "" {
+			visitedStops[stopID] = true
+		}
+		if tripID := strings.TrimSpace(row.Values["trip_id"]); tripID != "" {
+			tripsWithStopTimes[tripID] = true
+		}
+	}
+
+	return visitedStops, tripsWithStopTimes
+}
+
+// loadStops reads stops.txt.
+func (v *UsageValidator) loadStops(loader *parser.FeedLoader) []*stopRecord {
+	var stops []*stopRecord
+
+	reader, err := loader.GetFile("stops.txt")
+	if err != nil {
+		return stops
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+
+	csvFile, err := parser.NewCSVFile(reader, "stops.txt")
+	if err != nil {
+		return stops
+	}
+
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			continue
+		}
+
+		stopID := strings.TrimSpace(row.Values["stop_id"])
+		if stopID == "" {
+			continue
+		}
+
+		stop := &stopRecord{
+			StopID:        stopID,
+			StopName:      strings.TrimSpace(row.Values["stop_name"]),
+			ParentStation: strings.TrimSpace(row.Values["parent_station"]),
+			RowNumber:     row.RowNumber,
+		}
+		if locationType, err := strconv.Atoi(strings.TrimSpace(row.Values["location_type"])); err == nil {
+			stop.LocationType = locationType
+		}
+		stops = append(stops, stop)
+	}
+
+	return stops
+}
+
+// loadTrips maps each trip to the row it was declared on.
+func (v *UsageValidator) loadTrips(loader *parser.FeedLoader) map[string]int {
+	trips := make(map[string]int)
+
+	reader, err := loader.GetFile("trips.txt")
+	if err != nil {
+		return trips
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+
+	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
+	if err != nil {
+		return trips
+	}
+
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			continue
+		}
+		if tripID := strings.TrimSpace(row.Values["trip_id"]); tripID != "" {
+			trips[tripID] = row.RowNumber
+		}
+	}
+
+	return trips
+}

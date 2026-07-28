@@ -567,22 +567,6 @@ func NewInvalidCurrencyCodeNotice(filename string, fieldName string, currencyCod
 	}
 }
 
-// MissingAgencyIdNotice is generated when agency_id is required but missing
-type MissingAgencyIdNotice struct {
-	*BaseNotice
-}
-
-func NewMissingAgencyIdNotice(agencyName string, rowNumber int) *MissingAgencyIdNotice {
-	context := map[string]interface{}{
-		"agencyName":   agencyName,
-		"csvRowNumber": rowNumber,
-		"message":      "agency_id is required when multiple agencies exist",
-	}
-	return &MissingAgencyIdNotice{
-		BaseNotice: NewBaseNotice("missing_agency_id", WARNING, context),
-	}
-}
-
 // InvalidAgencyReferenceNotice is generated when a route references an invalid agency
 type InvalidAgencyReferenceNotice struct {
 	*BaseNotice
@@ -596,22 +580,6 @@ func NewInvalidAgencyReferenceNotice(routeID string, agencyID string, rowNumber 
 	}
 	return &InvalidAgencyReferenceNotice{
 		BaseNotice: NewBaseNotice("invalid_agency_reference", WARNING, context),
-	}
-}
-
-// MissingRouteAgencyIdNotice is generated when route agency_id is required but missing
-type MissingRouteAgencyIdNotice struct {
-	*BaseNotice
-}
-
-func NewMissingRouteAgencyIdNotice(routeID string, rowNumber int) *MissingRouteAgencyIdNotice {
-	context := map[string]interface{}{
-		"routeId":      routeID,
-		"csvRowNumber": rowNumber,
-		"message":      "agency_id is required for routes when multiple agencies exist",
-	}
-	return &MissingRouteAgencyIdNotice{
-		BaseNotice: NewBaseNotice("missing_route_agency_id", WARNING, context),
 	}
 }
 
@@ -729,55 +697,6 @@ func NewInvalidLocationTypeNotice(stopID string, locationType int, rowNumber int
 	}
 }
 
-// MissingCoordinatesNotice is generated when coordinates are required but missing
-type MissingCoordinatesNotice struct {
-	*BaseNotice
-}
-
-func NewMissingCoordinatesNotice(stopID string, locationType int, rowNumber int) *MissingCoordinatesNotice {
-	context := map[string]interface{}{
-		"stopId":       stopID,
-		"locationType": locationType,
-		"csvRowNumber": rowNumber,
-	}
-	return &MissingCoordinatesNotice{
-		BaseNotice: NewBaseNotice("missing_coordinates", WARNING, context),
-	}
-}
-
-// InvalidParentStationReferenceNotice is generated when parent_station reference is invalid
-type InvalidParentStationReferenceNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidParentStationReferenceNotice(stopID string, parentStation string, rowNumber int) *InvalidParentStationReferenceNotice {
-	context := map[string]interface{}{
-		"stopId":        stopID,
-		"parentStation": parentStation,
-		"csvRowNumber":  rowNumber,
-	}
-	return &InvalidParentStationReferenceNotice{
-		BaseNotice: NewBaseNotice("invalid_parent_station_reference", WARNING, context),
-	}
-}
-
-// InvalidParentStationTypeNotice is generated when parent station has wrong location type
-type InvalidParentStationTypeNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidParentStationTypeNotice(stopID string, parentStation string, parentLocationType int, rowNumber int) *InvalidParentStationTypeNotice {
-	context := map[string]interface{}{
-		"stopId":             stopID,
-		"parentStation":      parentStation,
-		"parentLocationType": parentLocationType,
-		"csvRowNumber":       rowNumber,
-	}
-	return &InvalidParentStationTypeNotice{
-		BaseNotice: NewBaseNotice("invalid_parent_station_type", WARNING, context),
-	}
-}
-
 // StationWithParentStationNotice is generated when a station has a parent station
 type StationWithParentStationNotice struct {
 	*BaseNotice
@@ -794,22 +713,6 @@ func NewStationWithParentStationNotice(stopID string, parentStation string, rowN
 	}
 }
 
-// MissingParentStationNotice is generated when parent station is required but missing
-type MissingParentStationNotice struct {
-	*BaseNotice
-}
-
-func NewMissingParentStationNotice(stopID string, locationType int, rowNumber int) *MissingParentStationNotice {
-	context := map[string]interface{}{
-		"stopId":       stopID,
-		"locationType": locationType,
-		"csvRowNumber": rowNumber,
-	}
-	return &MissingParentStationNotice{
-		BaseNotice: NewBaseNotice("missing_parent_station", WARNING, context),
-	}
-}
-
 // CircularStationReferenceNotice is generated when there's a circular parent station reference
 type CircularStationReferenceNotice struct {
 	*BaseNotice
@@ -822,21 +725,6 @@ func NewCircularStationReferenceNotice(stopID string, rowNumber int) *CircularSt
 	}
 	return &CircularStationReferenceNotice{
 		BaseNotice: NewBaseNotice("circular_station_reference", WARNING, context),
-	}
-}
-
-// OrphanedStationNotice is generated when a station has no child stops
-type OrphanedStationNotice struct {
-	*BaseNotice
-}
-
-func NewOrphanedStationNotice(stationID string, rowNumber int) *OrphanedStationNotice {
-	context := map[string]interface{}{
-		"stationId":    stationID,
-		"csvRowNumber": rowNumber,
-	}
-	return &OrphanedStationNotice{
-		BaseNotice: NewBaseNotice("orphaned_station", WARNING, context),
 	}
 }
 
@@ -1772,42 +1660,6 @@ func NewDuplicateStopInTripNotice(tripID string, stopID string, stopSequence int
 	}
 }
 
-// MissingArrivalTimeNotice is generated when arrival time is missing but departure exists.
-// ERROR to match MobilityData's stop_time_with_only_arrival_or_departure_time.
-type MissingArrivalTimeNotice struct {
-	*BaseNotice
-}
-
-func NewMissingArrivalTimeNotice(tripID string, stopID string, stopSequence int, rowNumber int) *MissingArrivalTimeNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"stopId":       stopID,
-		"stopSequence": stopSequence,
-		"csvRowNumber": rowNumber,
-	}
-	return &MissingArrivalTimeNotice{
-		BaseNotice: NewBaseNotice("missing_arrival_time", WARNING, context),
-	}
-}
-
-// MissingDepartureTimeNotice is generated when departure time is missing but arrival exists.
-// ERROR to match MobilityData's stop_time_with_only_arrival_or_departure_time.
-type MissingDepartureTimeNotice struct {
-	*BaseNotice
-}
-
-func NewMissingDepartureTimeNotice(tripID string, stopID string, stopSequence int, rowNumber int) *MissingDepartureTimeNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"stopId":       stopID,
-		"stopSequence": stopSequence,
-		"csvRowNumber": rowNumber,
-	}
-	return &MissingDepartureTimeNotice{
-		BaseNotice: NewBaseNotice("missing_departure_time", WARNING, context),
-	}
-}
-
 // InvalidTimepointNotice is generated when timepoint has invalid value
 type InvalidTimepointNotice struct {
 	*BaseNotice
@@ -2588,52 +2440,6 @@ func NewStopNameContainsControlCharacterNotice(stopID, stopName string, position
 }
 
 // === DATE TRIPS NOTICES ===
-
-// NoServiceDefinedNotice represents no service defined in calendar
-type NoServiceDefinedNotice struct {
-	*BaseNotice
-}
-
-func NewNoServiceDefinedNotice() *NoServiceDefinedNotice {
-	return &NoServiceDefinedNotice{
-		BaseNotice: NewBaseNotice("no_service_defined", WARNING, map[string]interface{}{}),
-	}
-}
-
-// InsufficientServiceNext7DaysNotice represents insufficient service coverage in next 7 days
-type InsufficientServiceNext7DaysNotice struct {
-	*BaseNotice
-}
-
-func NewInsufficientServiceNext7DaysNotice(daysWithService, totalDays int, startDate, endDate string) *InsufficientServiceNext7DaysNotice {
-	context := map[string]interface{}{
-		"daysWithService": daysWithService,
-		"totalDays":       totalDays,
-		"startDate":       startDate,
-		"endDate":         endDate,
-	}
-	return &InsufficientServiceNext7DaysNotice{
-		BaseNotice: NewBaseNotice("insufficient_service_next_7_days", WARNING, context),
-	}
-}
-
-// InsufficientServiceNext30DaysNotice represents insufficient service coverage in next 30 days
-type InsufficientServiceNext30DaysNotice struct {
-	*BaseNotice
-}
-
-func NewInsufficientServiceNext30DaysNotice(daysWithService, totalDays int, serviceRatio float64, startDate, endDate string) *InsufficientServiceNext30DaysNotice {
-	context := map[string]interface{}{
-		"daysWithService": daysWithService,
-		"totalDays":       totalDays,
-		"serviceRatio":    serviceRatio,
-		"startDate":       startDate,
-		"endDate":         endDate,
-	}
-	return &InsufficientServiceNext30DaysNotice{
-		BaseNotice: NewBaseNotice("insufficient_service_next_30_days", WARNING, context),
-	}
-}
 
 // === BIKES ALLOWANCE NOTICES ===
 

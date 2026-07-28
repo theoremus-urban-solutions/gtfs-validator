@@ -150,29 +150,33 @@ func (v *StopLocationValidator) validateLocationType(container *notice.NoticeCon
 	}
 }
 
-// validateCoordinatesRequirement validates coordinate requirements by location type
-func (v *StopLocationValidator) validateCoordinatesRequirement(container *notice.NoticeContainer, stop *StopInfo) {
-	// Coordinates are required for certain location types
-	requiresCoordinates := false
-
-	switch stop.LocationType {
-	case 0, 2, 3, 4: // Stop/platform, entrance/exit, generic node, boarding area
-		requiresCoordinates = true
-	case 1: // Station - coordinates optional but recommended
-		if !stop.HasCoordinates {
-			container.AddNotice(notice.NewMissingRecommendedFieldNotice(
-				"stops.txt",
-				"stop_lat/stop_lon",
-				stop.RowNumber,
-			))
-		}
+// expectedParentLocationType gives the location_type a parent must have for a
+// child of the given type, and whether that child may have a parent at all.
+// Stations sit at the top of the hierarchy and cannot have one.
+func expectedParentLocationType(locationType int) (int, bool) {
+	switch locationType {
+	case 0, 2, 3: // Stop/platform, entrance/exit, generic node -> station
+		return 1, true
+	case 4: // Boarding area -> stop/platform
+		return 0, true
+	default:
+		return 0, false
 	}
+}
 
-	if requiresCoordinates && !stop.HasCoordinates {
-		container.AddNotice(notice.NewMissingCoordinatesNotice(
+// validateCoordinatesRequirement reports locations that must be placed on a
+// map but have no coordinates. Generic nodes and boarding areas are exempt:
+// they inherit their position from the station around them.
+func (v *StopLocationValidator) validateCoordinatesRequirement(container *notice.NoticeContainer, stop *StopInfo) {
+	if stop.HasCoordinates {
+		return
+	}
+	switch stop.LocationType {
+	case 0, 1, 2:
+		container.AddNotice(notice.NewStopWithoutLocationNotice(
 			stop.StopID,
-			stop.LocationType,
 			stop.RowNumber,
+			stop.LocationType,
 		))
 	}
 }
@@ -183,67 +187,40 @@ func (v *StopLocationValidator) validateParentStationReference(container *notice
 		return // No parent station reference
 	}
 
-	// Check if parent station exists
 	parentStop, exists := allStops[stop.ParentStation]
 	if !exists {
-		container.AddNotice(notice.NewInvalidParentStationReferenceNotice(
-			stop.StopID,
+		container.AddNotice(notice.NewForeignKeyViolationNotice(
+			"stops.txt",
+			"parent_station",
 			stop.ParentStation,
 			stop.RowNumber,
+			"stops.txt",
+			"stop_id",
 		))
 		return
 	}
 
-	// Validate parent station type based on child location type
-	switch stop.LocationType {
-	case 0: // Stop/platform - can have station (1) as parent
-		if parentStop.LocationType != 1 {
-			container.AddNotice(notice.NewInvalidParentStationTypeNotice(
-				stop.StopID,
-				stop.ParentStation,
-				parentStop.LocationType,
-				stop.RowNumber,
-			))
-		}
-	case 2: // Entrance/exit - must have station (1) as parent
-		if parentStop.LocationType != 1 {
-			container.AddNotice(notice.NewInvalidParentStationTypeNotice(
-				stop.StopID,
-				stop.ParentStation,
-				parentStop.LocationType,
-				stop.RowNumber,
-			))
-		}
-	case 3: // Generic node - can have station (1) as parent
-		if parentStop.LocationType != 1 {
-			container.AddNotice(notice.NewInvalidParentStationTypeNotice(
-				stop.StopID,
-				stop.ParentStation,
-				parentStop.LocationType,
-				stop.RowNumber,
-			))
-		}
-	case 4: // Boarding area - should have platform (0) as parent
-		if parentStop.LocationType != 0 {
-			container.AddNotice(notice.NewInvalidParentStationTypeNotice(
-				stop.StopID,
-				stop.ParentStation,
-				parentStop.LocationType,
-				stop.RowNumber,
-			))
-		}
+	expected, mayHaveParent := expectedParentLocationType(stop.LocationType)
+	if !mayHaveParent {
+		return // A station with a parent is reported by validateLocationTypeRules.
+	}
+	if parentStop.LocationType != expected {
+		container.AddNotice(notice.NewWrongParentLocationTypeNotice(
+			stop.StopID,
+			stop.RowNumber,
+			stop.LocationType,
+			stop.ParentStation,
+			parentStop.RowNumber,
+			parentStop.LocationType,
+			expected,
+		))
 	}
 }
 
 // validateLocationTypeRules validates location type specific rules
 func (v *StopLocationValidator) validateLocationTypeRules(container *notice.NoticeContainer, stop *StopInfo, allStops map[string]*StopInfo) {
 	switch stop.LocationType {
-	case 0: // Stop/platform
-		// Stops can optionally have a parent station
-		break
-
 	case 1: // Station
-		// Stations cannot have parent stations
 		if stop.ParentStation != "" {
 			container.AddNotice(notice.NewStationWithParentStationNotice(
 				stop.StopID,
@@ -252,63 +229,24 @@ func (v *StopLocationValidator) validateLocationTypeRules(container *notice.Noti
 			))
 		}
 
-	case 2: // Entrance/exit
-		// Entrances must have a parent station
+	case 2, 3, 4: // Entrance/exit, generic node, boarding area
+		// These types only have meaning inside a station, so the reference is
+		// required rather than optional.
 		if stop.ParentStation == "" {
-			container.AddNotice(notice.NewMissingParentStationNotice(
+			container.AddNotice(notice.NewLocationWithoutParentStationNotice(
 				stop.StopID,
-				stop.LocationType,
 				stop.RowNumber,
-			))
-		} else {
-			// Validate that parent station exists and is actually a station
-			if parent, exists := allStops[stop.ParentStation]; exists {
-				if parent.LocationType != 1 { // Must be a station
-					container.AddNotice(notice.NewInvalidParentStationTypeNotice(
-						stop.StopID,
-						stop.ParentStation,
-						parent.LocationType,
-						stop.RowNumber,
-					))
-				}
-			}
-		}
-
-	case 3: // Generic node
-		// Generic nodes can optionally have parent stations
-		break
-
-	case 4: // Boarding area
-		// Boarding areas should have parent stations
-		if stop.ParentStation == "" {
-			container.AddNotice(notice.NewMissingParentStationNotice(
-				stop.StopID,
 				stop.LocationType,
-				stop.RowNumber,
 			))
-		} else {
-			// Validate that parent station exists and is a stop/platform
-			if parent, exists := allStops[stop.ParentStation]; exists {
-				if parent.LocationType != 0 { // Must be a stop/platform
-					container.AddNotice(notice.NewInvalidParentStationTypeNotice(
-						stop.StopID,
-						stop.ParentStation,
-						parent.LocationType,
-						stop.RowNumber,
-					))
-				}
-			}
 		}
 	}
 }
 
 // validateStopHierarchy validates the overall stop hierarchy
 func (v *StopLocationValidator) validateStopHierarchy(container *notice.NoticeContainer, stops map[string]*StopInfo) {
-	// Check for circular references
+	// Stations with no children are reported as unused_station by
+	// relationship/usage_validator.go.
 	v.validateCircularReferences(container, stops)
-
-	// Check for orphaned stations
-	v.validateOrphanedStations(container, stops)
 }
 
 // validateCircularReferences checks for circular parent-child references
@@ -338,39 +276,6 @@ func (v *StopLocationValidator) validateCircularReferences(container *notice.Not
 				current = currentStop.ParentStation
 			} else {
 				break
-			}
-		}
-	}
-}
-
-// validateOrphanedStations checks for stations with no child stops
-func (v *StopLocationValidator) validateOrphanedStations(container *notice.NoticeContainer, stops map[string]*StopInfo) {
-	// Count children for each station
-	stationChildren := make(map[string]int)
-
-	for _, stop := range stops {
-		if stop.LocationType == 1 { // Station
-			stationChildren[stop.StopID] = 0
-		}
-	}
-
-	// Count actual children
-	for _, stop := range stops {
-		if stop.ParentStation != "" {
-			if _, isStation := stationChildren[stop.ParentStation]; isStation {
-				stationChildren[stop.ParentStation]++
-			}
-		}
-	}
-
-	// Report stations with no children
-	for stationID, childCount := range stationChildren {
-		if childCount == 0 {
-			if station, exists := stops[stationID]; exists {
-				container.AddNotice(notice.NewOrphanedStationNotice(
-					stationID,
-					station.RowNumber,
-				))
 			}
 		}
 	}

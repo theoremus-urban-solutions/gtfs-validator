@@ -29,14 +29,22 @@ func (v *AgencyConsistencyValidator) Validate(loader *parser.FeedLoader, contain
 	// Check if agency_id is required
 	v.validateAgencyIdRequirement(container, agencies)
 
+	// Every time in the feed is read in the agency timezone, so two of them
+	// leave the schedule ambiguous.
+	v.validateAgencyTimezones(container, agencies)
+
 	// Check route agency references
 	v.validateRouteAgencyReferences(loader, container, agencies)
+
+	// fare_attributes.agency_id is required for the same reason routes.agency_id is.
+	v.validateFareAgencyReferences(loader, container, agencies)
 }
 
 // AgencyInfo represents agency information
 type AgencyInfo struct {
 	AgencyID   string
 	AgencyName string
+	Timezone   string
 	RowNumber  int
 }
 
@@ -85,6 +93,7 @@ func (v *AgencyConsistencyValidator) loadAgencies(loader *parser.FeedLoader) []*
 		agencies = append(agencies, &AgencyInfo{
 			AgencyID:   key,
 			AgencyName: name,
+			Timezone:   strings.TrimSpace(row.Values["agency_timezone"]),
 			RowNumber:  row.RowNumber,
 		})
 	}
@@ -94,15 +103,80 @@ func (v *AgencyConsistencyValidator) loadAgencies(loader *parser.FeedLoader) []*
 
 // validateAgencyIdRequirement checks if agency_id is required
 func (v *AgencyConsistencyValidator) validateAgencyIdRequirement(container *notice.NoticeContainer, agencies []*AgencyInfo) {
-	// If there are multiple agencies, agency_id is required
-	if len(agencies) > 1 {
-		for _, agency := range agencies {
-			if agency.AgencyID == "" {
-				container.AddNotice(notice.NewMissingAgencyIdNotice(
-					agency.AgencyName,
-					agency.RowNumber,
-				))
-			}
+	// With one agency the reference is unambiguous, so agency_id may be
+	// omitted. With more than one it cannot be.
+	if len(agencies) <= 1 {
+		return
+	}
+	for _, agency := range agencies {
+		if agency.AgencyID == "" {
+			container.AddNotice(notice.NewMissingRequiredAgencyIDNotice(
+				"agency.txt",
+				"agency_id",
+				agency.RowNumber,
+			))
+		}
+	}
+}
+
+// validateAgencyTimezones reports agencies that disagree about the timezone.
+// The first agency in the file is taken as the expected one.
+func (v *AgencyConsistencyValidator) validateAgencyTimezones(container *notice.NoticeContainer, agencies []*AgencyInfo) {
+	expected := ""
+	for _, agency := range agencies {
+		if agency.Timezone == "" {
+			continue
+		}
+		if expected == "" {
+			expected = agency.Timezone
+			continue
+		}
+		if agency.Timezone != expected {
+			container.AddNotice(notice.NewInconsistentAgencyTimezoneNotice(
+				expected,
+				agency.Timezone,
+				agency.RowNumber,
+			))
+		}
+	}
+}
+
+// validateFareAgencyReferences reports fare_attributes rows omitting agency_id
+// in a feed with more than one agency.
+func (v *AgencyConsistencyValidator) validateFareAgencyReferences(loader *parser.FeedLoader, container *notice.NoticeContainer, agencies []*AgencyInfo) {
+	if len(agencies) <= 1 {
+		return
+	}
+
+	reader, err := loader.GetFile("fare_attributes.txt")
+	if err != nil {
+		return
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+
+	csvFile, err := parser.NewCSVFile(reader, "fare_attributes.txt")
+	if err != nil {
+		return
+	}
+
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			break
+		}
+		if strings.TrimSpace(row.Values["agency_id"]) == "" {
+			container.AddNotice(notice.NewMissingRequiredAgencyIDNotice(
+				"fare_attributes.txt",
+				"agency_id",
+				row.RowNumber,
+			))
 		}
 	}
 }
@@ -160,8 +234,9 @@ func (v *AgencyConsistencyValidator) validateRouteAgencyReferences(loader *parse
 
 		// If multiple agencies exist but route has no agency_id, that's an error
 		if expectedAgencyID == "" && len(agencies) > 1 {
-			container.AddNotice(notice.NewMissingRouteAgencyIdNotice(
-				strings.TrimSpace(routeID),
+			container.AddNotice(notice.NewMissingRequiredAgencyIDNotice(
+				"routes.txt",
+				"agency_id",
 				row.RowNumber,
 			))
 			continue
