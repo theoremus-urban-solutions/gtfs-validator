@@ -42,7 +42,7 @@ This tool validates General Transit Feed Specification (GTFS) feeds for complian
 with the GTFS specification and transit industry best practices.
 
 Features memory optimization with streaming CSV processing for large feeds,
-structured logging, and comprehensive validation with 294+ validation rules.`,
+structured logging, and comprehensive validation with 201 validation rules.`,
 		Example: `  gtfs-validator -i feed.zip
   gtfs-validator -i ./gtfs-feed -f json -o report.json
   gtfs-validator -i feed.zip -f html -o report.html
@@ -60,7 +60,7 @@ structured logging, and comprehensive validation with 294+ validation rules.`,
 	rootCmd.Flags().Int64Var(&maxMemory, "memory", 0, "Maximum memory usage in MB (0 = no limit)")
 	rootCmd.Flags().IntVarP(&workers, "workers", "w", 4, "Number of parallel workers")
 	rootCmd.Flags().StringVarP(&mode, "mode", "m", "default", "Validation mode: performance, default, comprehensive")
-	rootCmd.Flags().IntVar(&maxNotices, "max-notices", 100, "Maximum notices per type (0 = no limit)")
+	rootCmd.Flags().IntVar(&maxNotices, "max-notices", 0, "Maximum notices per type (0 = no limit, the default)")
 	rootCmd.Flags().DurationVarP(&timeout, "timeout", "t", 5*time.Minute, "Validation timeout")
 	rootCmd.Flags().BoolVarP(&showProgress, "progress", "p", false, "Show progress bar")
 
@@ -102,7 +102,7 @@ The input can be either a ZIP file containing the GTFS feed or a directory
 with the GTFS files.
 
 Uses memory-efficient streaming processing for large feeds and provides
-comprehensive validation with 294+ validation rules.`,
+comprehensive validation with 201 validation rules.`,
 		Example: `  gtfs-validator validate feed.zip
   gtfs-validator validate ./gtfs-directory --format json
   gtfs-validator validate feed.zip --format html --output report.html
@@ -121,7 +121,7 @@ comprehensive validation with 294+ validation rules.`,
 	cmd.Flags().Int64Var(&maxMemory, "memory", 0, "Maximum memory usage in MB (0 = no limit)")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 4, "Number of parallel workers")
 	cmd.Flags().StringVarP(&mode, "mode", "m", "default", "Validation mode: performance, default, comprehensive")
-	cmd.Flags().IntVar(&maxNotices, "max-notices", 100, "Maximum notices per type (0 = no limit)")
+	cmd.Flags().IntVar(&maxNotices, "max-notices", 0, "Maximum notices per type (0 = no limit, the default)")
 	cmd.Flags().DurationVarP(&timeout, "timeout", "t", 5*time.Minute, "Validation timeout")
 	cmd.Flags().BoolVarP(&showProgress, "progress", "p", false, "Show progress bar")
 
@@ -382,22 +382,21 @@ func outputConsole(output *os.File, report *gtfsvalidator.ValidationReport, inpu
 		errorCount := 0
 		warningCount := 0
 
-		for _, notice := range report.Notices {
+		// A group can hold more than one severity, so report it under every
+		// severity it contains rather than under a single label.
+		for _, group := range report.Notices {
 			if errorCount >= 5 && warningCount >= 5 {
 				break
 			}
 
-			if notice.Severity == "ERROR" && errorCount < 5 {
-				write("ERROR: %s (%d instances)\n", notice.Code, notice.TotalNotices)
-				if len(notice.SampleNotices) > 0 {
-					showNoticeContext(output, notice.SampleNotices[0])
-				}
+			if group.SeverityCounts.Errors > 0 && errorCount < 5 {
+				write("ERROR: %s (%d instances)\n", group.Code, group.SeverityCounts.Errors)
+				showFirstSampleOfSeverity(output, group, "ERROR")
 				errorCount++
-			} else if notice.Severity == "WARNING" && warningCount < 5 {
-				write("WARNING: %s (%d instances)\n", notice.Code, notice.TotalNotices)
-				if len(notice.SampleNotices) > 0 {
-					showNoticeContext(output, notice.SampleNotices[0])
-				}
+			}
+			if group.SeverityCounts.Warnings > 0 && warningCount < 5 {
+				write("WARNING: %s (%d instances)\n", group.Code, group.SeverityCounts.Warnings)
+				showFirstSampleOfSeverity(output, group, "WARNING")
 				warningCount++
 			}
 		}
@@ -408,14 +407,37 @@ func outputConsole(output *os.File, report *gtfsvalidator.ValidationReport, inpu
 	}
 }
 
-func showNoticeContext(output *os.File, context map[string]interface{}) {
+// showFirstSampleOfSeverity prints the context of the first sample matching a
+// severity, so a mixed group shows a genuine example of the level it is
+// being reported under.
+func showFirstSampleOfSeverity(output *os.File, group gtfsvalidator.NoticeGroup, severity string) {
+	for _, sample := range group.SampleNotices {
+		if sample["severity"] == severity {
+			showNoticeContext(output, sample, group.AffectedFiles)
+			return
+		}
+	}
+}
+
+func showNoticeContext(output *os.File, context map[string]interface{}, groupFiles []string) {
 	details := []string{}
 
-	if filename, ok := context["filename"].(string); ok {
-		details = append(details, fmt.Sprintf("file=%s", filename))
+	// A notice names its own file when the check is tied to one. Otherwise
+	// fall back to the files the code as a whole concerns, so a row number is
+	// never shown without saying which file it is a row of.
+	filename, hasFile := context["file"].(string)
+	if !hasFile && len(groupFiles) > 0 {
+		filename, hasFile = strings.Join(groupFiles, "|"), true
 	}
-	if row, ok := context["csvRowNumber"].(float64); ok {
-		details = append(details, fmt.Sprintf("row=%d", int(row)))
+	line, hasLine := intValue(context["line"])
+
+	switch {
+	case hasFile && hasLine:
+		details = append(details, fmt.Sprintf("%s:%d", filename, line))
+	case hasFile:
+		details = append(details, fmt.Sprintf("file=%s", filename))
+	case hasLine:
+		details = append(details, fmt.Sprintf("row=%d", line))
 	}
 	if field, ok := context["fieldName"].(string); ok {
 		details = append(details, fmt.Sprintf("field=%s", field))
@@ -428,6 +450,21 @@ func showNoticeContext(output *os.File, context map[string]interface{}) {
 		if _, err := fmt.Fprintf(output, "       (%s)\n", strings.Join(details, ", ")); err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: Failed to write notice context: %v\n", err)
 		}
+	}
+}
+
+// intValue reads a numeric context value. Values are ints in process but
+// arrive as float64 when a report is read back from JSON.
+func intValue(value interface{}) (int, bool) {
+	switch v := value.(type) {
+	case int:
+		return v, true
+	case int64:
+		return int(v), true
+	case float64:
+		return int(v), true
+	default:
+		return 0, false
 	}
 }
 

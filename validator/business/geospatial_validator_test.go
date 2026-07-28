@@ -26,7 +26,7 @@ func TestGeospatialValidator_Validate(t *testing.T) {
 	}
 
 	// Accept any of several geospatial notices depending on data and bounds
-	if codes["child_station_too_far_from_parent"] == 0 && codes["invalid_latitude"] == 0 && codes["invalid_longitude"] == 0 && codes["shape_point_outside_feed_bounds"] == 0 && codes["very_small_feed_coverage"] == 0 {
+	if codes["child_station_too_far_from_parent"] == 0 && codes["invalid_latitude"] == 0 && codes["invalid_longitude"] == 0 && codes["shape_point_outside_feed_bounds"] == 0 {
 		t.Errorf("expected at least one geospatial notice to be emitted")
 	}
 }

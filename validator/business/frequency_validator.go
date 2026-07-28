@@ -43,8 +43,19 @@ func (v *FrequencyValidator) Validate(loader *parser.FeedLoader, container *noti
 	// Check for overlapping frequencies
 	v.validateOverlappingFrequencies(container, frequencies)
 
-	// Validate trip references
-	v.validateTripReferences(loader, container, frequencies)
+	// Trip references, and overlaps between the trips sharing a route/service
+	trips := v.loadTripInfo(loader)
+	v.validateTripReferences(container, frequencies, trips)
+	v.validateCrossTripOverlaps(container, frequencies, trips)
+}
+
+// TripInfo is the slice of trips.txt the frequency checks need: which route
+// and service a frequency's trip belongs to, so overlaps can be compared
+// between the trips that actually run alongside each other.
+type TripInfo struct {
+	TripID    string
+	RouteID   string
+	ServiceID string
 }
 
 // loadFrequencies loads frequency information from frequencies.txt
@@ -181,29 +192,22 @@ func (v *FrequencyValidator) validateFrequency(container *notice.NoticeContainer
 		))
 	}
 
-	// Check for unreasonably short headways (less than 30 seconds)
-	if frequency.HeadwaySecs > 0 && frequency.HeadwaySecs < 30 {
-		container.AddNotice(notice.NewUnreasonableHeadwayNotice(
-			frequency.TripID,
-			frequency.HeadwaySecs,
-			frequency.RowNumber,
-		))
-	}
-
-	// Check for unreasonably long headways (more than 4 hours)
-	if frequency.HeadwaySecs > 14400 { // 4 hours = 14400 seconds
-		container.AddNotice(notice.NewUnreasonableHeadwayNotice(
-			frequency.TripID,
-			frequency.HeadwaySecs,
-			frequency.RowNumber,
-		))
-	}
-
 	// Validate exact_times field
 	if frequency.ExactTimes != 0 && frequency.ExactTimes != 1 {
 		container.AddNotice(notice.NewInvalidExactTimesNotice(
 			frequency.TripID,
 			frequency.ExactTimes,
+			frequency.RowNumber,
+		))
+	}
+
+	// A window shorter than one headway generates no trips at all.
+	if duration := frequency.EndTime - frequency.StartTime; duration > 0 &&
+		frequency.HeadwaySecs > 0 && duration < frequency.HeadwaySecs {
+		container.AddNotice(notice.NewFrequencyDurationShorterThanHeadwayNotice(
+			frequency.TripID,
+			duration,
+			frequency.HeadwaySecs,
 			frequency.RowNumber,
 		))
 	}
@@ -250,13 +254,9 @@ func (v *FrequencyValidator) validateOverlappingFrequencies(container *notice.No
 }
 
 // validateTripReferences validates that frequency trips exist
-func (v *FrequencyValidator) validateTripReferences(loader *parser.FeedLoader, container *notice.NoticeContainer, frequencies []*FrequencyInfo) {
-	// Load existing trips
-	existingTrips := v.loadTripIDs(loader)
-
-	// Check each frequency trip reference
+func (v *FrequencyValidator) validateTripReferences(container *notice.NoticeContainer, frequencies []*FrequencyInfo, trips map[string]*TripInfo) {
 	for _, frequency := range frequencies {
-		if !existingTrips[frequency.TripID] {
+		if _, exists := trips[frequency.TripID]; !exists {
 			container.AddNotice(notice.NewForeignKeyViolationNotice(
 				"frequencies.txt",
 				"trip_id",
@@ -269,13 +269,66 @@ func (v *FrequencyValidator) validateTripReferences(loader *parser.FeedLoader, c
 	}
 }
 
-// loadTripIDs loads all trip IDs from trips.txt
-func (v *FrequencyValidator) loadTripIDs(loader *parser.FeedLoader) map[string]bool {
-	tripIDs := make(map[string]bool)
+// validateCrossTripOverlaps reports frequency windows that overlap between
+// distinct trips of the same route and service. Overlapping windows on one
+// trip are a contradiction; overlapping windows across sibling trips mean the
+// route is described twice for the same period.
+func (v *FrequencyValidator) validateCrossTripOverlaps(container *notice.NoticeContainer, frequencies []*FrequencyInfo, trips map[string]*TripInfo) {
+	routeServiceFreqs := make(map[string][]*FrequencyInfo)
+	for _, frequency := range frequencies {
+		trip, exists := trips[frequency.TripID]
+		if !exists {
+			continue
+		}
+		key := trip.RouteID + "\x00" + trip.ServiceID
+		routeServiceFreqs[key] = append(routeServiceFreqs[key], frequency)
+	}
+
+	for _, freqList := range routeServiceFreqs {
+		if len(freqList) < 2 {
+			continue
+		}
+
+		sort.Slice(freqList, func(i, j int) bool {
+			return freqList[i].StartTime < freqList[j].StartTime
+		})
+
+		for i := 0; i < len(freqList); i++ {
+			for j := i + 1; j < len(freqList); j++ {
+				first, second := freqList[i], freqList[j]
+				if first.TripID == second.TripID {
+					continue
+				}
+				// Sorted by start time, so once a later window starts after
+				// this one ends nothing further can overlap it.
+				if second.StartTime >= first.EndTime {
+					break
+				}
+
+				trip := trips[first.TripID]
+				container.AddNotice(notice.NewCrossTripFrequencyOverlapNotice(
+					first.TripID,
+					second.TripID,
+					trip.RouteID,
+					trip.ServiceID,
+					v.formatGTFSTime(first.StartTime),
+					v.formatGTFSTime(first.EndTime),
+					v.formatGTFSTime(second.StartTime),
+					v.formatGTFSTime(second.EndTime),
+					second.RowNumber,
+				))
+			}
+		}
+	}
+}
+
+// loadTripInfo loads the route and service of every trip.
+func (v *FrequencyValidator) loadTripInfo(loader *parser.FeedLoader) map[string]*TripInfo {
+	trips := make(map[string]*TripInfo)
 
 	reader, err := loader.GetFile("trips.txt")
 	if err != nil {
-		return tripIDs
+		return trips
 	}
 	defer func() {
 		if closeErr := reader.Close(); closeErr != nil {
@@ -285,7 +338,7 @@ func (v *FrequencyValidator) loadTripIDs(loader *parser.FeedLoader) map[string]b
 
 	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
 	if err != nil {
-		return tripIDs
+		return trips
 	}
 
 	for {
@@ -297,12 +350,18 @@ func (v *FrequencyValidator) loadTripIDs(loader *parser.FeedLoader) map[string]b
 			break
 		}
 
-		if tripID, hasTripID := row.Values["trip_id"]; hasTripID {
-			tripIDs[strings.TrimSpace(tripID)] = true
+		tripID, hasTripID := row.Values["trip_id"]
+		if !hasTripID {
+			continue
+		}
+		trips[strings.TrimSpace(tripID)] = &TripInfo{
+			TripID:    strings.TrimSpace(tripID),
+			RouteID:   strings.TrimSpace(row.Values["route_id"]),
+			ServiceID: strings.TrimSpace(row.Values["service_id"]),
 		}
 	}
 
-	return tripIDs
+	return trips
 }
 
 // formatGTFSTime formats seconds since midnight back to HH:MM:SS format

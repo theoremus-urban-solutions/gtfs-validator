@@ -92,14 +92,6 @@ func (v *CoordinateValidator) validateCoordinate(container *notice.NoticeContain
 				rowNumber,
 				"Latitude must be between -90 and 90",
 			))
-			// Also report insufficient precision for out-of-range values
-			container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-				filename,
-				fieldName,
-				coordValue,
-				rowNumber,
-				0,
-			))
 		}
 		// Check for suspicious latitude values (likely errors)
 		if coord == 0.0 {
@@ -123,14 +115,6 @@ func (v *CoordinateValidator) validateCoordinate(container *notice.NoticeContain
 				rowNumber,
 				"Longitude must be between -180 and 180",
 			))
-			// Also report insufficient precision for out-of-range values
-			container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-				filename,
-				fieldName,
-				coordValue,
-				rowNumber,
-				0,
-			))
 		}
 		// Check for suspicious longitude values (likely errors)
 		if coord == 0.0 {
@@ -142,62 +126,5 @@ func (v *CoordinateValidator) validateCoordinate(container *notice.NoticeContain
 				"Longitude is exactly 0 (may indicate missing data)",
 			))
 		}
-	}
-
-	// Check for insufficient precision (less than 4 decimal places) only for standard decimal notation
-	coordStr := trimmed
-	if strings.ContainsAny(coordStr, "eE") {
-		// scientific notation: treat as insufficient precision
-		container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-			filename,
-			fieldName,
-			coordValue,
-			rowNumber,
-			0,
-		))
-		return
-	}
-	if coord == 0.0 {
-		// Zero coordinates are considered insufficiently precise regardless of formatting
-		container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-			filename,
-			fieldName,
-			coordValue,
-			rowNumber,
-			0,
-		))
-		return
-	}
-	if dotIndex := strings.Index(coordStr, "."); dotIndex != -1 {
-		// Count decimals as written (including trailing zeros)
-		decimals := len(coordStr) - dotIndex - 1
-		if decimals < 4 {
-			container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-				filename,
-				fieldName,
-				coordValue,
-				rowNumber,
-				decimals,
-			))
-		}
-		// Special case: boundary coordinates with exactly 4 decimal places are considered insufficient precision
-		if decimals == 4 && (coord == 90.0 || coord == -90.0 || coord == 180.0 || coord == -180.0) {
-			container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-				filename,
-				fieldName,
-				coordValue,
-				rowNumber,
-				decimals,
-			))
-		}
-	} else {
-		// No decimal point - very low precision
-		container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-			filename,
-			fieldName,
-			coordValue,
-			rowNumber,
-			0,
-		))
 	}
 }

@@ -202,7 +202,6 @@ func (v *BikesAllowanceValidator) validateTripBikeAllowance(container *notice.No
 	}
 
 	// Additional validation for bike-related accessibility
-	v.validateBikeAccessibilityConsistency(container, trip)
 }
 
 // validateFerryBikeAllowance validates bike allowance for ferry trips
@@ -239,38 +238,6 @@ func (v *BikesAllowanceValidator) validateBikesAllowedValue(container *notice.No
 			*trip.BikesAllowed,
 			trip.RowNumber,
 		))
-	}
-}
-
-// validateBikeAccessibilityConsistency validates consistency between bike and wheelchair accessibility
-func (v *BikesAllowanceValidator) validateBikeAccessibilityConsistency(container *notice.NoticeContainer, trip *TripBikeInfo) {
-	// This is an informational check - if bikes are explicitly not allowed but wheelchairs are,
-	// it might indicate an accessibility issue worth noting
-	if trip.BikesAllowed != nil && trip.WheelchairAccessible != nil {
-		if *trip.BikesAllowed == 2 && *trip.WheelchairAccessible == 1 {
-			// Bikes not allowed but wheelchairs are - this is fine, just informational
-			container.AddNotice(notice.NewBikeWheelchairAccessibilityMismatchNotice(
-				trip.TripID,
-				trip.RouteID,
-				*trip.BikesAllowed,
-				*trip.WheelchairAccessible,
-				trip.RowNumber,
-			))
-		}
-	}
-
-	// Check for unusual combinations
-	if trip.BikesAllowed != nil && trip.RouteType != 4 { // Non-ferry routes
-		// Report unusual for uncommon types with any bikes_allowed value (1 or 2)
-		if v.isBikeUncommonRouteType(trip.RouteType) {
-			container.AddNotice(notice.NewUnusualBikeAllowanceNotice(
-				trip.TripID,
-				trip.RouteID,
-				trip.RouteType,
-				*trip.BikesAllowed,
-				trip.RowNumber,
-			))
-		}
 	}
 }
 

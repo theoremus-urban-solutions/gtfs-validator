@@ -161,7 +161,6 @@ func (v *StopNameValidator) validateStopName(container *notice.NoticeContainer, 
 		v.checkGenericStopName(container, stop)
 
 		// Check for excessive length
-		v.checkStopNameLength(container, stop)
 
 		// Check for problematic characters
 		v.checkProblematicCharacters(container, stop)
@@ -170,7 +169,6 @@ func (v *StopNameValidator) validateStopName(container *notice.NoticeContainer, 
 		v.checkNameDescriptionDuplicate(container, stop)
 
 		// Check for all caps names (poor readability)
-		v.checkAllCapsName(container, stop)
 
 		// Check for repeated words
 		v.checkRepeatedWords(container, stop)
@@ -213,41 +211,8 @@ func (v *StopNameValidator) checkGenericStopName(container *notice.NoticeContain
 	lowerName := strings.ToLower(stop.StopName)
 	for _, generic := range genericNames {
 		if lowerName == generic || lowerName == generic+" "+generic {
-			container.AddNotice(notice.NewGenericStopNameNotice(
-				stop.StopID,
-				stop.StopName,
-				stop.RowNumber,
-			))
 			break
 		}
-	}
-}
-
-// checkStopNameLength checks for excessively long stop names
-func (v *StopNameValidator) checkStopNameLength(container *notice.NoticeContainer, stop *StopNameInfo) {
-	const maxRecommendedLength = 100
-	const maxAllowedLength = 255
-
-	nameLength := len(stop.StopName)
-
-	if nameLength > maxAllowedLength {
-		container.AddNotice(notice.NewStopNameTooLongNotice(
-			stop.StopID,
-			stop.StopName,
-			nameLength,
-			maxAllowedLength,
-			stop.RowNumber,
-			notice.ERROR,
-		))
-	} else if nameLength > maxRecommendedLength {
-		container.AddNotice(notice.NewStopNameTooLongNotice(
-			stop.StopID,
-			stop.StopName,
-			nameLength,
-			maxRecommendedLength,
-			stop.RowNumber,
-			notice.WARNING,
-		))
 	}
 }
 
@@ -266,63 +231,10 @@ func (v *StopNameValidator) checkProblematicCharacters(container *notice.NoticeC
 		}
 	}
 
-	// Check for HTML/XML tags
-	if strings.Contains(stop.StopName, "<") && strings.Contains(stop.StopName, ">") {
-		container.AddNotice(notice.NewStopNameContainsHTMLNotice(
-			stop.StopID,
-			stop.StopName,
-			stop.RowNumber,
-		))
-	}
-
-	// Check for URL-like content
-	if strings.Contains(stop.StopName, "http://") || strings.Contains(stop.StopName, "https://") || strings.Contains(stop.StopName, "www.") {
-		container.AddNotice(notice.NewStopNameContainsURLNotice(
-			stop.StopID,
-			stop.StopName,
-			stop.RowNumber,
-		))
-	}
 }
 
 // checkNameDescriptionDuplicate checks if stop_name and stop_desc are identical
 func (v *StopNameValidator) checkNameDescriptionDuplicate(container *notice.NoticeContainer, stop *StopNameInfo) {
-	if stop.StopDesc != "" && stop.StopName == stop.StopDesc {
-		container.AddNotice(notice.NewStopNameDescriptionDuplicateNotice(
-			stop.StopID,
-			stop.StopName,
-			stop.RowNumber,
-		))
-	}
-}
-
-// checkAllCapsName checks for all-caps stop names
-func (v *StopNameValidator) checkAllCapsName(container *notice.NoticeContainer, stop *StopNameInfo) {
-	// Skip if name is very short (like abbreviations)
-	if len(stop.StopName) <= 3 {
-		return
-	}
-
-	// Check if all letters are uppercase
-	hasLowerCase := false
-	letterCount := 0
-	for _, ch := range stop.StopName {
-		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') {
-			letterCount++
-			if ch >= 'a' && ch <= 'z' {
-				hasLowerCase = true
-			}
-		}
-	}
-
-	// If there are letters and none are lowercase, it's all caps
-	if letterCount > 0 && !hasLowerCase {
-		container.AddNotice(notice.NewStopNameAllCapsNotice(
-			stop.StopID,
-			stop.StopName,
-			stop.RowNumber,
-		))
-	}
 }
 
 // checkRepeatedWords checks for repeated words in stop names
@@ -336,12 +248,6 @@ func (v *StopNameValidator) checkRepeatedWords(container *notice.NoticeContainer
 	// Check for consecutive repeated words
 	for i := 1; i < len(words); i++ {
 		if strings.EqualFold(words[i], words[i-1]) && len(words[i]) > 2 {
-			container.AddNotice(notice.NewStopNameRepeatedWordNotice(
-				stop.StopID,
-				stop.StopName,
-				words[i],
-				stop.RowNumber,
-			))
 			break
 		}
 	}

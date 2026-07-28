@@ -237,40 +237,6 @@ func NewDecreasingOrEqualStopTimeDistanceNotice(tripID string, stopID string, ro
 	}
 }
 
-// FeedExpirationDate7DaysNotice is generated when feed expires within 7 days
-type FeedExpirationDate7DaysNotice struct {
-	*BaseNotice
-}
-
-func NewFeedExpirationDate7DaysNotice(rowNumber int, currentDate string, feedEndDate string, suggestedExpirationDate string) *FeedExpirationDate7DaysNotice {
-	context := map[string]interface{}{
-		"csvRowNumber":            rowNumber,
-		"currentDate":             currentDate,
-		"feedEndDate":             feedEndDate,
-		"suggestedExpirationDate": suggestedExpirationDate,
-	}
-	return &FeedExpirationDate7DaysNotice{
-		BaseNotice: NewBaseNotice("feed_expiration_date_7_days", WARNING, context),
-	}
-}
-
-// FeedExpirationDate30DaysNotice is generated when feed expires within 30 days
-type FeedExpirationDate30DaysNotice struct {
-	*BaseNotice
-}
-
-func NewFeedExpirationDate30DaysNotice(rowNumber int, currentDate string, feedEndDate string, suggestedExpirationDate string) *FeedExpirationDate30DaysNotice {
-	context := map[string]interface{}{
-		"csvRowNumber":            rowNumber,
-		"currentDate":             currentDate,
-		"feedEndDate":             feedEndDate,
-		"suggestedExpirationDate": suggestedExpirationDate,
-	}
-	return &FeedExpirationDate30DaysNotice{
-		BaseNotice: NewBaseNotice("feed_expiration_date_30_days", WARNING, context),
-	}
-}
-
 // MissingRouteNameNotice is generated when both route_short_name and route_long_name are missing
 type MissingRouteNameNotice struct {
 	*BaseNotice
@@ -283,7 +249,7 @@ func NewMissingRouteNameNotice(routeID string, rowNumber int) *MissingRouteNameN
 		"message":      "Either route_short_name or route_long_name must be provided",
 	}
 	return &MissingRouteNameNotice{
-		BaseNotice: NewBaseNotice("missing_route_name", ERROR, context),
+		BaseNotice: NewBaseNotice("route_both_short_and_long_name_missing", ERROR, context),
 	}
 }
 
@@ -323,24 +289,6 @@ func NewRouteShortNameTooLongNotice(routeID string, routeShortName string, actua
 	}
 }
 
-// RouteLongNameTooLongNotice is generated when route_long_name exceeds recommended length
-type RouteLongNameTooLongNotice struct {
-	*BaseNotice
-}
-
-func NewRouteLongNameTooLongNotice(routeID string, routeLongName string, actualLength int, maxLength int, rowNumber int) *RouteLongNameTooLongNotice {
-	context := map[string]interface{}{
-		"routeId":       routeID,
-		"routeLongName": routeLongName,
-		"actualLength":  actualLength,
-		"maxLength":     maxLength,
-		"csvRowNumber":  rowNumber,
-	}
-	return &RouteLongNameTooLongNotice{
-		BaseNotice: NewBaseNotice("route_long_name_too_long", WARNING, context),
-	}
-}
-
 // TripUsabilityNotice is generated when a trip has fewer than 2 stops
 type TripUsabilityNotice struct {
 	*BaseNotice
@@ -353,7 +301,7 @@ func NewTripUsabilityNotice(tripID string, stopCount int, rowNumber int) *TripUs
 		"csvRowNumber": rowNumber,
 	}
 	return &TripUsabilityNotice{
-		BaseNotice: NewBaseNotice("trip_usability", ERROR, context),
+		BaseNotice: NewBaseNotice("unusable_trip", ERROR, context),
 	}
 }
 
@@ -391,7 +339,7 @@ func NewStopTimeDecreasingTimeNotice(tripID string, stopSequence int, arrivalTim
 		"prevCsvRowNumber":  prevRowNumber,
 	}
 	return &StopTimeDecreasingTimeNotice{
-		BaseNotice: NewBaseNotice("stop_time_decreasing_time", ERROR, context),
+		BaseNotice: NewBaseNotice("stop_time_with_arrival_before_previous_departure_time", ERROR, context),
 	}
 }
 
@@ -453,7 +401,7 @@ func NewExcessiveTravelSpeedNotice(tripID string, fromStopID string, toStopID st
 		"toRowNumber":      toRowNumber,
 	}
 	return &ExcessiveTravelSpeedNotice{
-		BaseNotice: NewBaseNotice("excessive_travel_speed", WARNING, context),
+		BaseNotice: NewBaseNotice("fast_travel_between_consecutive_stops", WARNING, context),
 	}
 }
 
@@ -477,7 +425,7 @@ func NewBlockTripsOverlapNotice(blockID string, trip1ID string, trip2ID string, 
 		"trip2RowNumber": trip2RowNumber,
 	}
 	return &BlockTripsOverlapNotice{
-		BaseNotice: NewBaseNotice("block_trips_overlap", ERROR, context),
+		BaseNotice: NewBaseNotice("block_trips_with_overlapping_stop_times", ERROR, context),
 	}
 }
 
@@ -549,7 +497,7 @@ func NewDuplicateHeaderNotice(filename string, headerName string, positions []in
 		"positions":  positions,
 	}
 	return &DuplicateHeaderNotice{
-		BaseNotice: NewBaseNotice("duplicate_header", ERROR, context),
+		BaseNotice: NewBaseNotice("duplicated_column", ERROR, context),
 	}
 }
 
@@ -635,24 +583,6 @@ func NewSuspiciousCoordinateNotice(filename string, fieldName string, coordValue
 	}
 	return &SuspiciousCoordinateNotice{
 		BaseNotice: NewBaseNotice("suspicious_coordinate", WARNING, context),
-	}
-}
-
-// InsufficientCoordinatePrecisionNotice is generated when coordinates have insufficient precision
-type InsufficientCoordinatePrecisionNotice struct {
-	*BaseNotice
-}
-
-func NewInsufficientCoordinatePrecisionNotice(filename string, fieldName string, coordValue string, rowNumber int, decimals int) *InsufficientCoordinatePrecisionNotice {
-	context := map[string]interface{}{
-		"filename":     filename,
-		"fieldName":    fieldName,
-		"fieldValue":   coordValue,
-		"csvRowNumber": rowNumber,
-		"decimals":     decimals,
-	}
-	return &InsufficientCoordinatePrecisionNotice{
-		BaseNotice: NewBaseNotice("insufficient_coordinate_precision", WARNING, context),
 	}
 }
 
@@ -756,23 +686,6 @@ func NewInvalidColorNotice(routeID string, fieldName string, colorValue string, 
 	}
 }
 
-// PoorColorContrastNotice is generated when route colors have poor contrast
-type PoorColorContrastNotice struct {
-	*BaseNotice
-}
-
-func NewPoorColorContrastNotice(routeID string, routeColor string, routeTextColor string, rowNumber int) *PoorColorContrastNotice {
-	context := map[string]interface{}{
-		"routeId":        routeID,
-		"routeColor":     routeColor,
-		"routeTextColor": routeTextColor,
-		"csvRowNumber":   rowNumber,
-	}
-	return &PoorColorContrastNotice{
-		BaseNotice: NewBaseNotice("poor_color_contrast", WARNING, context),
-	}
-}
-
 // ServiceWithoutActiveDaysNotice is generated when a service has no active days
 type ServiceWithoutActiveDaysNotice struct {
 	*BaseNotice
@@ -784,7 +697,7 @@ func NewServiceWithoutActiveDaysNotice(serviceID string, rowNumber int) *Service
 		"csvRowNumber": rowNumber,
 	}
 	return &ServiceWithoutActiveDaysNotice{
-		BaseNotice: NewBaseNotice("service_without_active_days", ERROR, context),
+		BaseNotice: NewBaseNotice("service_has_no_active_day_of_the_week", ERROR, context),
 	}
 }
 
@@ -994,22 +907,6 @@ func NewInvalidHeadwayNotice(tripID string, headwaySecs int, rowNumber int) *Inv
 	}
 	return &InvalidHeadwayNotice{
 		BaseNotice: NewBaseNotice("invalid_headway", ERROR, context),
-	}
-}
-
-// UnreasonableHeadwayNotice is generated when headway is unreasonable
-type UnreasonableHeadwayNotice struct {
-	*BaseNotice
-}
-
-func NewUnreasonableHeadwayNotice(tripID string, headwaySecs int, rowNumber int) *UnreasonableHeadwayNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"headwaySecs":  headwaySecs,
-		"csvRowNumber": rowNumber,
-	}
-	return &UnreasonableHeadwayNotice{
-		BaseNotice: NewBaseNotice("unreasonable_headway", WARNING, context),
 	}
 }
 
@@ -1279,22 +1176,6 @@ func NewInvalidTraversalTimeNotice(pathwayID string, traversalTime int, rowNumbe
 	}
 }
 
-// UnreasonableMaxSlopeNotice is generated when max_slope is unreasonable
-type UnreasonableMaxSlopeNotice struct {
-	*BaseNotice
-}
-
-func NewUnreasonableMaxSlopeNotice(pathwayID string, maxSlope float64, rowNumber int) *UnreasonableMaxSlopeNotice {
-	context := map[string]interface{}{
-		"pathwayId":    pathwayID,
-		"maxSlope":     maxSlope,
-		"csvRowNumber": rowNumber,
-	}
-	return &UnreasonableMaxSlopeNotice{
-		BaseNotice: NewBaseNotice("unreasonable_max_slope", WARNING, context),
-	}
-}
-
 // InvalidMinWidthNotice is generated when min_width is invalid
 type InvalidMinWidthNotice struct {
 	*BaseNotice
@@ -1380,22 +1261,6 @@ func NewInvalidTransfersNotice(fareID string, transfers int, rowNumber int) *Inv
 	}
 }
 
-// UnusualTransferValueNotice is generated when transfers has unusual value
-type UnusualTransferValueNotice struct {
-	*BaseNotice
-}
-
-func NewUnusualTransferValueNotice(fareID string, transfers int, rowNumber int) *UnusualTransferValueNotice {
-	context := map[string]interface{}{
-		"fareId":       fareID,
-		"transfers":    transfers,
-		"csvRowNumber": rowNumber,
-	}
-	return &UnusualTransferValueNotice{
-		BaseNotice: NewBaseNotice("unusual_transfer_value", WARNING, context),
-	}
-}
-
 // InvalidTransferDurationNotice is generated when transfer_duration is invalid
 type InvalidTransferDurationNotice struct {
 	*BaseNotice
@@ -1445,23 +1310,6 @@ func NewInvalidFarePriceNotice(fareID string, price string, rowNumber int, reaso
 	}
 }
 
-// ExcessivePricePrecisionNotice is generated when fare price has too many decimal places
-type ExcessivePricePrecisionNotice struct {
-	*BaseNotice
-}
-
-func NewExcessivePricePrecisionNotice(fareID string, price string, decimals int, rowNumber int) *ExcessivePricePrecisionNotice {
-	context := map[string]interface{}{
-		"fareId":       fareID,
-		"price":        price,
-		"decimals":     decimals,
-		"csvRowNumber": rowNumber,
-	}
-	return &ExcessivePricePrecisionNotice{
-		BaseNotice: NewBaseNotice("excessive_price_precision", WARNING, context),
-	}
-}
-
 // EmptyFareRuleNotice is generated when fare rule has no rule fields
 type EmptyFareRuleNotice struct {
 	*BaseNotice
@@ -1474,22 +1322,6 @@ func NewEmptyFareRuleNotice(fareID string, rowNumber int) *EmptyFareRuleNotice {
 	}
 	return &EmptyFareRuleNotice{
 		BaseNotice: NewBaseNotice("empty_fare_rule", WARNING, context),
-	}
-}
-
-// SameOriginDestinationNotice is generated when origin and destination are the same
-type SameOriginDestinationNotice struct {
-	*BaseNotice
-}
-
-func NewSameOriginDestinationNotice(fareID string, zoneID string, rowNumber int) *SameOriginDestinationNotice {
-	context := map[string]interface{}{
-		"fareId":       fareID,
-		"zoneId":       zoneID,
-		"csvRowNumber": rowNumber,
-	}
-	return &SameOriginDestinationNotice{
-		BaseNotice: NewBaseNotice("same_origin_destination", WARNING, context),
 	}
 }
 
@@ -1524,22 +1356,6 @@ func NewUnusedFareAttributeNotice(fareID string, rowNumber int) *UnusedFareAttri
 }
 
 // LEVEL VALIDATOR NOTICES
-
-// UnreasonableLevelIndexNotice is generated when level_index is unreasonable
-type UnreasonableLevelIndexNotice struct {
-	*BaseNotice
-}
-
-func NewUnreasonableLevelIndexNotice(levelID string, levelIndex float64, rowNumber int) *UnreasonableLevelIndexNotice {
-	context := map[string]interface{}{
-		"levelId":      levelID,
-		"levelIndex":   levelIndex,
-		"csvRowNumber": rowNumber,
-	}
-	return &UnreasonableLevelIndexNotice{
-		BaseNotice: NewBaseNotice("unreasonable_level_index", WARNING, context),
-	}
-}
 
 // DuplicateLevelIndexNotice is generated when duplicate level indices are found
 type DuplicateLevelIndexNotice struct {
@@ -1586,7 +1402,7 @@ func NewInsufficientShapePointsNotice(shapeID string, pointCount int) *Insuffici
 		"pointCount": pointCount,
 	}
 	return &InsufficientShapePointsNotice{
-		BaseNotice: NewBaseNotice("insufficient_shape_points", ERROR, context),
+		BaseNotice: NewBaseNotice("single_shape_point", ERROR, context),
 	}
 }
 
@@ -1755,38 +1571,6 @@ func NewInvalidExceptionTypeNotice(serviceID string, date string, exceptionType 
 	}
 	return &InvalidExceptionTypeNotice{
 		BaseNotice: NewBaseNotice("invalid_exception_type", ERROR, context),
-	}
-}
-
-// VeryOldCalendarDateNotice is generated when calendar date is very old
-type VeryOldCalendarDateNotice struct {
-	*BaseNotice
-}
-
-func NewVeryOldCalendarDateNotice(serviceID string, date string, rowNumber int) *VeryOldCalendarDateNotice {
-	context := map[string]interface{}{
-		"serviceId":    serviceID,
-		"date":         date,
-		"csvRowNumber": rowNumber,
-	}
-	return &VeryOldCalendarDateNotice{
-		BaseNotice: NewBaseNotice("very_old_calendar_date", WARNING, context),
-	}
-}
-
-// VeryFutureCalendarDateNotice is generated when calendar date is very far in future
-type VeryFutureCalendarDateNotice struct {
-	*BaseNotice
-}
-
-func NewVeryFutureCalendarDateNotice(serviceID string, date string, rowNumber int) *VeryFutureCalendarDateNotice {
-	context := map[string]interface{}{
-		"serviceId":    serviceID,
-		"date":         date,
-		"csvRowNumber": rowNumber,
-	}
-	return &VeryFutureCalendarDateNotice{
-		BaseNotice: NewBaseNotice("very_future_calendar_date", WARNING, context),
 	}
 }
 
@@ -1999,22 +1783,6 @@ func NewFutureFeedStartDateNotice(startDate string, rowNumber int) *FutureFeedSt
 
 // ZONE VALIDATOR NOTICES
 
-// SingleStopZoneNotice is generated when zone has only one stop
-type SingleStopZoneNotice struct {
-	*BaseNotice
-}
-
-func NewSingleStopZoneNotice(zoneID string, stopID string, rowNumber int) *SingleStopZoneNotice {
-	context := map[string]interface{}{
-		"zoneId":       zoneID,
-		"stopId":       stopID,
-		"csvRowNumber": rowNumber,
-	}
-	return &SingleStopZoneNotice{
-		BaseNotice: NewBaseNotice("single_stop_zone", WARNING, context),
-	}
-}
-
 // UnusedZoneNotice is generated when zone is defined but not used
 type UnusedZoneNotice struct {
 	*BaseNotice
@@ -2044,37 +1812,6 @@ func NewUndefinedZoneNotice(zoneID string) *UndefinedZoneNotice {
 	}
 }
 
-// LongZoneIDNotice is generated when zone ID is very long
-type LongZoneIDNotice struct {
-	*BaseNotice
-}
-
-func NewLongZoneIDNotice(zoneID string, length int, rowNumber int) *LongZoneIDNotice {
-	context := map[string]interface{}{
-		"zoneId":       zoneID,
-		"length":       length,
-		"csvRowNumber": rowNumber,
-	}
-	return &LongZoneIDNotice{
-		BaseNotice: NewBaseNotice("long_zone_id", WARNING, context),
-	}
-}
-
-// ZoneIDSameAsStopIDNotice is generated when zone ID equals stop ID
-type ZoneIDSameAsStopIDNotice struct {
-	*BaseNotice
-}
-
-func NewZoneIDSameAsStopIDNotice(zoneID string, rowNumber int) *ZoneIDSameAsStopIDNotice {
-	context := map[string]interface{}{
-		"zoneId":       zoneID,
-		"csvRowNumber": rowNumber,
-	}
-	return &ZoneIDSameAsStopIDNotice{
-		BaseNotice: NewBaseNotice("zone_id_same_as_stop_id", WARNING, context),
-	}
-}
-
 // STOP TIME CONSISTENCY VALIDATOR NOTICES
 
 // MissingTripFirstTimeNotice is generated when first stop has no times
@@ -2089,7 +1826,7 @@ func NewMissingTripFirstTimeNotice(tripID string, stopID string, rowNumber int) 
 		"csvRowNumber": rowNumber,
 	}
 	return &MissingTripFirstTimeNotice{
-		BaseNotice: NewBaseNotice("missing_trip_first_time", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_trip_edge", ERROR, context),
 	}
 }
 
@@ -2105,24 +1842,7 @@ func NewMissingTripLastTimeNotice(tripID string, stopID string, rowNumber int) *
 		"csvRowNumber": rowNumber,
 	}
 	return &MissingTripLastTimeNotice{
-		BaseNotice: NewBaseNotice("missing_trip_last_time", ERROR, context),
-	}
-}
-
-// LoopRouteNotice is generated when trip starts and ends at same stop
-type LoopRouteNotice struct {
-	*BaseNotice
-}
-
-func NewLoopRouteNotice(tripID string, stopID string, firstRowNumber int, lastRowNumber int) *LoopRouteNotice {
-	context := map[string]interface{}{
-		"tripId":         tripID,
-		"stopId":         stopID,
-		"firstRowNumber": firstRowNumber,
-		"lastRowNumber":  lastRowNumber,
-	}
-	return &LoopRouteNotice{
-		BaseNotice: NewBaseNotice("loop_route", INFO, context),
+		BaseNotice: NewBaseNotice("missing_trip_edge", ERROR, context),
 	}
 }
 
@@ -2193,23 +1913,6 @@ func NewInvalidTimepointNotice(tripID string, stopID string, timepoint int, rowN
 	}
 	return &InvalidTimepointNotice{
 		BaseNotice: NewBaseNotice("invalid_timepoint", ERROR, context),
-	}
-}
-
-// TimepointWithoutTimesNotice is generated when timepoint=0 but times exist
-type TimepointWithoutTimesNotice struct {
-	*BaseNotice
-}
-
-func NewTimepointWithoutTimesNotice(tripID string, stopID string, stopSequence int, rowNumber int) *TimepointWithoutTimesNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"stopId":       stopID,
-		"stopSequence": stopSequence,
-		"csvRowNumber": rowNumber,
-	}
-	return &TimepointWithoutTimesNotice{
-		BaseNotice: NewBaseNotice("timepoint_without_times", INFO, context),
 	}
 }
 
@@ -2318,7 +2021,7 @@ func NewMultipleRecordsInSingleRecordFileNotice(filename string, recordCount int
 		"recordCount": recordCount,
 	}
 	return &MultipleRecordsInSingleRecordFileNotice{
-		BaseNotice: NewBaseNotice("multiple_records_in_single_record_file", ERROR, context),
+		BaseNotice: NewBaseNotice("more_than_one_entity", ERROR, context),
 	}
 }
 
@@ -2351,7 +2054,7 @@ func NewWrongNumberOfFieldsNotice(filename string, rowNumber, expectedFields, ac
 		"actualFields":   actualFields,
 	}
 	return &WrongNumberOfFieldsNotice{
-		BaseNotice: NewBaseNotice("wrong_number_of_fields", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_row_length", ERROR, context),
 	}
 }
 
@@ -2497,7 +2200,7 @@ func NewLeadingWhitespaceNotice(filename, fieldName, fieldValue string, rowNumbe
 		"rowNumber":  rowNumber,
 	}
 	return &LeadingWhitespaceNotice{
-		BaseNotice: NewBaseNotice("leading_whitespace", WARNING, context),
+		BaseNotice: NewBaseNotice("leading_or_trailing_whitespaces", WARNING, context),
 	}
 }
 
@@ -2514,7 +2217,7 @@ func NewTrailingWhitespaceNotice(filename, fieldName, fieldValue string, rowNumb
 		"rowNumber":  rowNumber,
 	}
 	return &TrailingWhitespaceNotice{
-		BaseNotice: NewBaseNotice("trailing_whitespace", WARNING, context),
+		BaseNotice: NewBaseNotice("leading_or_trailing_whitespaces", WARNING, context),
 	}
 }
 
@@ -2531,23 +2234,6 @@ func NewWhitespaceOnlyFieldNotice(filename, fieldName string, rowNumber int) *Wh
 	}
 	return &WhitespaceOnlyFieldNotice{
 		BaseNotice: NewBaseNotice("whitespace_only_field", WARNING, context),
-	}
-}
-
-// ExcessiveWhitespaceNotice represents a field with excessive internal whitespace
-type ExcessiveWhitespaceNotice struct {
-	*BaseNotice
-}
-
-func NewExcessiveWhitespaceNotice(filename, fieldName, fieldValue string, rowNumber int) *ExcessiveWhitespaceNotice {
-	context := map[string]interface{}{
-		"filename":   filename,
-		"fieldName":  fieldName,
-		"fieldValue": fieldValue,
-		"rowNumber":  rowNumber,
-	}
-	return &ExcessiveWhitespaceNotice{
-		BaseNotice: NewBaseNotice("excessive_whitespace", INFO, context),
 	}
 }
 
@@ -2618,198 +2304,6 @@ func NewConsecutiveDuplicateStopsNotice(tripID, stopID string, seq1, seq2, rowNu
 	}
 }
 
-// SingleTripPatternNotice represents a pattern used by only one trip
-type SingleTripPatternNotice struct {
-	*BaseNotice
-}
-
-func NewSingleTripPatternNotice(patternID, tripID string, stopCount int) *SingleTripPatternNotice {
-	context := map[string]interface{}{
-		"patternId": patternID,
-		"tripId":    tripID,
-		"stopCount": stopCount,
-	}
-	return &SingleTripPatternNotice{
-		BaseNotice: NewBaseNotice("single_trip_pattern", INFO, context),
-	}
-}
-
-// ShortTripPatternNotice represents a very short trip pattern
-type ShortTripPatternNotice struct {
-	*BaseNotice
-}
-
-func NewShortTripPatternNotice(patternID string, stopCount, tripCount int) *ShortTripPatternNotice {
-	context := map[string]interface{}{
-		"patternId": patternID,
-		"stopCount": stopCount,
-		"tripCount": tripCount,
-	}
-	return &ShortTripPatternNotice{
-		BaseNotice: NewBaseNotice("short_trip_pattern", WARNING, context),
-	}
-}
-
-// LongTripPatternNotice represents a very long trip pattern
-type LongTripPatternNotice struct {
-	*BaseNotice
-}
-
-func NewLongTripPatternNotice(patternID string, stopCount, tripCount int) *LongTripPatternNotice {
-	context := map[string]interface{}{
-		"patternId": patternID,
-		"stopCount": stopCount,
-		"tripCount": tripCount,
-	}
-	return &LongTripPatternNotice{
-		BaseNotice: NewBaseNotice("long_trip_pattern", INFO, context),
-	}
-}
-
-// TripPatternSummaryNotice provides summary information about trip patterns
-type TripPatternSummaryNotice struct {
-	*BaseNotice
-}
-
-func NewTripPatternSummaryNotice(totalPatterns, totalTrips int, avgTripsPerPattern float64) *TripPatternSummaryNotice {
-	context := map[string]interface{}{
-		"totalPatterns":      totalPatterns,
-		"totalTrips":         totalTrips,
-		"avgTripsPerPattern": avgTripsPerPattern,
-	}
-	return &TripPatternSummaryNotice{
-		BaseNotice: NewBaseNotice("trip_pattern_summary", INFO, context),
-	}
-}
-
-// VeryOldServiceNotice represents a service that ended too long ago
-type VeryOldServiceNotice struct {
-	*BaseNotice
-}
-
-func NewVeryOldServiceNotice(serviceID, endDate string, rowNumber int) *VeryOldServiceNotice {
-	context := map[string]interface{}{
-		"serviceId": serviceID,
-		"endDate":   endDate,
-		"rowNumber": rowNumber,
-	}
-	return &VeryOldServiceNotice{
-		BaseNotice: NewBaseNotice("very_old_service", WARNING, context),
-	}
-}
-
-// VeryFutureServiceNotice represents a service that starts too far in the future
-type VeryFutureServiceNotice struct {
-	*BaseNotice
-}
-
-func NewVeryFutureServiceNotice(serviceID, startDate string, rowNumber int) *VeryFutureServiceNotice {
-	context := map[string]interface{}{
-		"serviceId": serviceID,
-		"startDate": startDate,
-		"rowNumber": rowNumber,
-	}
-	return &VeryFutureServiceNotice{
-		BaseNotice: NewBaseNotice("very_future_service", WARNING, context),
-	}
-}
-
-// LowServiceUsageNotice represents a service with very few trips
-type LowServiceUsageNotice struct {
-	*BaseNotice
-}
-
-func NewLowServiceUsageNotice(serviceID string, tripCount, rowNumber int) *LowServiceUsageNotice {
-	context := map[string]interface{}{
-		"serviceId": serviceID,
-		"tripCount": tripCount,
-		"rowNumber": rowNumber,
-	}
-	return &LowServiceUsageNotice{
-		BaseNotice: NewBaseNotice("low_service_usage", INFO, context),
-	}
-}
-
-// ExcessiveServiceVarietyNotice represents a route with too many different services
-type ExcessiveServiceVarietyNotice struct {
-	*BaseNotice
-}
-
-func NewExcessiveServiceVarietyNotice(routeID string, serviceCount int) *ExcessiveServiceVarietyNotice {
-	context := map[string]interface{}{
-		"routeId":      routeID,
-		"serviceCount": serviceCount,
-	}
-	return &ExcessiveServiceVarietyNotice{
-		BaseNotice: NewBaseNotice("excessive_service_variety", WARNING, context),
-	}
-}
-
-// SingleTripServiceNotice represents a service with only one trip on a route
-type SingleTripServiceNotice struct {
-	*BaseNotice
-}
-
-func NewSingleTripServiceNotice(routeID, serviceID string, tripCount int) *SingleTripServiceNotice {
-	context := map[string]interface{}{
-		"routeId":   routeID,
-		"serviceId": serviceID,
-		"tripCount": tripCount,
-	}
-	return &SingleTripServiceNotice{
-		BaseNotice: NewBaseNotice("single_trip_service", INFO, context),
-	}
-}
-
-// ServicePatternSummaryNotice provides summary of service patterns
-type ServicePatternSummaryNotice struct {
-	*BaseNotice
-}
-
-func NewServicePatternSummaryNotice(weekdayServices, weekendServices, mixedServices, totalServices int) *ServicePatternSummaryNotice {
-	context := map[string]interface{}{
-		"weekdayServices": weekdayServices,
-		"weekendServices": weekendServices,
-		"mixedServices":   mixedServices,
-		"totalServices":   totalServices,
-	}
-	return &ServicePatternSummaryNotice{
-		BaseNotice: NewBaseNotice("service_pattern_summary", INFO, context),
-	}
-}
-
-// VeryShortTripNotice represents a trip with very short duration
-type VeryShortTripNotice struct {
-	*BaseNotice
-}
-
-func NewVeryShortTripNotice(tripID string, duration, stopCount int) *VeryShortTripNotice {
-	context := map[string]interface{}{
-		"tripId":    tripID,
-		"duration":  duration,
-		"stopCount": stopCount,
-	}
-	return &VeryShortTripNotice{
-		BaseNotice: NewBaseNotice("very_short_trip", WARNING, context),
-	}
-}
-
-// VeryLongTripNotice represents a trip with very long duration
-type VeryLongTripNotice struct {
-	*BaseNotice
-}
-
-func NewVeryLongTripNotice(tripID string, duration, stopCount int) *VeryLongTripNotice {
-	context := map[string]interface{}{
-		"tripId":    tripID,
-		"duration":  duration,
-		"stopCount": stopCount,
-	}
-	return &VeryLongTripNotice{
-		BaseNotice: NewBaseNotice("very_long_trip", WARNING, context),
-	}
-}
-
 // StopWithoutServiceNotice represents a stop with neither pickup nor drop-off
 type StopWithoutServiceNotice struct {
 	*BaseNotice
@@ -2827,108 +2321,6 @@ func NewStopWithoutServiceNotice(tripID, stopID string, stopSequence, rowNumber 
 	}
 }
 
-// ShortServiceSpanNotice represents a service with very short time span
-type ShortServiceSpanNotice struct {
-	*BaseNotice
-}
-
-func NewShortServiceSpanNotice(routeID, serviceID string, serviceSpan, tripCount int) *ShortServiceSpanNotice {
-	context := map[string]interface{}{
-		"routeId":     routeID,
-		"serviceId":   serviceID,
-		"serviceSpan": serviceSpan,
-		"tripCount":   tripCount,
-	}
-	return &ShortServiceSpanNotice{
-		BaseNotice: NewBaseNotice("short_service_span", INFO, context),
-	}
-}
-
-// LongServiceSpanNotice represents a service with very long time span
-type LongServiceSpanNotice struct {
-	*BaseNotice
-}
-
-func NewLongServiceSpanNotice(routeID, serviceID string, serviceSpan, tripCount int) *LongServiceSpanNotice {
-	context := map[string]interface{}{
-		"routeId":     routeID,
-		"serviceId":   serviceID,
-		"serviceSpan": serviceSpan,
-		"tripCount":   tripCount,
-	}
-	return &LongServiceSpanNotice{
-		BaseNotice: NewBaseNotice("long_service_span", WARNING, context),
-	}
-}
-
-// IrregularHeadwayNotice represents irregular headway patterns
-type IrregularHeadwayNotice struct {
-	*BaseNotice
-}
-
-func NewIrregularHeadwayNotice(routeID, serviceID string, averageHeadway, variance float64, headwayCount int) *IrregularHeadwayNotice {
-	context := map[string]interface{}{
-		"routeId":        routeID,
-		"serviceId":      serviceID,
-		"averageHeadway": averageHeadway,
-		"variance":       variance,
-		"headwayCount":   headwayCount,
-	}
-	return &IrregularHeadwayNotice{
-		BaseNotice: NewBaseNotice("irregular_headway", WARNING, context),
-	}
-}
-
-// VeryShortHeadwayNotice represents very short headways
-type VeryShortHeadwayNotice struct {
-	*BaseNotice
-}
-
-func NewVeryShortHeadwayNotice(routeID, serviceID string, headway int) *VeryShortHeadwayNotice {
-	context := map[string]interface{}{
-		"routeId":   routeID,
-		"serviceId": serviceID,
-		"headway":   headway,
-	}
-	return &VeryShortHeadwayNotice{
-		BaseNotice: NewBaseNotice("very_short_headway", WARNING, context),
-	}
-}
-
-// VeryLongHeadwayNotice represents very long headways
-type VeryLongHeadwayNotice struct {
-	*BaseNotice
-}
-
-func NewVeryLongHeadwayNotice(routeID, serviceID string, headway int) *VeryLongHeadwayNotice {
-	context := map[string]interface{}{
-		"routeId":   routeID,
-		"serviceId": serviceID,
-		"headway":   headway,
-	}
-	return &VeryLongHeadwayNotice{
-		BaseNotice: NewBaseNotice("very_long_headway", INFO, context),
-	}
-}
-
-// SchedulingSummaryNotice provides scheduling analysis summary
-type SchedulingSummaryNotice struct {
-	*BaseNotice
-}
-
-func NewSchedulingSummaryNotice(totalRoutes, totalServices, totalTrips int, avgServicesPerRoute, avgTripsPerService float64) *SchedulingSummaryNotice {
-	context := map[string]interface{}{
-		"totalRoutes":         totalRoutes,
-		"totalServices":       totalServices,
-		"totalTrips":          totalTrips,
-		"avgServicesPerRoute": avgServicesPerRoute,
-		"avgTripsPerService":  avgTripsPerService,
-	}
-	return &SchedulingSummaryNotice{
-		BaseNotice: NewBaseNotice("scheduling_summary", INFO, context),
-	}
-}
-
 // RouteWithoutTripsNotice represents a route with no trips
 type RouteWithoutTripsNotice struct {
 	*BaseNotice
@@ -2941,156 +2333,6 @@ func NewRouteWithoutTripsNotice(routeID string, rowNumber int) *RouteWithoutTrip
 	}
 	return &RouteWithoutTripsNotice{
 		BaseNotice: NewBaseNotice("route_without_trips", WARNING, context),
-	}
-}
-
-// ExcessiveRoutePatternVariationsNotice represents a route with too many pattern variations
-type ExcessiveRoutePatternVariationsNotice struct {
-	*BaseNotice
-}
-
-func NewExcessiveRoutePatternVariationsNotice(routeID string, directionID, variations, tripCount int) *ExcessiveRoutePatternVariationsNotice {
-	context := map[string]interface{}{
-		"routeId":     routeID,
-		"directionId": directionID,
-		"variations":  variations,
-		"tripCount":   tripCount,
-	}
-	return &ExcessiveRoutePatternVariationsNotice{
-		BaseNotice: NewBaseNotice("excessive_route_pattern_variations", WARNING, context),
-	}
-}
-
-// UnbalancedDirectionTripsNotice represents unbalanced trips between directions
-type UnbalancedDirectionTripsNotice struct {
-	*BaseNotice
-}
-
-func NewUnbalancedDirectionTripsNotice(routeID string, dir1, trips1, dir2, trips2 int) *UnbalancedDirectionTripsNotice {
-	context := map[string]interface{}{
-		"routeId":         routeID,
-		"direction1":      dir1,
-		"direction1Trips": trips1,
-		"direction2":      dir2,
-		"direction2Trips": trips2,
-	}
-	return &UnbalancedDirectionTripsNotice{
-		BaseNotice: NewBaseNotice("unbalanced_direction_trips", WARNING, context),
-	}
-}
-
-// LimitedServiceVarietyNotice represents a route with very few services
-type LimitedServiceVarietyNotice struct {
-	*BaseNotice
-}
-
-func NewLimitedServiceVarietyNotice(routeID string, serviceCount, tripCount int) *LimitedServiceVarietyNotice {
-	context := map[string]interface{}{
-		"routeId":      routeID,
-		"serviceCount": serviceCount,
-		"tripCount":    tripCount,
-	}
-	return &LimitedServiceVarietyNotice{
-		BaseNotice: NewBaseNotice("limited_service_variety", INFO, context),
-	}
-}
-
-// LowRouteUsageNotice represents a route with very few trips
-type LowRouteUsageNotice struct {
-	*BaseNotice
-}
-
-func NewLowRouteUsageNotice(routeID string, tripCount, serviceCount int) *LowRouteUsageNotice {
-	context := map[string]interface{}{
-		"routeId":      routeID,
-		"tripCount":    tripCount,
-		"serviceCount": serviceCount,
-	}
-	return &LowRouteUsageNotice{
-		BaseNotice: NewBaseNotice("low_route_usage", WARNING, context),
-	}
-}
-
-// VeryLongRouteNotice represents a route with many stops
-type VeryLongRouteNotice struct {
-	*BaseNotice
-}
-
-func NewVeryLongRouteNotice(routeID string, stopCount, tripCount int) *VeryLongRouteNotice {
-	context := map[string]interface{}{
-		"routeId":   routeID,
-		"stopCount": stopCount,
-		"tripCount": tripCount,
-	}
-	return &VeryLongRouteNotice{
-		BaseNotice: NewBaseNotice("very_long_route", INFO, context),
-	}
-}
-
-// VeryShortRouteNotice represents a route with very few stops
-type VeryShortRouteNotice struct {
-	*BaseNotice
-}
-
-func NewVeryShortRouteNotice(routeID string, stopCount, tripCount int) *VeryShortRouteNotice {
-	context := map[string]interface{}{
-		"routeId":   routeID,
-		"stopCount": stopCount,
-		"tripCount": tripCount,
-	}
-	return &VeryShortRouteNotice{
-		BaseNotice: NewBaseNotice("very_short_route", WARNING, context),
-	}
-}
-
-// LowTimepointCoverageNotice represents low timepoint coverage
-type LowTimepointCoverageNotice struct {
-	*BaseNotice
-}
-
-func NewLowTimepointCoverageNotice(routeID string, tripsWithTimepoints, totalTrips int, coverage float64) *LowTimepointCoverageNotice {
-	context := map[string]interface{}{
-		"routeId":             routeID,
-		"tripsWithTimepoints": tripsWithTimepoints,
-		"totalTrips":          totalTrips,
-		"coverage":            coverage,
-	}
-	return &LowTimepointCoverageNotice{
-		BaseNotice: NewBaseNotice("low_timepoint_coverage", WARNING, context),
-	}
-}
-
-// RouteNetworkSummaryNotice provides route network analysis summary
-type RouteNetworkSummaryNotice struct {
-	*BaseNotice
-}
-
-func NewRouteNetworkSummaryNotice(totalRoutes, totalTrips int, avgTripsPerRoute float64, routeTypes, agencies int) *RouteNetworkSummaryNotice {
-	context := map[string]interface{}{
-		"totalRoutes":      totalRoutes,
-		"totalTrips":       totalTrips,
-		"avgTripsPerRoute": avgTripsPerRoute,
-		"routeTypes":       routeTypes,
-		"agencies":         agencies,
-	}
-	return &RouteNetworkSummaryNotice{
-		BaseNotice: NewBaseNotice("route_network_summary", INFO, context),
-	}
-}
-
-// HighRouteTypeDiversityNotice represents high route type diversity in an agency
-type HighRouteTypeDiversityNotice struct {
-	*BaseNotice
-}
-
-func NewHighRouteTypeDiversityNotice(agencyID string, routeTypes, routeCount int) *HighRouteTypeDiversityNotice {
-	context := map[string]interface{}{
-		"agencyId":   agencyID,
-		"routeTypes": routeTypes,
-		"routeCount": routeCount,
-	}
-	return &HighRouteTypeDiversityNotice{
-		BaseNotice: NewBaseNotice("high_route_type_diversity", INFO, context),
 	}
 }
 
@@ -3126,44 +2368,6 @@ func NewInvalidLongitudeNotice(stopID string, longitude float64, rowNumber int) 
 	}
 }
 
-// VeryLargeFeedCoverageNotice represents feed with very large geographic coverage
-type VeryLargeFeedCoverageNotice struct {
-	*BaseNotice
-}
-
-func NewVeryLargeFeedCoverageNotice(minLat, maxLat, minLon, maxLon, latSpan, lonSpan float64) *VeryLargeFeedCoverageNotice {
-	context := map[string]interface{}{
-		"minLat":  minLat,
-		"maxLat":  maxLat,
-		"minLon":  minLon,
-		"maxLon":  maxLon,
-		"latSpan": latSpan,
-		"lonSpan": lonSpan,
-	}
-	return &VeryLargeFeedCoverageNotice{
-		BaseNotice: NewBaseNotice("very_large_feed_coverage", WARNING, context),
-	}
-}
-
-// VerySmallFeedCoverageNotice represents feed with very small geographic coverage
-type VerySmallFeedCoverageNotice struct {
-	*BaseNotice
-}
-
-func NewVerySmallFeedCoverageNotice(minLat, maxLat, minLon, maxLon, latSpan, lonSpan float64) *VerySmallFeedCoverageNotice {
-	context := map[string]interface{}{
-		"minLat":  minLat,
-		"maxLat":  maxLat,
-		"minLon":  minLon,
-		"maxLon":  maxLon,
-		"latSpan": latSpan,
-		"lonSpan": lonSpan,
-	}
-	return &VerySmallFeedCoverageNotice{
-		BaseNotice: NewBaseNotice("very_small_feed_coverage", INFO, context),
-	}
-}
-
 // ChildStationTooFarFromParentNotice represents child station too far from parent
 type ChildStationTooFarFromParentNotice struct {
 	*BaseNotice
@@ -3178,24 +2382,6 @@ func NewChildStationTooFarFromParentNotice(childID, parentID string, distance fl
 	}
 	return &ChildStationTooFarFromParentNotice{
 		BaseNotice: NewBaseNotice("child_station_too_far_from_parent", WARNING, context),
-	}
-}
-
-// VeryCloseStopsNotice represents stops that are very close to each other
-type VeryCloseStopsNotice struct {
-	*BaseNotice
-}
-
-func NewVeryCloseStopsNotice(stop1ID, stop2ID string, distance float64, row1, row2 int) *VeryCloseStopsNotice {
-	context := map[string]interface{}{
-		"stop1Id":    stop1ID,
-		"stop2Id":    stop2ID,
-		"distance":   distance,
-		"rowNumber1": row1,
-		"rowNumber2": row2,
-	}
-	return &VeryCloseStopsNotice{
-		BaseNotice: NewBaseNotice("very_close_stops", INFO, context),
 	}
 }
 
@@ -3236,204 +2422,7 @@ func NewShapeDistanceInconsistentWithGeographyNotice(shapeID string, sequence in
 	}
 }
 
-// HighStopDensityAreaNotice represents area with high stop density
-type HighStopDensityAreaNotice struct {
-	*BaseNotice
-}
-
-func NewHighStopDensityAreaNotice(centerLat, centerLon, radius float64, stopCount int) *HighStopDensityAreaNotice {
-	context := map[string]interface{}{
-		"centerLat": centerLat,
-		"centerLon": centerLon,
-		"radius":    radius,
-		"stopCount": stopCount,
-	}
-	return &HighStopDensityAreaNotice{
-		BaseNotice: NewBaseNotice("high_stop_density_area", INFO, context),
-	}
-}
-
-// LowStopClusteringNotice represents feed with low stop clustering
-type LowStopClusteringNotice struct {
-	*BaseNotice
-}
-
-func NewLowStopClusteringNotice(clusterCount, totalStops int) *LowStopClusteringNotice {
-	context := map[string]interface{}{
-		"clusterCount": clusterCount,
-		"totalStops":   totalStops,
-	}
-	return &LowStopClusteringNotice{
-		BaseNotice: NewBaseNotice("low_stop_clustering", INFO, context),
-	}
-}
-
-// GeospatialSummaryNotice provides geospatial analysis summary
-type GeospatialSummaryNotice struct {
-	*BaseNotice
-}
-
-func NewGeospatialSummaryNotice(totalStops, totalShapes, clusterCount int) *GeospatialSummaryNotice {
-	context := map[string]interface{}{
-		"totalStops":   totalStops,
-		"totalShapes":  totalShapes,
-		"clusterCount": clusterCount,
-	}
-	return &GeospatialSummaryNotice{
-		BaseNotice: NewBaseNotice("geospatial_summary", INFO, context),
-	}
-}
-
 // === NETWORK TOPOLOGY NOTICES ===
-
-// IsolatedStopNotice represents stops with no connections
-type IsolatedStopNotice struct {
-	*BaseNotice
-}
-
-func NewIsolatedStopNotice(stopID string, tripCount int) *IsolatedStopNotice {
-	context := map[string]interface{}{
-		"stopId":    stopID,
-		"tripCount": tripCount,
-	}
-	return &IsolatedStopNotice{
-		BaseNotice: NewBaseNotice("isolated_stop", WARNING, context),
-	}
-}
-
-// FragmentedNetworkNotice represents disconnected network components
-type FragmentedNetworkNotice struct {
-	*BaseNotice
-}
-
-func NewFragmentedNetworkNotice(componentCount, mainComponentSize, totalStops int) *FragmentedNetworkNotice {
-	context := map[string]interface{}{
-		"componentCount":    componentCount,
-		"mainComponentSize": mainComponentSize,
-		"totalStops":        totalStops,
-	}
-	return &FragmentedNetworkNotice{
-		BaseNotice: NewBaseNotice("fragmented_network", WARNING, context),
-	}
-}
-
-// SmallNetworkComponentNotice represents small disconnected components
-type SmallNetworkComponentNotice struct {
-	*BaseNotice
-}
-
-func NewSmallNetworkComponentNotice(componentRank, stopCount, routeCount int) *SmallNetworkComponentNotice {
-	context := map[string]interface{}{
-		"componentRank": componentRank,
-		"stopCount":     stopCount,
-		"routeCount":    routeCount,
-	}
-	return &SmallNetworkComponentNotice{
-		BaseNotice: NewBaseNotice("small_network_component", INFO, context),
-	}
-}
-
-// LowNetworkConnectivityNotice represents poorly connected networks
-type LowNetworkConnectivityNotice struct {
-	*BaseNotice
-}
-
-func NewLowNetworkConnectivityNotice(totalStops, totalEdges int, avgConnectivity float64) *LowNetworkConnectivityNotice {
-	context := map[string]interface{}{
-		"totalStops":      totalStops,
-		"totalEdges":      totalEdges,
-		"avgConnectivity": avgConnectivity,
-	}
-	return &LowNetworkConnectivityNotice{
-		BaseNotice: NewBaseNotice("low_network_connectivity", WARNING, context),
-	}
-}
-
-// LowTransferOpportunityNotice represents networks with few transfer points
-type LowTransferOpportunityNotice struct {
-	*BaseNotice
-}
-
-func NewLowTransferOpportunityNotice(transferStops, totalStops int, transferRatio float64) *LowTransferOpportunityNotice {
-	context := map[string]interface{}{
-		"transferStops": transferStops,
-		"totalStops":    totalStops,
-		"transferRatio": transferRatio,
-	}
-	return &LowTransferOpportunityNotice{
-		BaseNotice: NewBaseNotice("low_transfer_opportunity", INFO, context),
-	}
-}
-
-// NetworkHubIdentifiedNotice represents major network hubs
-type NetworkHubIdentifiedNotice struct {
-	*BaseNotice
-}
-
-func NewNetworkHubIdentifiedNotice(stopID string, routeCount, connectionCount, totalHubs int) *NetworkHubIdentifiedNotice {
-	context := map[string]interface{}{
-		"stopId":          stopID,
-		"routeCount":      routeCount,
-		"connectionCount": connectionCount,
-		"totalHubs":       totalHubs,
-	}
-	return &NetworkHubIdentifiedNotice{
-		BaseNotice: NewBaseNotice("network_hub_identified", INFO, context),
-	}
-}
-
-// MajorTransferPointNotice represents significant transfer opportunities
-type MajorTransferPointNotice struct {
-	*BaseNotice
-}
-
-func NewMajorTransferPointNotice(stopID string, routeCount, connectionCount int, transferValue float64) *MajorTransferPointNotice {
-	context := map[string]interface{}{
-		"stopId":          stopID,
-		"routeCount":      routeCount,
-		"connectionCount": connectionCount,
-		"transferValue":   transferValue,
-	}
-	return &MajorTransferPointNotice{
-		BaseNotice: NewBaseNotice("major_transfer_point", INFO, context),
-	}
-}
-
-// OverlappingRoutesNotice represents routes with identical stop patterns
-type OverlappingRoutesNotice struct {
-	*BaseNotice
-}
-
-func NewOverlappingRoutesNotice(routeIDs []string, stopCount int) *OverlappingRoutesNotice {
-	context := map[string]interface{}{
-		"routeIds":  routeIDs,
-		"stopCount": stopCount,
-	}
-	return &OverlappingRoutesNotice{
-		BaseNotice: NewBaseNotice("overlapping_routes", WARNING, context),
-	}
-}
-
-// NetworkTopologySummaryNotice provides network topology analysis summary
-type NetworkTopologySummaryNotice struct {
-	*BaseNotice
-}
-
-func NewNetworkTopologySummaryNotice(totalStops, totalEdges, totalRoutes, totalTrips, transferStops, componentCount int, avgConnectivity float64, maxRouteCount int) *NetworkTopologySummaryNotice {
-	context := map[string]interface{}{
-		"totalStops":      totalStops,
-		"totalEdges":      totalEdges,
-		"totalRoutes":     totalRoutes,
-		"totalTrips":      totalTrips,
-		"transferStops":   transferStops,
-		"componentCount":  componentCount,
-		"avgConnectivity": avgConnectivity,
-		"maxRouteCount":   maxRouteCount,
-	}
-	return &NetworkTopologySummaryNotice{
-		BaseNotice: NewBaseNotice("network_topology_summary", INFO, context),
-	}
-}
 
 // === FEED EXPIRATION NOTICES ===
 
@@ -3479,7 +2468,7 @@ func NewFeedExpiresWithin7DaysNotice(endDate, currentDate string, daysUntilExpir
 		"daysUntilExpiration": daysUntilExpiration,
 	}
 	return &FeedExpiresWithin7DaysNotice{
-		BaseNotice: NewBaseNotice("feed_expires_within_7_days", ERROR, context),
+		BaseNotice: NewBaseNotice("feed_expiration_date7_days", ERROR, context),
 	}
 }
 
@@ -3495,7 +2484,7 @@ func NewFeedExpiresWithin30DaysNotice(endDate, currentDate string, daysUntilExpi
 		"daysUntilExpiration": daysUntilExpiration,
 	}
 	return &FeedExpiresWithin30DaysNotice{
-		BaseNotice: NewBaseNotice("feed_expires_within_30_days", WARNING, context),
+		BaseNotice: NewBaseNotice("feed_expiration_date30_days", WARNING, context),
 	}
 }
 
@@ -3606,7 +2595,7 @@ func NewDuplicateRouteLongNameNotice(routeID, routeLongName, firstRouteID, agenc
 		"csvRowNumber":  rowNumber,
 	}
 	return &DuplicateRouteLongNameNotice{
-		BaseNotice: NewBaseNotice("duplicate_route_long_name", WARNING, context),
+		BaseNotice: NewBaseNotice("duplicate_route_name", WARNING, context),
 	}
 }
 
@@ -3625,7 +2614,7 @@ func NewDuplicateRouteShortNameNotice(routeID, routeShortName, firstRouteID, age
 		"csvRowNumber":   rowNumber,
 	}
 	return &DuplicateRouteShortNameNotice{
-		BaseNotice: NewBaseNotice("duplicate_route_short_name", WARNING, context),
+		BaseNotice: NewBaseNotice("duplicate_route_name", WARNING, context),
 	}
 }
 
@@ -3645,7 +2634,7 @@ func NewDuplicateRouteNameCombinationNotice(routeID, routeLongName, routeShortNa
 		"csvRowNumber":   rowNumber,
 	}
 	return &DuplicateRouteNameCombinationNotice{
-		BaseNotice: NewBaseNotice("duplicate_route_name_combination", WARNING, context),
+		BaseNotice: NewBaseNotice("duplicate_route_name", WARNING, context),
 	}
 }
 
@@ -3670,74 +2659,6 @@ func NewRouteColorContrastNotice(routeID, routeColor, routeTextColor string, act
 	}
 }
 
-// LightTextOnLightBackgroundNotice represents light text on light background
-type LightTextOnLightBackgroundNotice struct {
-	*BaseNotice
-}
-
-func NewLightTextOnLightBackgroundNotice(routeID, routeColor, routeTextColor string, rowNumber int) *LightTextOnLightBackgroundNotice {
-	context := map[string]interface{}{
-		"routeId":        routeID,
-		"routeColor":     routeColor,
-		"routeTextColor": routeTextColor,
-		"csvRowNumber":   rowNumber,
-	}
-	return &LightTextOnLightBackgroundNotice{
-		BaseNotice: NewBaseNotice("light_text_on_light_background", WARNING, context),
-	}
-}
-
-// DarkTextOnDarkBackgroundNotice represents dark text on dark background
-type DarkTextOnDarkBackgroundNotice struct {
-	*BaseNotice
-}
-
-func NewDarkTextOnDarkBackgroundNotice(routeID, routeColor, routeTextColor string, rowNumber int) *DarkTextOnDarkBackgroundNotice {
-	context := map[string]interface{}{
-		"routeId":        routeID,
-		"routeColor":     routeColor,
-		"routeTextColor": routeTextColor,
-		"csvRowNumber":   rowNumber,
-	}
-	return &DarkTextOnDarkBackgroundNotice{
-		BaseNotice: NewBaseNotice("dark_text_on_dark_background", WARNING, context),
-	}
-}
-
-// SimilarColorsNotice represents colors that are too similar
-type SimilarColorsNotice struct {
-	*BaseNotice
-}
-
-func NewSimilarColorsNotice(routeID, routeColor, routeTextColor string, rowNumber int) *SimilarColorsNotice {
-	context := map[string]interface{}{
-		"routeId":        routeID,
-		"routeColor":     routeColor,
-		"routeTextColor": routeTextColor,
-		"csvRowNumber":   rowNumber,
-	}
-	return &SimilarColorsNotice{
-		BaseNotice: NewBaseNotice("similar_colors", WARNING, context),
-	}
-}
-
-// RedGreenColorCombinationNotice represents red-green color combinations
-type RedGreenColorCombinationNotice struct {
-	*BaseNotice
-}
-
-func NewRedGreenColorCombinationNotice(routeID, routeColor, routeTextColor string, rowNumber int) *RedGreenColorCombinationNotice {
-	context := map[string]interface{}{
-		"routeId":        routeID,
-		"routeColor":     routeColor,
-		"routeTextColor": routeTextColor,
-		"csvRowNumber":   rowNumber,
-	}
-	return &RedGreenColorCombinationNotice{
-		BaseNotice: NewBaseNotice("red_green_color_combination", INFO, context),
-	}
-}
-
 // === STOP NAME NOTICES ===
 
 // MissingRequiredStopNameNotice represents missing required stop name
@@ -3752,7 +2673,7 @@ func NewMissingRequiredStopNameNotice(stopID string, locationType, rowNumber int
 		"csvRowNumber": rowNumber,
 	}
 	return &MissingRequiredStopNameNotice{
-		BaseNotice: NewBaseNotice("missing_required_stop_name", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_stop_name", ERROR, context),
 	}
 }
 
@@ -3774,40 +2695,6 @@ func NewStopNameMissingButInheritedNotice(stopID, parentStationID, parentName st
 	}
 }
 
-// GenericStopNameNotice represents generic or placeholder stop names
-type GenericStopNameNotice struct {
-	*BaseNotice
-}
-
-func NewGenericStopNameNotice(stopID, stopName string, rowNumber int) *GenericStopNameNotice {
-	context := map[string]interface{}{
-		"stopId":       stopID,
-		"stopName":     stopName,
-		"csvRowNumber": rowNumber,
-	}
-	return &GenericStopNameNotice{
-		BaseNotice: NewBaseNotice("generic_stop_name", WARNING, context),
-	}
-}
-
-// StopNameTooLongNotice represents excessively long stop names
-type StopNameTooLongNotice struct {
-	*BaseNotice
-}
-
-func NewStopNameTooLongNotice(stopID, stopName string, actualLength, maxLength, rowNumber int, severity SeverityLevel) *StopNameTooLongNotice {
-	context := map[string]interface{}{
-		"stopId":       stopID,
-		"stopName":     stopName,
-		"actualLength": actualLength,
-		"maxLength":    maxLength,
-		"csvRowNumber": rowNumber,
-	}
-	return &StopNameTooLongNotice{
-		BaseNotice: NewBaseNotice("stop_name_too_long", severity, context),
-	}
-}
-
 // StopNameContainsControlCharacterNotice represents control characters in stop names
 type StopNameContainsControlCharacterNotice struct {
 	*BaseNotice
@@ -3823,87 +2710,6 @@ func NewStopNameContainsControlCharacterNotice(stopID, stopName string, position
 	}
 	return &StopNameContainsControlCharacterNotice{
 		BaseNotice: NewBaseNotice("stop_name_contains_control_character", WARNING, context),
-	}
-}
-
-// StopNameContainsHTMLNotice represents HTML content in stop names
-type StopNameContainsHTMLNotice struct {
-	*BaseNotice
-}
-
-func NewStopNameContainsHTMLNotice(stopID, stopName string, rowNumber int) *StopNameContainsHTMLNotice {
-	context := map[string]interface{}{
-		"stopId":       stopID,
-		"stopName":     stopName,
-		"csvRowNumber": rowNumber,
-	}
-	return &StopNameContainsHTMLNotice{
-		BaseNotice: NewBaseNotice("stop_name_contains_html", WARNING, context),
-	}
-}
-
-// StopNameContainsURLNotice represents URL content in stop names
-type StopNameContainsURLNotice struct {
-	*BaseNotice
-}
-
-func NewStopNameContainsURLNotice(stopID, stopName string, rowNumber int) *StopNameContainsURLNotice {
-	context := map[string]interface{}{
-		"stopId":       stopID,
-		"stopName":     stopName,
-		"csvRowNumber": rowNumber,
-	}
-	return &StopNameContainsURLNotice{
-		BaseNotice: NewBaseNotice("stop_name_contains_url", WARNING, context),
-	}
-}
-
-// StopNameDescriptionDuplicateNotice represents identical stop name and description
-type StopNameDescriptionDuplicateNotice struct {
-	*BaseNotice
-}
-
-func NewStopNameDescriptionDuplicateNotice(stopID, stopName string, rowNumber int) *StopNameDescriptionDuplicateNotice {
-	context := map[string]interface{}{
-		"stopId":       stopID,
-		"stopName":     stopName,
-		"csvRowNumber": rowNumber,
-	}
-	return &StopNameDescriptionDuplicateNotice{
-		BaseNotice: NewBaseNotice("stop_name_description_duplicate", INFO, context),
-	}
-}
-
-// StopNameAllCapsNotice represents all-caps stop names
-type StopNameAllCapsNotice struct {
-	*BaseNotice
-}
-
-func NewStopNameAllCapsNotice(stopID, stopName string, rowNumber int) *StopNameAllCapsNotice {
-	context := map[string]interface{}{
-		"stopId":       stopID,
-		"stopName":     stopName,
-		"csvRowNumber": rowNumber,
-	}
-	return &StopNameAllCapsNotice{
-		BaseNotice: NewBaseNotice("stop_name_all_caps", INFO, context),
-	}
-}
-
-// StopNameRepeatedWordNotice represents repeated words in stop names
-type StopNameRepeatedWordNotice struct {
-	*BaseNotice
-}
-
-func NewStopNameRepeatedWordNotice(stopID, stopName, repeatedWord string, rowNumber int) *StopNameRepeatedWordNotice {
-	context := map[string]interface{}{
-		"stopId":       stopID,
-		"stopName":     stopName,
-		"repeatedWord": repeatedWord,
-		"csvRowNumber": rowNumber,
-	}
-	return &StopNameRepeatedWordNotice{
-		BaseNotice: NewBaseNotice("stop_name_repeated_word", WARNING, context),
 	}
 }
 
@@ -3934,24 +2740,6 @@ func NewInsufficientServiceNext7DaysNotice(daysWithService, totalDays int, start
 	}
 	return &InsufficientServiceNext7DaysNotice{
 		BaseNotice: NewBaseNotice("insufficient_service_next_7_days", WARNING, context),
-	}
-}
-
-// LowTripVolumeNext7DaysNotice represents low trip volume in next 7 days
-type LowTripVolumeNext7DaysNotice struct {
-	*BaseNotice
-}
-
-func NewLowTripVolumeNext7DaysNotice(totalTrips, daysWithService int, avgTripsPerDay float64, startDate, endDate string) *LowTripVolumeNext7DaysNotice {
-	context := map[string]interface{}{
-		"totalTrips":      totalTrips,
-		"daysWithService": daysWithService,
-		"avgTripsPerDay":  avgTripsPerDay,
-		"startDate":       startDate,
-		"endDate":         endDate,
-	}
-	return &LowTripVolumeNext7DaysNotice{
-		BaseNotice: NewBaseNotice("low_trip_volume_next_7_days", WARNING, context),
 	}
 }
 
@@ -4004,42 +2792,6 @@ func NewInvalidBikesAllowedValueNotice(tripID string, bikesAllowed, rowNumber in
 	}
 	return &InvalidBikesAllowedValueNotice{
 		BaseNotice: NewBaseNotice("invalid_bikes_allowed_value", ERROR, context),
-	}
-}
-
-// BikeWheelchairAccessibilityMismatchNotice represents potential accessibility mismatch
-type BikeWheelchairAccessibilityMismatchNotice struct {
-	*BaseNotice
-}
-
-func NewBikeWheelchairAccessibilityMismatchNotice(tripID, routeID string, bikesAllowed, wheelchairAccessible, rowNumber int) *BikeWheelchairAccessibilityMismatchNotice {
-	context := map[string]interface{}{
-		"tripId":               tripID,
-		"routeId":              routeID,
-		"bikesAllowed":         bikesAllowed,
-		"wheelchairAccessible": wheelchairAccessible,
-		"csvRowNumber":         rowNumber,
-	}
-	return &BikeWheelchairAccessibilityMismatchNotice{
-		BaseNotice: NewBaseNotice("bike_wheelchair_accessibility_mismatch", INFO, context),
-	}
-}
-
-// UnusualBikeAllowanceNotice represents unusual bike allowance for route type
-type UnusualBikeAllowanceNotice struct {
-	*BaseNotice
-}
-
-func NewUnusualBikeAllowanceNotice(tripID, routeID string, routeType, bikesAllowed, rowNumber int) *UnusualBikeAllowanceNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"routeId":      routeID,
-		"routeType":    routeType,
-		"bikesAllowed": bikesAllowed,
-		"csvRowNumber": rowNumber,
-	}
-	return &UnusualBikeAllowanceNotice{
-		BaseNotice: NewBaseNotice("unusual_bike_allowance", INFO, context),
 	}
 }
 
@@ -4157,24 +2909,6 @@ func NewLargeShapeDistanceJumpNotice(shapeID string, prevSequence, currentSequen
 
 // === ADDITIONAL FREQUENCY NOTICES ===
 
-// SmallFrequencyGapNotice represents small gaps between frequency entries
-type SmallFrequencyGapNotice struct {
-	*BaseNotice
-}
-
-func NewSmallFrequencyGapNotice(tripID, endTime, startTime string, gapSeconds, rowNumber int) *SmallFrequencyGapNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"endTime":      endTime,
-		"startTime":    startTime,
-		"gapSeconds":   gapSeconds,
-		"csvRowNumber": rowNumber,
-	}
-	return &SmallFrequencyGapNotice{
-		BaseNotice: NewBaseNotice("small_frequency_gap", INFO, context),
-	}
-}
-
 // FrequencyDurationShorterThanHeadwayNotice represents duration shorter than headway
 type FrequencyDurationShorterThanHeadwayNotice struct {
 	*BaseNotice
@@ -4189,24 +2923,6 @@ func NewFrequencyDurationShorterThanHeadwayNotice(tripID string, duration, headw
 	}
 	return &FrequencyDurationShorterThanHeadwayNotice{
 		BaseNotice: NewBaseNotice("frequency_duration_shorter_than_headway", ERROR, context),
-	}
-}
-
-// VeryLongFrequencyPeriodNotice represents very long frequency periods
-type VeryLongFrequencyPeriodNotice struct {
-	*BaseNotice
-}
-
-func NewVeryLongFrequencyPeriodNotice(tripID, startTime, endTime string, duration, rowNumber int) *VeryLongFrequencyPeriodNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"startTime":    startTime,
-		"endTime":      endTime,
-		"duration":     duration,
-		"csvRowNumber": rowNumber,
-	}
-	return &VeryLongFrequencyPeriodNotice{
-		BaseNotice: NewBaseNotice("very_long_frequency_period", WARNING, context),
 	}
 }
 
@@ -4285,22 +3001,6 @@ func NewAttributionRoleNameMismatchNotice(attributionID, organizationName, expec
 
 // === TRIP BLOCK NOTICES ===
 
-// SingleTripBlockNotice represents block with only one trip
-type SingleTripBlockNotice struct {
-	*BaseNotice
-}
-
-func NewSingleTripBlockNotice(blockID, tripID string, rowNumber int) *SingleTripBlockNotice {
-	context := map[string]interface{}{
-		"blockId":      blockID,
-		"tripId":       tripID,
-		"csvRowNumber": rowNumber,
-	}
-	return &SingleTripBlockNotice{
-		BaseNotice: NewBaseNotice("single_trip_block", INFO, context),
-	}
-}
-
 // BlockServiceMismatchNotice represents service mismatch within block
 type BlockServiceMismatchNotice struct {
 	*BaseNotice
@@ -4320,193 +3020,7 @@ func NewBlockServiceMismatchNotice(blockID, trip1ID, service1ID, trip2ID, servic
 	}
 }
 
-// BlockMultipleRoutesNotice represents block spanning multiple routes
-type BlockMultipleRoutesNotice struct {
-	*BaseNotice
-}
-
-func NewBlockMultipleRoutesNotice(blockID string, routeIDs []string, tripCount int) *BlockMultipleRoutesNotice {
-	context := map[string]interface{}{
-		"blockId":   blockID,
-		"routeIds":  routeIDs,
-		"tripCount": tripCount,
-	}
-	return &BlockMultipleRoutesNotice{
-		BaseNotice: NewBaseNotice("block_multiple_routes", INFO, context),
-	}
-}
-
-// BlockTooManyTripsNotice represents block with too many trips
-type BlockTooManyTripsNotice struct {
-	*BaseNotice
-}
-
-func NewBlockTooManyTripsNotice(blockID string, tripCount int) *BlockTooManyTripsNotice {
-	context := map[string]interface{}{
-		"blockId":   blockID,
-		"tripCount": tripCount,
-	}
-	return &BlockTooManyTripsNotice{
-		BaseNotice: NewBaseNotice("block_too_many_trips", WARNING, context),
-	}
-}
-
 // === STOP TIME HEADSIGN NOTICES ===
-
-// TooManyHeadsignsInTripNotice represents too many different headsigns in one trip
-type TooManyHeadsignsInTripNotice struct {
-	*BaseNotice
-}
-
-func NewTooManyHeadsignsInTripNotice(tripID string, count int, headsigns []string) *TooManyHeadsignsInTripNotice {
-	context := map[string]interface{}{
-		"tripId":    tripID,
-		"count":     count,
-		"headsigns": headsigns,
-	}
-	return &TooManyHeadsignsInTripNotice{
-		BaseNotice: NewBaseNotice("too_many_headsigns_in_trip", WARNING, context),
-	}
-}
-
-// HeadsignChangeWithinTripNotice represents headsign change within trip
-type HeadsignChangeWithinTripNotice struct {
-	*BaseNotice
-}
-
-func NewHeadsignChangeWithinTripNotice(tripID string, prevSequence, currentSequence int, prevHeadsign, currentHeadsign string, rowNumber int) *HeadsignChangeWithinTripNotice {
-	context := map[string]interface{}{
-		"tripId":          tripID,
-		"prevSequence":    prevSequence,
-		"currentSequence": currentSequence,
-		"prevHeadsign":    prevHeadsign,
-		"currentHeadsign": currentHeadsign,
-		"csvRowNumber":    rowNumber,
-	}
-	return &HeadsignChangeWithinTripNotice{
-		BaseNotice: NewBaseNotice("headsign_change_within_trip", INFO, context),
-	}
-}
-
-// FrequentHeadsignChangesNotice represents frequent headsign changes in trip
-type FrequentHeadsignChangesNotice struct {
-	*BaseNotice
-}
-
-func NewFrequentHeadsignChangesNotice(tripID string, changeCount int) *FrequentHeadsignChangesNotice {
-	context := map[string]interface{}{
-		"tripId":      tripID,
-		"changeCount": changeCount,
-	}
-	return &FrequentHeadsignChangesNotice{
-		BaseNotice: NewBaseNotice("frequent_headsign_changes", WARNING, context),
-	}
-}
-
-// StopTripHeadsignMismatchNotice represents mismatch between stop and trip headsign
-type StopTripHeadsignMismatchNotice struct {
-	*BaseNotice
-}
-
-func NewStopTripHeadsignMismatchNotice(tripID string, stopSequence int, stopHeadsign, tripHeadsign string, rowNumber int) *StopTripHeadsignMismatchNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"stopSequence": stopSequence,
-		"stopHeadsign": stopHeadsign,
-		"tripHeadsign": tripHeadsign,
-		"csvRowNumber": rowNumber,
-	}
-	return &StopTripHeadsignMismatchNotice{
-		BaseNotice: NewBaseNotice("stop_trip_headsign_mismatch", WARNING, context),
-	}
-}
-
-// VeryShortHeadsignNotice represents very short headsign
-type VeryShortHeadsignNotice struct {
-	*BaseNotice
-}
-
-func NewVeryShortHeadsignNotice(tripID string, stopSequence int, headsign string, rowNumber int) *VeryShortHeadsignNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"stopSequence": stopSequence,
-		"headsign":     headsign,
-		"csvRowNumber": rowNumber,
-	}
-	return &VeryShortHeadsignNotice{
-		BaseNotice: NewBaseNotice("very_short_headsign", WARNING, context),
-	}
-}
-
-// VeryLongHeadsignNotice represents very long headsign
-type VeryLongHeadsignNotice struct {
-	*BaseNotice
-}
-
-func NewVeryLongHeadsignNotice(tripID string, stopSequence, length, rowNumber int) *VeryLongHeadsignNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"stopSequence": stopSequence,
-		"length":       length,
-		"csvRowNumber": rowNumber,
-	}
-	return &VeryLongHeadsignNotice{
-		BaseNotice: NewBaseNotice("very_long_headsign", WARNING, context),
-	}
-}
-
-// AllCapsHeadsignNotice represents all caps headsign
-type AllCapsHeadsignNotice struct {
-	*BaseNotice
-}
-
-func NewAllCapsHeadsignNotice(tripID string, stopSequence int, headsign string, rowNumber int) *AllCapsHeadsignNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"stopSequence": stopSequence,
-		"headsign":     headsign,
-		"csvRowNumber": rowNumber,
-	}
-	return &AllCapsHeadsignNotice{
-		BaseNotice: NewBaseNotice("all_caps_headsign", INFO, context),
-	}
-}
-
-// ExcessivePunctuationHeadsignNotice represents headsign with excessive punctuation
-type ExcessivePunctuationHeadsignNotice struct {
-	*BaseNotice
-}
-
-func NewExcessivePunctuationHeadsignNotice(tripID string, stopSequence int, headsign string, punctuationCount, rowNumber int) *ExcessivePunctuationHeadsignNotice {
-	context := map[string]interface{}{
-		"tripId":           tripID,
-		"stopSequence":     stopSequence,
-		"headsign":         headsign,
-		"punctuationCount": punctuationCount,
-		"csvRowNumber":     rowNumber,
-	}
-	return &ExcessivePunctuationHeadsignNotice{
-		BaseNotice: NewBaseNotice("excessive_punctuation_headsign", WARNING, context),
-	}
-}
-
-// SuspiciousHeadsignPatternNotice represents suspicious headsign pattern
-type SuspiciousHeadsignPatternNotice struct {
-	*BaseNotice
-}
-
-func NewSuspiciousHeadsignPatternNotice(tripID string, stopSequence int, headsign, pattern string, rowNumber int) *SuspiciousHeadsignPatternNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"stopSequence": stopSequence,
-		"headsign":     headsign,
-		"pattern":      pattern,
-		"csvRowNumber": rowNumber,
-	}
-	return &SuspiciousHeadsignPatternNotice{
-		BaseNotice: NewBaseNotice("suspicious_headsign_pattern", WARNING, context),
-	}
-}
 
 // === ROUTE TYPE NOTICES ===
 
@@ -4527,370 +3041,9 @@ func NewDeprecatedRouteTypeNotice(routeID string, routeType, recommendedType, ro
 	}
 }
 
-// UncommonRouteTypeNotice represents uncommon route_type value
-type UncommonRouteTypeNotice struct {
-	*BaseNotice
-}
-
-func NewUncommonRouteTypeNotice(routeID string, routeType int, description string, rowNumber int) *UncommonRouteTypeNotice {
-	context := map[string]interface{}{
-		"routeId":      routeID,
-		"routeType":    routeType,
-		"description":  description,
-		"csvRowNumber": rowNumber,
-	}
-	return &UncommonRouteTypeNotice{
-		BaseNotice: NewBaseNotice("uncommon_route_type", INFO, context),
-	}
-}
-
-// RouteTypeNameMismatchNotice represents mismatch between route type and name
-type RouteTypeNameMismatchNotice struct {
-	*BaseNotice
-}
-
-func NewRouteTypeNameMismatchNotice(routeID string, routeType int, expectedMode, shortName, longName string, rowNumber int) *RouteTypeNameMismatchNotice {
-	context := map[string]interface{}{
-		"routeId":      routeID,
-		"routeType":    routeType,
-		"expectedMode": expectedMode,
-		"shortName":    shortName,
-		"longName":     longName,
-		"csvRowNumber": rowNumber,
-	}
-	return &RouteTypeNameMismatchNotice{
-		BaseNotice: NewBaseNotice("route_type_name_mismatch", WARNING, context),
-	}
-}
-
-// AgencyMixedRouteTypesNotice represents agency with many different route types
-type AgencyMixedRouteTypesNotice struct {
-	*BaseNotice
-}
-
-func NewAgencyMixedRouteTypesNotice(agencyID string, typeCount int, routeTypes []int) *AgencyMixedRouteTypesNotice {
-	context := map[string]interface{}{
-		"agencyId":   agencyID,
-		"typeCount":  typeCount,
-		"routeTypes": routeTypes,
-	}
-	return &AgencyMixedRouteTypesNotice{
-		BaseNotice: NewBaseNotice("agency_mixed_route_types", INFO, context),
-	}
-}
-
-// SingleRouteTypeInFeedNotice represents feed with only one uncommon route type
-type SingleRouteTypeInFeedNotice struct {
-	*BaseNotice
-}
-
-func NewSingleRouteTypeInFeedNotice(routeType int, description string, routeCount int) *SingleRouteTypeInFeedNotice {
-	context := map[string]interface{}{
-		"routeType":   routeType,
-		"description": description,
-		"routeCount":  routeCount,
-	}
-	return &SingleRouteTypeInFeedNotice{
-		BaseNotice: NewBaseNotice("single_route_type_in_feed", WARNING, context),
-	}
-}
-
-// UnusualRouteTypeCombinationNotice represents unusual combination of route types
-type UnusualRouteTypeCombinationNotice struct {
-	*BaseNotice
-}
-
-func NewUnusualRouteTypeCombinationNotice(routeTypes []int, descriptions []string) *UnusualRouteTypeCombinationNotice {
-	context := map[string]interface{}{
-		"routeTypes":   routeTypes,
-		"descriptions": descriptions,
-	}
-	return &UnusualRouteTypeCombinationNotice{
-		BaseNotice: NewBaseNotice("unusual_route_type_combination", INFO, context),
-	}
-}
-
 // === ADDITIONAL TRANSFER TIMING NOTICES ===
 
-// LongDistanceTransferNotice represents transfer over long distance
-type LongDistanceTransferNotice struct {
-	*BaseNotice
-}
-
-func NewLongDistanceTransferNotice(fromStopID, toStopID string, distance float64, transferTypeDesc string, rowNumber int) *LongDistanceTransferNotice {
-	context := map[string]interface{}{
-		"fromStopId":       fromStopID,
-		"toStopId":         toStopID,
-		"distance":         distance,
-		"transferTypeDesc": transferTypeDesc,
-		"csvRowNumber":     rowNumber,
-	}
-	return &LongDistanceTransferNotice{
-		BaseNotice: NewBaseNotice("long_distance_transfer", WARNING, context),
-	}
-}
-
-// UnrealisticTransferTimeNotice represents unrealistic transfer time
-type UnrealisticTransferTimeNotice struct {
-	*BaseNotice
-}
-
-func NewUnrealisticTransferTimeNotice(fromStopID, toStopID string, minTime, expectedTime int, distance float64, rowNumber int) *UnrealisticTransferTimeNotice {
-	context := map[string]interface{}{
-		"fromStopId":   fromStopID,
-		"toStopId":     toStopID,
-		"minTime":      minTime,
-		"expectedTime": expectedTime,
-		"distance":     distance,
-		"csvRowNumber": rowNumber,
-	}
-	return &UnrealisticTransferTimeNotice{
-		BaseNotice: NewBaseNotice("unrealistic_transfer_time", WARNING, context),
-	}
-}
-
-// VeryLongTransferTimeNotice represents very long transfer time
-type VeryLongTransferTimeNotice struct {
-	*BaseNotice
-}
-
-func NewVeryLongTransferTimeNotice(fromStopID, toStopID string, minTime, rowNumber int) *VeryLongTransferTimeNotice {
-	context := map[string]interface{}{
-		"fromStopId":   fromStopID,
-		"toStopId":     toStopID,
-		"minTime":      minTime,
-		"csvRowNumber": rowNumber,
-	}
-	return &VeryLongTransferTimeNotice{
-		BaseNotice: NewBaseNotice("very_long_transfer_time", WARNING, context),
-	}
-}
-
-// VeryShortTransferTimeNotice represents very short transfer time
-type VeryShortTransferTimeNotice struct {
-	*BaseNotice
-}
-
-func NewVeryShortTransferTimeNotice(fromStopID, toStopID string, minTime, rowNumber int) *VeryShortTransferTimeNotice {
-	context := map[string]interface{}{
-		"fromStopId":   fromStopID,
-		"toStopId":     toStopID,
-		"minTime":      minTime,
-		"csvRowNumber": rowNumber,
-	}
-	return &VeryShortTransferTimeNotice{
-		BaseNotice: NewBaseNotice("very_short_transfer_time", WARNING, context),
-	}
-}
-
-// CloseStopsNotPossibleTransferNotice represents close stops marked as not possible transfer
-type CloseStopsNotPossibleTransferNotice struct {
-	*BaseNotice
-}
-
-func NewCloseStopsNotPossibleTransferNotice(fromStopID, toStopID string, distance float64, rowNumber int) *CloseStopsNotPossibleTransferNotice {
-	context := map[string]interface{}{
-		"fromStopId":   fromStopID,
-		"toStopId":     toStopID,
-		"distance":     distance,
-		"csvRowNumber": rowNumber,
-	}
-	return &CloseStopsNotPossibleTransferNotice{
-		BaseNotice: NewBaseNotice("close_stops_not_possible_transfer", WARNING, context),
-	}
-}
-
-// InconsistentBidirectionalTransferNotice represents inconsistent bidirectional transfers
-type InconsistentBidirectionalTransferNotice struct {
-	*BaseNotice
-}
-
-func NewInconsistentBidirectionalTransferNotice(fromStopID, toStopID string, transferType1, transferType2, rowNumber int) *InconsistentBidirectionalTransferNotice {
-	context := map[string]interface{}{
-		"fromStopId":    fromStopID,
-		"toStopId":      toStopID,
-		"transferType1": transferType1,
-		"transferType2": transferType2,
-		"csvRowNumber":  rowNumber,
-	}
-	return &InconsistentBidirectionalTransferNotice{
-		BaseNotice: NewBaseNotice("inconsistent_bidirectional_transfer", WARNING, context),
-	}
-}
-
 // === SERVICE CALENDAR NOTICES ===
-
-// ServiceWithoutDefinitionNotice represents service without calendar definition
-type ServiceWithoutDefinitionNotice struct {
-	*BaseNotice
-}
-
-func NewServiceWithoutDefinitionNotice(serviceID string) *ServiceWithoutDefinitionNotice {
-	context := map[string]interface{}{
-		"serviceId": serviceID,
-	}
-	return &ServiceWithoutDefinitionNotice{
-		BaseNotice: NewBaseNotice("service_without_definition", ERROR, context),
-	}
-}
-
-// CalendarNoDaysSelectedNotice represents calendar with no days selected
-type CalendarNoDaysSelectedNotice struct {
-	*BaseNotice
-}
-
-func NewCalendarNoDaysSelectedNotice(serviceID string, rowNumber int) *CalendarNoDaysSelectedNotice {
-	context := map[string]interface{}{
-		"serviceId":    serviceID,
-		"csvRowNumber": rowNumber,
-	}
-	return &CalendarNoDaysSelectedNotice{
-		BaseNotice: NewBaseNotice("calendar_no_days_selected", ERROR, context),
-	}
-}
-
-// CalendarEndBeforeStartNotice represents calendar end date before start date
-type CalendarEndBeforeStartNotice struct {
-	*BaseNotice
-}
-
-func NewCalendarEndBeforeStartNotice(serviceID, startDate, endDate string, rowNumber int) *CalendarEndBeforeStartNotice {
-	context := map[string]interface{}{
-		"serviceId":    serviceID,
-		"startDate":    startDate,
-		"endDate":      endDate,
-		"csvRowNumber": rowNumber,
-	}
-	return &CalendarEndBeforeStartNotice{
-		BaseNotice: NewBaseNotice("calendar_end_before_start", ERROR, context),
-	}
-}
-
-// VeryLongServicePeriodNotice represents very long service period
-type VeryLongServicePeriodNotice struct {
-	*BaseNotice
-}
-
-func NewVeryLongServicePeriodNotice(serviceID, startDate, endDate string, durationDays, rowNumber int) *VeryLongServicePeriodNotice {
-	context := map[string]interface{}{
-		"serviceId":    serviceID,
-		"startDate":    startDate,
-		"endDate":      endDate,
-		"durationDays": durationDays,
-		"csvRowNumber": rowNumber,
-	}
-	return &VeryLongServicePeriodNotice{
-		BaseNotice: NewBaseNotice("very_long_service_period", WARNING, context),
-	}
-}
-
-// DuplicateCalendarDateNotice represents duplicate calendar date
-type DuplicateCalendarDateNotice struct {
-	*BaseNotice
-}
-
-func NewDuplicateCalendarDateNotice(serviceID, date string, firstRowNumber, duplicateRowNumber int) *DuplicateCalendarDateNotice {
-	context := map[string]interface{}{
-		"serviceId":          serviceID,
-		"date":               date,
-		"firstRowNumber":     firstRowNumber,
-		"duplicateRowNumber": duplicateRowNumber,
-	}
-	return &DuplicateCalendarDateNotice{
-		BaseNotice: NewBaseNotice("duplicate_calendar_date", ERROR, context),
-	}
-}
-
-// InactiveServiceCurrentMonthNotice represents service inactive in current month
-type InactiveServiceCurrentMonthNotice struct {
-	*BaseNotice
-}
-
-func NewInactiveServiceCurrentMonthNotice(serviceID string) *InactiveServiceCurrentMonthNotice {
-	context := map[string]interface{}{
-		"serviceId": serviceID,
-	}
-	return &InactiveServiceCurrentMonthNotice{
-		BaseNotice: NewBaseNotice("inactive_service_current_month", WARNING, context),
-	}
-}
-
-// LowFrequencyServiceNotice represents low frequency service
-type LowFrequencyServiceNotice struct {
-	*BaseNotice
-}
-
-func NewLowFrequencyServiceNotice(serviceID string, activeDays int) *LowFrequencyServiceNotice {
-	context := map[string]interface{}{
-		"serviceId":  serviceID,
-		"activeDays": activeDays,
-	}
-	return &LowFrequencyServiceNotice{
-		BaseNotice: NewBaseNotice("low_frequency_service", INFO, context),
-	}
-}
-
-// WeekendOnlyServiceNotice represents weekend-only service
-type WeekendOnlyServiceNotice struct {
-	*BaseNotice
-}
-
-func NewWeekendOnlyServiceNotice(serviceID string, rowNumber int) *WeekendOnlyServiceNotice {
-	context := map[string]interface{}{
-		"serviceId":    serviceID,
-		"csvRowNumber": rowNumber,
-	}
-	return &WeekendOnlyServiceNotice{
-		BaseNotice: NewBaseNotice("weekend_only_service", INFO, context),
-	}
-}
-
-// SingleDayServiceNotice represents single day service
-type SingleDayServiceNotice struct {
-	*BaseNotice
-}
-
-func NewSingleDayServiceNotice(serviceID, dayName string, rowNumber int) *SingleDayServiceNotice {
-	context := map[string]interface{}{
-		"serviceId":    serviceID,
-		"dayName":      dayName,
-		"csvRowNumber": rowNumber,
-	}
-	return &SingleDayServiceNotice{
-		BaseNotice: NewBaseNotice("single_day_service", INFO, context),
-	}
-}
-
-// UnusualServicePatternNotice represents unusual service pattern
-type UnusualServicePatternNotice struct {
-	*BaseNotice
-}
-
-func NewUnusualServicePatternNotice(serviceID, pattern string, rowNumber int) *UnusualServicePatternNotice {
-	context := map[string]interface{}{
-		"serviceId":    serviceID,
-		"pattern":      pattern,
-		"csvRowNumber": rowNumber,
-	}
-	return &UnusualServicePatternNotice{
-		BaseNotice: NewBaseNotice("unusual_service_pattern", INFO, context),
-	}
-}
-
-// MostlyCalendarDatesServicesNotice represents feed with mostly calendar_dates services
-type MostlyCalendarDatesServicesNotice struct {
-	*BaseNotice
-}
-
-func NewMostlyCalendarDatesServicesNotice(calendarDatesCount, totalCount int) *MostlyCalendarDatesServicesNotice {
-	context := map[string]interface{}{
-		"calendarDatesCount": calendarDatesCount,
-		"totalCount":         totalCount,
-	}
-	return &MostlyCalendarDatesServicesNotice{
-		BaseNotice: NewBaseNotice("mostly_calendar_dates_services", INFO, context),
-	}
-}
 
 // === VALIDATOR SYSTEM NOTICES ===
 
@@ -4906,26 +3059,5 @@ func NewValidatorErrorNotice(validatorName string, errorMessage string) *Validat
 	}
 	return &ValidatorErrorNotice{
 		BaseNotice: NewBaseNotice("validator_error", ERROR, context),
-	}
-}
-
-// ValidationSummaryNotice is generated to summarize validation process
-type ValidationSummaryNotice struct {
-	*BaseNotice
-}
-
-func NewValidationSummaryNotice(totalValidators, validatorsRun, validatorsFailed int) *ValidationSummaryNotice {
-	context := map[string]interface{}{
-		"totalValidators":  totalValidators,
-		"validatorsRun":    validatorsRun,
-		"validatorsFailed": validatorsFailed,
-		"successRate":      float64(validatorsRun) / float64(totalValidators) * 100,
-	}
-	severity := INFO
-	if validatorsFailed > 0 {
-		severity = WARNING
-	}
-	return &ValidationSummaryNotice{
-		BaseNotice: NewBaseNotice("validation_summary", severity, context),
 	}
 }

@@ -34,7 +34,7 @@ func TestInvalidRowValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example", // Missing timezone
 			},
-			expectedNoticeCodes: []string{"wrong_number_of_fields"},
+			expectedNoticeCodes: []string{"invalid_row_length"},
 			description:         "Row with missing fields should generate notice",
 		},
 		{
@@ -42,7 +42,7 @@ func TestInvalidRowValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles,extra_field",
 			},
-			expectedNoticeCodes: []string{"wrong_number_of_fields"},
+			expectedNoticeCodes: []string{"invalid_row_length"},
 			description:         "Row with extra fields should generate notice",
 		},
 		{

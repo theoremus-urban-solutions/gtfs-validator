@@ -28,7 +28,7 @@ func TestStopTimeSequenceTimeValidator_Validate(t *testing.T) {
 	if codes["stop_time_arrival_after_departure"] == 0 {
 		t.Errorf("expected stop_time_arrival_after_departure notice")
 	}
-	if codes["stop_time_decreasing_time"] == 0 {
+	if codes["stop_time_with_arrival_before_previous_departure_time"] == 0 {
 		t.Errorf("expected stop_time_decreasing_time notice across stops")
 	}
 }

@@ -113,14 +113,6 @@ func (v *LeadingTrailingWhitespaceValidator) validateFieldWhitespace(container *
 	}
 
 	// Check for excessive internal whitespace (multiple consecutive spaces)
-	if strings.Contains(fieldValue, "  ") {
-		container.AddNotice(notice.NewExcessiveWhitespaceNotice(
-			filename,
-			fieldName,
-			fieldValue,
-			rowNumber,
-		))
-	}
 }
 
 // shouldValidateField determines if a field should be checked for whitespace

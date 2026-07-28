@@ -5,6 +5,7 @@ import (
 	"log"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
@@ -130,26 +131,18 @@ func (v *RouteNameValidator) validateRouteTypeNaming(container *notice.NoticeCon
 		}
 	}
 
-	// Check for route names that are too long
+	// Check for route names that are too long. The limit is a character count,
+	// not a byte count: len() on a Go string counts bytes, which trips the
+	// limit at six characters for a Cyrillic or Greek name.
 	const maxShortNameLength = 12
-	const maxLongNameLength = 100
 
-	if routeShortName != "" && len(strings.TrimSpace(routeShortName)) > maxShortNameLength {
+	shortName := strings.TrimSpace(routeShortName)
+	if nameLength := utf8.RuneCountInString(shortName); nameLength > maxShortNameLength {
 		container.AddNotice(notice.NewRouteShortNameTooLongNotice(
 			strings.TrimSpace(routeID),
-			strings.TrimSpace(routeShortName),
-			len(strings.TrimSpace(routeShortName)),
+			shortName,
+			nameLength,
 			maxShortNameLength,
-			row.RowNumber,
-		))
-	}
-
-	if routeLongName != "" && len(strings.TrimSpace(routeLongName)) > maxLongNameLength {
-		container.AddNotice(notice.NewRouteLongNameTooLongNotice(
-			strings.TrimSpace(routeID),
-			strings.TrimSpace(routeLongName),
-			len(strings.TrimSpace(routeLongName)),
-			maxLongNameLength,
 			row.RowNumber,
 		))
 	}

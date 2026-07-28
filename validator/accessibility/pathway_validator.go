@@ -335,17 +335,6 @@ func (v *PathwayValidator) validatePathwayNumericFields(container *notice.Notice
 		))
 	}
 
-	// Validate max slope (should be reasonable)
-	if pathway.MaxSlope != nil {
-		if *pathway.MaxSlope < -1.0 || *pathway.MaxSlope > 1.0 {
-			container.AddNotice(notice.NewUnreasonableMaxSlopeNotice(
-				pathway.PathwayID,
-				*pathway.MaxSlope,
-				pathway.RowNumber,
-			))
-		}
-	}
-
 	// Validate min width
 	if pathway.MinWidth != nil && *pathway.MinWidth <= 0 {
 		container.AddNotice(notice.NewInvalidMinWidthNotice(

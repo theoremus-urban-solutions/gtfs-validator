@@ -50,7 +50,7 @@ func TestShapeValidator_Validate(t *testing.T) {
 				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
 					"trip1,route1,service1,shape1",
 			},
-			expectedNoticeCodes: []string{"insufficient_shape_points"},
+			expectedNoticeCodes: []string{"single_shape_point"},
 			description:         "Shape with single point should generate error",
 		},
 		{
@@ -207,7 +207,7 @@ func TestShapeValidator_Validate(t *testing.T) {
 				"trips.txt": "trip_id,route_id,service_id,shape_id\n" +
 					"trip1,route1,service1,shape1", // shape2 unused
 			},
-			expectedNoticeCodes: []string{"insufficient_shape_points", "unused_shape"},
+			expectedNoticeCodes: []string{"single_shape_point", "unused_shape"},
 			description:         "Mixed valid and invalid shapes should generate appropriate notices",
 		},
 		{
@@ -574,47 +574,6 @@ func TestShapeValidator_LoadUsedShapes(t *testing.T) {
 				if actual, exists := result[shapeID]; !exists || actual != expected {
 					t.Errorf("Shape %s: expected %v, got %v", shapeID, expected, actual)
 				}
-			}
-		})
-	}
-}
-
-func TestShapeValidator_HaversineDistance(t *testing.T) {
-	validator := NewShapeValidator()
-
-	tests := []struct {
-		name                   string
-		lat1, lon1, lat2, lon2 float64
-		expected               float64
-		tolerance              float64
-	}{
-		{
-			name: "same point",
-			lat1: 37.7749, lon1: -122.4194,
-			lat2: 37.7749, lon2: -122.4194,
-			expected: 0.0, tolerance: 1.0,
-		},
-		{
-			name: "short distance",
-			lat1: 37.7749, lon1: -122.4194,
-			lat2: 37.7750, lon2: -122.4195,
-			expected: 14.2, tolerance: 5.0, // Approximately 14.2 meters
-		},
-		{
-			name: "long distance",
-			lat1: 37.7749, lon1: -122.4194, // San Francisco
-			lat2: 40.7128, lon2: -74.0060, // New York
-			expected: 4139000.0, tolerance: 10000.0, // Approximately 4139 km
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := validator.haversineDistance(tt.lat1, tt.lon1, tt.lat2, tt.lon2)
-
-			if result < tt.expected-tt.tolerance || result > tt.expected+tt.tolerance {
-				t.Errorf("Expected distance around %.1f (±%.1f), got %.1f",
-					tt.expected, tt.tolerance, result)
 			}
 		})
 	}

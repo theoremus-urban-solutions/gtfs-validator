@@ -26,10 +26,14 @@ func TestRouteConsistencyValidator_Validate(t *testing.T) {
 		codes[n.Code()]++
 	}
 
-	if codes["missing_route_name"] == 0 {
-		t.Errorf("expected missing_route_name notice for route without names")
+	// Naming is checked by entity/route_name_validator.go; this validator only
+	// reports what needs the trip index. R2 has no trips.
+	if codes["route_without_trips"] == 0 {
+		t.Errorf("expected route_without_trips notice for R2")
 	}
-	if codes["route_short_name_too_long"] == 0 {
-		t.Errorf("expected route_short_name_too_long notice")
+	for _, code := range []string{"route_both_short_and_long_name_missing", "route_short_name_too_long", "same_name_and_description"} {
+		if codes[code] != 0 {
+			t.Errorf("%s should come from entity/route_name_validator.go, not this validator", code)
+		}
 	}
 }

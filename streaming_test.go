@@ -47,7 +47,7 @@ SERVICE1,1,1,1,1,1,0,0,20241201,20241231`,
 
 	report, err := validator.ValidateFileStreamWithContext(ctx, zipPath, func(notice NoticeGroup) {
 		streamedNotices = append(streamedNotices, notice)
-		t.Logf("Streamed notice: %s (severity: %s, count: %d)", notice.Code, notice.Severity, notice.TotalNotices)
+		t.Logf("Streamed notice: %s (severity: %s, count: %d)", notice.Code, notice.HighestSeverity(), notice.TotalNotices)
 	})
 
 	if err != nil {

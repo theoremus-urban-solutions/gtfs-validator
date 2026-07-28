@@ -31,9 +31,6 @@ func TestFrequencyValidator_Validate(t *testing.T) {
 	if codes["invalid_headway"] == 0 {
 		t.Errorf("expected invalid_headway notice")
 	}
-	if codes["unreasonable_headway"] == 0 {
-		t.Errorf("expected unreasonable_headway notice for 20 seconds")
-	}
 	if codes["overlapping_frequency"] == 0 {
 		t.Errorf("expected overlapping_frequency notice")
 	}

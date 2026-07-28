@@ -319,7 +319,28 @@ func (v *BlockOverlappingValidator) validateBlockOverlaps(container *notice.Noti
 			continue // Need at least 2 trips to have overlaps
 		}
 
+		v.validateBlockServiceConsistency(container, blockID, trips)
 		v.validateBlockTripOverlaps(container, blockID, trips)
+	}
+}
+
+// validateBlockServiceConsistency reports blocks whose trips run on different
+// services. A block is a vehicle working through the day, so its trips must
+// share a calendar; OTP cannot interline them otherwise.
+func (v *BlockOverlappingValidator) validateBlockServiceConsistency(container *notice.NoticeContainer, blockID string, trips []TripTimeRange) {
+	first := trips[0]
+	for _, trip := range trips[1:] {
+		if trip.ServiceID == first.ServiceID {
+			continue
+		}
+		container.AddNotice(notice.NewBlockServiceMismatchNotice(
+			blockID,
+			first.TripID,
+			first.ServiceID,
+			trip.TripID,
+			trip.ServiceID,
+			trip.RowNumber,
+		))
 	}
 }
 

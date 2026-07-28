@@ -251,3 +251,103 @@ func TestNotice_Fields(t *testing.T) {
 		t.Errorf("Expected filename 'routes.txt' in context, got %v", notice.Context()["filename"])
 	}
 }
+
+// TestNoticeContainerKeepsEverythingByDefault guards against a per-type cap
+// creeping back in. Capping silently discards notices, and since they arrive
+// in file order rather than severity order, the discarded ones can be errors.
+func TestNoticeContainerKeepsEverythingByDefault(t *testing.T) {
+	container := NewNoticeContainer()
+
+	const total = 5000
+	for i := 0; i < total; i++ {
+		container.AddNotice(NewBaseNotice("block_trips_with_overlapping_stop_times", ERROR, map[string]interface{}{
+			"csvRowNumber": i + 2,
+		}))
+	}
+
+	if got := len(container.GetNotices()); got != total {
+		t.Errorf("expected all %d notices kept, got %d", total, got)
+	}
+	if got := container.CountBySeverity()[ERROR]; got != total {
+		t.Errorf("expected %d errors counted, got %d", total, got)
+	}
+}
+
+// TestNoticeContainerWithLimitStillCaps checks the opt-in cap still works for
+// callers that knowingly want a truncated report.
+func TestNoticeContainerWithLimitStillCaps(t *testing.T) {
+	container := NewNoticeContainerWithLimit(10)
+
+	for i := 0; i < 50; i++ {
+		container.AddNotice(NewBaseNotice("some_code", WARNING, map[string]interface{}{
+			"csvRowNumber": i + 2,
+		}))
+	}
+
+	if got := len(container.GetNotices()); got != 10 {
+		t.Errorf("expected the explicit limit of 10 to apply, got %d", got)
+	}
+}
+
+// TestNoticeContainerDeduplicates covers the case that motivated dedup: two
+// validators independently detecting the same finding and both reporting it.
+func TestNoticeContainerDeduplicates(t *testing.T) {
+	container := NewNoticeContainer()
+
+	overlap := func() Notice {
+		return NewBaseNotice("block_trips_with_overlapping_stop_times", ERROR, map[string]interface{}{
+			"blockId":        "B1",
+			"trip1Id":        "2.112",
+			"trip1RowNumber": 910,
+			"trip2RowNumber": 917,
+		})
+	}
+
+	container.AddNotice(overlap())
+	container.AddNotice(overlap()) // same finding, reported by a second validator
+
+	if got := len(container.GetNotices()); got != 1 {
+		t.Errorf("expected the duplicate to be dropped, got %d notices", got)
+	}
+
+	// A different trip is a different finding and must survive.
+	container.AddNotice(NewBaseNotice("block_trips_with_overlapping_stop_times", ERROR, map[string]interface{}{
+		"blockId":        "B1",
+		"trip1Id":        "2.116",
+		"trip1RowNumber": 942,
+		"trip2RowNumber": 954,
+	}))
+	if got := len(container.GetNotices()); got != 2 {
+		t.Errorf("expected a distinct finding to be kept, got %d notices", got)
+	}
+
+	// Same context, different code is also a different finding.
+	container.AddNotice(NewBaseNotice("duplicate_stop_in_trip", INFO, map[string]interface{}{
+		"tripId":         "2.112",
+		"stopId":         "3",
+		"firstRowNumber": 910,
+		"lastRowNumber":  917,
+	}))
+	if got := len(container.GetNotices()); got != 3 {
+		t.Errorf("expected a distinct code to be kept, got %d notices", got)
+	}
+}
+
+// TestNoticeIdentityIgnoresMapOrder guards the sort in noticeIdentity: Go
+// randomises map iteration, so an unsorted key walk would hash the same
+// context differently on different runs and defeat dedup.
+func TestNoticeIdentityIgnoresMapOrder(t *testing.T) {
+	container := NewNoticeContainer()
+
+	context := map[string]interface{}{
+		"a": 1, "b": "two", "c": 3.5, "d": true,
+		"e": 5, "f": "six", "g": 7.5, "h": false,
+	}
+
+	first := container.noticeIdentity("some_code", context)
+	for i := 0; i < 200; i++ {
+		if container.noticeIdentity("some_code", context) != first {
+			t.Fatal("identity is not stable across map iteration orders")
+		}
+	}
+}

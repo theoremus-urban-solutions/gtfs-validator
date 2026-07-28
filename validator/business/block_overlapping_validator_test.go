@@ -22,7 +22,7 @@ func TestBlockOverlappingValidator_Validate(t *testing.T) {
 
 	found := false
 	for _, n := range container.GetNotices() {
-		if n.Code() == "block_trips_overlap" {
+		if n.Code() == "block_trips_with_overlapping_stop_times" {
 			found = true
 			break
 		}

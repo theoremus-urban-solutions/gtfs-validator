@@ -40,7 +40,7 @@ func TestRouteColorContrastValidator_Validate(t *testing.T) {
 				"routes.txt": "route_id,route_short_name,route_type,route_color,route_text_color\n" +
 					"route1,1,3,FFFFFF,FFFF00",
 			},
-			expectedNoticeCodes: []string{"route_color_contrast", "light_text_on_light_background"},
+			expectedNoticeCodes: []string{"route_color_contrast"},
 			description:         "Yellow text on white background has poor contrast",
 		},
 		{
@@ -49,7 +49,7 @@ func TestRouteColorContrastValidator_Validate(t *testing.T) {
 				"routes.txt": "route_id,route_short_name,route_type,route_color,route_text_color\n" +
 					"route1,1,3,FFFFFF,F0F0F0",
 			},
-			expectedNoticeCodes: []string{"route_color_contrast", "light_text_on_light_background", "similar_colors"},
+			expectedNoticeCodes: []string{"route_color_contrast"},
 			description:         "Light gray on white has extremely poor contrast",
 		},
 		{
@@ -58,7 +58,7 @@ func TestRouteColorContrastValidator_Validate(t *testing.T) {
 				"routes.txt": "route_id,route_short_name,route_type,route_color,route_text_color\n" +
 					"route1,1,3,000000,333333",
 			},
-			expectedNoticeCodes: []string{"route_color_contrast", "dark_text_on_dark_background"},
+			expectedNoticeCodes: []string{"route_color_contrast"},
 			description:         "Dark gray on black has poor contrast",
 		},
 		{
@@ -76,7 +76,7 @@ func TestRouteColorContrastValidator_Validate(t *testing.T) {
 				"routes.txt": "route_id,route_short_name,route_type,route_color,route_text_color\n" +
 					"route1,1,3,FF0000,00FF00",
 			},
-			expectedNoticeCodes: []string{"route_color_contrast", "red_green_color_combination"},
+			expectedNoticeCodes: []string{"route_color_contrast"},
 			description:         "Red background with green text is problematic for colorblind users and has poor contrast",
 		},
 		{
@@ -85,7 +85,7 @@ func TestRouteColorContrastValidator_Validate(t *testing.T) {
 				"routes.txt": "route_id,route_short_name,route_type,route_color,route_text_color\n" +
 					"route1,1,3,00FF00,FF0000",
 			},
-			expectedNoticeCodes: []string{"route_color_contrast", "red_green_color_combination"},
+			expectedNoticeCodes: []string{"route_color_contrast"},
 			description:         "Green background with red text is problematic for colorblind users and has poor contrast",
 		},
 		{
@@ -94,7 +94,7 @@ func TestRouteColorContrastValidator_Validate(t *testing.T) {
 				"routes.txt": "route_id,route_short_name,route_type,route_color,route_text_color\n" +
 					"route1,1,3,FF0000,FE0101",
 			},
-			expectedNoticeCodes: []string{"route_color_contrast", "similar_colors"},
+			expectedNoticeCodes: []string{"route_color_contrast"},
 			description:         "Very similar red colors are hard to distinguish and have poor contrast",
 		},
 		{
@@ -105,7 +105,7 @@ func TestRouteColorContrastValidator_Validate(t *testing.T) {
 					"route2,2,3,FFFFFF,FFFF00\n" +
 					"route3,3,3,0000FF,FFFFFF",
 			},
-			expectedNoticeCodes: []string{"route_color_contrast", "light_text_on_light_background"},
+			expectedNoticeCodes: []string{"route_color_contrast"},
 			description:         "Mixed route colors with one having poor contrast",
 		},
 		{
@@ -379,128 +379,6 @@ func TestRouteColorContrastValidator_CalculateContrastRatio(t *testing.T) {
 			if result < tt.expectedRatio-tt.tolerance || result > tt.expectedRatio+tt.tolerance {
 				t.Errorf("Expected contrast ratio around %.2f (±%.2f), got %.2f",
 					tt.expectedRatio, tt.tolerance, result)
-			}
-		})
-	}
-}
-
-func TestRouteColorContrastValidator_ColorClassification(t *testing.T) {
-	validator := NewRouteColorContrastValidator()
-
-	tests := []struct {
-		name    string
-		color   *ColorInfo
-		isLight bool
-		isDark  bool
-		isRed   bool
-		isGreen bool
-	}{
-		{
-			name:    "white is light",
-			color:   &ColorInfo{R: 255, G: 255, B: 255},
-			isLight: true,
-			isDark:  false,
-			isRed:   false,
-			isGreen: false,
-		},
-		{
-			name:    "black is dark",
-			color:   &ColorInfo{R: 0, G: 0, B: 0},
-			isLight: false,
-			isDark:  true,
-			isRed:   false,
-			isGreen: false,
-		},
-		{
-			name:    "bright red is reddish",
-			color:   &ColorInfo{R: 255, G: 0, B: 0},
-			isLight: false,
-			isDark:  false,
-			isRed:   true,
-			isGreen: false,
-		},
-		{
-			name:    "bright green is greenish",
-			color:   &ColorInfo{R: 0, G: 255, B: 0},
-			isLight: true,
-			isDark:  false,
-			isRed:   false,
-			isGreen: true,
-		},
-		{
-			name:    "gray is neither light nor dark",
-			color:   &ColorInfo{R: 128, G: 128, B: 128},
-			isLight: false,
-			isDark:  false,
-			isRed:   false,
-			isGreen: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			isLight := validator.isLightColor(tt.color)
-			isDark := validator.isDarkColor(tt.color)
-			isRed := validator.isRedish(tt.color)
-			isGreen := validator.isGreenish(tt.color)
-
-			if isLight != tt.isLight {
-				t.Errorf("isLightColor: expected %v, got %v", tt.isLight, isLight)
-			}
-			if isDark != tt.isDark {
-				t.Errorf("isDarkColor: expected %v, got %v", tt.isDark, isDark)
-			}
-			if isRed != tt.isRed {
-				t.Errorf("isRedish: expected %v, got %v", tt.isRed, isRed)
-			}
-			if isGreen != tt.isGreen {
-				t.Errorf("isGreenish: expected %v, got %v", tt.isGreen, isGreen)
-			}
-		})
-	}
-}
-
-func TestRouteColorContrastValidator_ColorsAreTooSimilar(t *testing.T) {
-	validator := NewRouteColorContrastValidator()
-
-	tests := []struct {
-		name            string
-		color1          *ColorInfo
-		color2          *ColorInfo
-		expectedSimilar bool
-	}{
-		{
-			name:            "identical colors are similar",
-			color1:          &ColorInfo{R: 255, G: 0, B: 0},
-			color2:          &ColorInfo{R: 255, G: 0, B: 0},
-			expectedSimilar: true,
-		},
-		{
-			name:            "very close colors are similar",
-			color1:          &ColorInfo{R: 255, G: 0, B: 0},
-			color2:          &ColorInfo{R: 254, G: 1, B: 1},
-			expectedSimilar: true,
-		},
-		{
-			name:            "distant colors are not similar",
-			color1:          &ColorInfo{R: 255, G: 0, B: 0},
-			color2:          &ColorInfo{R: 0, G: 255, B: 0},
-			expectedSimilar: false,
-		},
-		{
-			name:            "black and white are not similar",
-			color1:          &ColorInfo{R: 0, G: 0, B: 0},
-			color2:          &ColorInfo{R: 255, G: 255, B: 255},
-			expectedSimilar: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := validator.colorsAreTooSimilar(tt.color1, tt.color2)
-
-			if result != tt.expectedSimilar {
-				t.Errorf("Expected similarity %v, got %v", tt.expectedSimilar, result)
 			}
 		})
 	}

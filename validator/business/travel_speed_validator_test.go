@@ -27,7 +27,7 @@ func TestTravelSpeedValidator_Validate(t *testing.T) {
 		codes[n.Code()]++
 	}
 
-	if codes["excessive_travel_speed"] == 0 {
+	if codes["fast_travel_between_consecutive_stops"] == 0 {
 		t.Errorf("expected excessive_travel_speed notice (1 deg lon in 60s is huge speed)")
 	}
 }

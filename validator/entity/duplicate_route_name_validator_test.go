@@ -30,7 +30,7 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Metro Line,3\nR2,A1,Blue,Metro Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_long_name"},
+			expectedNoticeCodes: []string{"duplicate_route_name"},
 			description:         "Duplicate long names in same agency/type should generate notice",
 		},
 		{
@@ -38,7 +38,7 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\nR2,A1,Red,Blue Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name"},
+			expectedNoticeCodes: []string{"duplicate_route_name"},
 			description:         "Duplicate short names in same agency/type should generate notice",
 		},
 		{
@@ -46,7 +46,7 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\nR2,A1,Red,Red Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name", "duplicate_route_long_name", "duplicate_route_name_combination"},
+			expectedNoticeCodes: []string{"duplicate_route_name", "duplicate_route_name", "duplicate_route_name"},
 			description:         "Identical name combinations should generate multiple notices",
 		},
 		{
@@ -70,7 +70,7 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,red,Red Line,3\nR2,A1,RED,red line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name", "duplicate_route_long_name", "duplicate_route_name_combination"},
+			expectedNoticeCodes: []string{"duplicate_route_name", "duplicate_route_name", "duplicate_route_name"},
 			description:         "Case differences should still be detected as duplicates",
 		},
 		{
@@ -86,7 +86,7 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1, Red , Red Line ,3\nR2,A1,Red,Red Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name", "duplicate_route_long_name", "duplicate_route_name_combination"},
+			expectedNoticeCodes: []string{"duplicate_route_name", "duplicate_route_name", "duplicate_route_name"},
 			description:         "Whitespace should be trimmed for comparison",
 		},
 		{
@@ -94,7 +94,7 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"routes.txt": "route_id,route_short_name,route_long_name,route_type\nR1,Red,Red Line,3\nR2,Red,Blue Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name"},
+			expectedNoticeCodes: []string{"duplicate_route_name"},
 			description:         "Missing agency_id should group routes together",
 		},
 		{
@@ -126,7 +126,7 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\nR2,A1,Red,Blue Line,3\nR3,A1,Red,Green Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name", "duplicate_route_short_name"},
+			expectedNoticeCodes: []string{"duplicate_route_name", "duplicate_route_name"},
 			description:         "Multiple duplicates should generate multiple notices",
 		},
 		{
@@ -158,7 +158,7 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\n,A1,Blue,Blue Line,3\nR3,A1,Red,Green Line,invalid\nR4,A1,Red,Purple Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name"},
+			expectedNoticeCodes: []string{"duplicate_route_name"},
 			description:         "Only valid routes should be checked for duplicates",
 		},
 	}

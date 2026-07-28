@@ -104,18 +104,21 @@ func main() {
 	fmt.Printf("    - Warnings: %d\n", report.Summary.Counts.Warnings)
 	fmt.Printf("    - Info: %d\n", report.Summary.Counts.Infos)
 
-	// Group notices by severity
+	// Group notices by severity. A group can contain more than one severity,
+	// so it may appear in several buckets.
 	var errors, warnings, infos []gtfsvalidator.NoticeGroup
-	for _, notice := range report.Notices {
-		switch notice.Severity {
-		case "ERROR":
-			errors = append(errors, notice)
-		case "WARNING":
-			warnings = append(warnings, notice)
-		case "INFO":
-			_ = append(infos, notice)
+	for _, group := range report.Notices {
+		if group.SeverityCounts.Errors > 0 {
+			errors = append(errors, group)
+		}
+		if group.SeverityCounts.Warnings > 0 {
+			warnings = append(warnings, group)
+		}
+		if group.SeverityCounts.Infos > 0 {
+			infos = append(infos, group)
 		}
 	}
+	_ = infos
 
 	// Display top issues
 	if len(errors) > 0 {

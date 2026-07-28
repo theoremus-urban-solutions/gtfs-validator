@@ -36,7 +36,7 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1,service1",
 			},
-			expectedNoticeCodes: []string{"service_without_active_days"},
+			expectedNoticeCodes: []string{"service_has_no_active_day_of_the_week"},
 			description:         "Service with no active days should generate error",
 		},
 		{
@@ -119,7 +119,7 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 					"trip2,route2,no_days\n" +
 					"trip3,route3,invalid_range",
 			},
-			expectedNoticeCodes: []string{"service_without_active_days", "invalid_service_date_range"},
+			expectedNoticeCodes: []string{"service_has_no_active_day_of_the_week", "invalid_service_date_range"},
 			description:         "Multiple services with different issues should generate appropriate notices",
 		},
 		{

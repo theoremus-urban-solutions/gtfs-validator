@@ -85,10 +85,8 @@ func (v *GeospatialValidator) Validate(loader *parser.FeedLoader, container *not
 	}
 
 	// Analyze stop clustering patterns
-	v.analyzeStopClustering(container, stops)
 
 	// Validate coordinate precision and accuracy
-	v.validateCoordinateQuality(container, stops, shapes)
 }
 
 // loadGeoStops loads stops with geographic information
@@ -316,37 +314,8 @@ func (v *GeospatialValidator) validateGeographicConsistency(container *notice.No
 			))
 		}
 
-		// Check for coordinates at (0,0) which are often errors
-		if v.approximatelyEqual(stop.Latitude, 0.0, 0.000001) &&
-			v.approximatelyEqual(stop.Longitude, 0.0, 0.000001) {
-			container.AddNotice(notice.NewSuspiciousCoordinateNotice(
-				"stops.txt",
-				"stop_lat",
-				strconv.FormatFloat(stop.Latitude, 'f', -1, 64),
-				stop.RowNumber,
-				"coordinates_at_origin",
-			))
-		}
-	}
-
-	// Calculate feed coverage area
-	latSpan := bounds.MaxLat - bounds.MinLat
-	lonSpan := bounds.MaxLon - bounds.MinLon
-
-	// Very large coverage (> 1000km in any direction) might indicate data errors
-	if latSpan > 9.0 || lonSpan > 9.0 { // Roughly 1000km
-		container.AddNotice(notice.NewVeryLargeFeedCoverageNotice(
-			bounds.MinLat, bounds.MaxLat, bounds.MinLon, bounds.MaxLon,
-			latSpan, lonSpan,
-		))
-	}
-
-	// Very small coverage (< 1km in any direction) might indicate precision issues
-	if latSpan < 0.009 && lonSpan < 0.009 { // Roughly 1km
-		container.AddNotice(notice.NewVerySmallFeedCoverageNotice(
-			bounds.MinLat, bounds.MaxLat, bounds.MinLon, bounds.MaxLon,
-			latSpan, lonSpan,
-		))
+		// Coordinates at (0,0) are reported by core/coordinate_validator.go,
+		// which sees every lat/lon field in the feed.
 	}
 }
 
@@ -374,34 +343,6 @@ func (v *GeospatialValidator) validateStopSpatialRelationships(container *notice
 		}
 	}
 
-	// Find stops that are very close to each other (potential duplicates)
-	stopList := make([]*GeoStop, 0, len(stops))
-	for _, stop := range stops {
-		stopList = append(stopList, stop)
-	}
-
-	for i := 0; i < len(stopList); i++ {
-		for j := i + 1; j < len(stopList); j++ {
-			stop1 := stopList[i]
-			stop2 := stopList[j]
-
-			distance := v.haversineDistance(
-				stop1.Latitude, stop1.Longitude,
-				stop2.Latitude, stop2.Longitude,
-			)
-
-			// Stops very close together (< 10m) might be duplicates
-			if distance < 10 {
-				container.AddNotice(notice.NewVeryCloseStopsNotice(
-					stop1.StopID,
-					stop2.StopID,
-					distance,
-					stop1.RowNumber,
-					stop2.RowNumber,
-				))
-			}
-		}
-	}
 }
 
 // validateShapeGeometry validates shape geometric properties
@@ -426,27 +367,7 @@ func (v *GeospatialValidator) validateShapeGeometry(container *notice.NoticeCont
 			}
 		}
 
-		// Check for unreasonably long segments
-		for i := 1; i < len(shapePoints); i++ {
-			curr := shapePoints[i]
-			prev := shapePoints[i-1]
-
-			distance := v.haversineDistance(
-				prev.Latitude, prev.Longitude,
-				curr.Latitude, curr.Longitude,
-			)
-
-			// Very long segments (> 50km) might indicate missing points
-			if distance > 50000 {
-				container.AddNotice(notice.NewUnreasonablyLongShapeSegmentNotice(
-					shapeID,
-					prev.Sequence,
-					curr.Sequence,
-					distance,
-					curr.RowNumber,
-				))
-			}
-		}
+		// Long segments are reported by entity/shape_validator.go.
 
 		// Validate shape distance consistency if provided
 		v.validateShapeDistanceConsistency(container, shapeID, shapePoints)
@@ -502,132 +423,6 @@ func (v *GeospatialValidator) validateShapeDistanceConsistency(container *notice
 			}
 		}
 	}
-}
-
-// analyzeStopClustering analyzes stop clustering patterns
-func (v *GeospatialValidator) analyzeStopClustering(container *notice.NoticeContainer, stops map[string]*GeoStop) {
-	// Simple clustering analysis - find areas with high stop density
-	clusters := v.findStopClusters(stops, 500) // 500m radius
-
-	// Report clusters with many stops
-	for _, cluster := range clusters {
-		if cluster.StopCount > 20 {
-			container.AddNotice(notice.NewHighStopDensityAreaNotice(
-				cluster.CenterLat,
-				cluster.CenterLon,
-				cluster.Radius,
-				cluster.StopCount,
-			))
-		}
-	}
-
-	// Report if there are very few clusters (might indicate spread-out network)
-	if len(clusters) < 3 && len(stops) > 100 {
-		container.AddNotice(notice.NewLowStopClusteringNotice(
-			len(clusters),
-			len(stops),
-		))
-	}
-}
-
-// findStopClusters finds clusters of stops within a given radius
-func (v *GeospatialValidator) findStopClusters(stops map[string]*GeoStop, radiusMeters float64) []*StopCluster {
-	var clusters []*StopCluster
-	processed := make(map[string]bool)
-
-	for _, stop := range stops {
-		if processed[stop.StopID] {
-			continue
-		}
-
-		// Find all stops within radius
-		clusterStops := []*GeoStop{stop}
-		processed[stop.StopID] = true
-
-		for _, otherStop := range stops {
-			if processed[otherStop.StopID] {
-				continue
-			}
-
-			distance := v.haversineDistance(
-				stop.Latitude, stop.Longitude,
-				otherStop.Latitude, otherStop.Longitude,
-			)
-
-			if distance <= radiusMeters {
-				clusterStops = append(clusterStops, otherStop)
-				processed[otherStop.StopID] = true
-			}
-		}
-
-		if len(clusterStops) > 1 {
-			// Calculate cluster center
-			totalLat := 0.0
-			totalLon := 0.0
-			for _, clusterStop := range clusterStops {
-				totalLat += clusterStop.Latitude
-				totalLon += clusterStop.Longitude
-			}
-
-			clusters = append(clusters, &StopCluster{
-				CenterLat: totalLat / float64(len(clusterStops)),
-				CenterLon: totalLon / float64(len(clusterStops)),
-				Stops:     clusterStops,
-				Radius:    radiusMeters,
-				StopCount: len(clusterStops),
-			})
-		}
-	}
-
-	return clusters
-}
-
-// validateCoordinateQuality validates coordinate precision and accuracy
-func (v *GeospatialValidator) validateCoordinateQuality(container *notice.NoticeContainer, stops map[string]*GeoStop, shapes map[string][]*GeoShape) {
-	// Check coordinate precision for stops
-	for _, stop := range stops {
-		precision := v.getCoordinatePrecision(stop.Latitude, stop.Longitude)
-
-		// Less than 4 decimal places (~11m precision) might be insufficient
-		if precision < 4 {
-			container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-				"stops.txt",
-				"stop_lat",
-				strconv.FormatFloat(stop.Latitude, 'f', -1, 64),
-				stop.RowNumber,
-				precision,
-			))
-		}
-	}
-
-	// Generate geospatial summary
-	container.AddNotice(notice.NewGeospatialSummaryNotice(
-		len(stops),
-		len(shapes),
-		len(v.findStopClusters(stops, 500)),
-	))
-}
-
-// getCoordinatePrecision estimates decimal precision of a coordinate
-func (v *GeospatialValidator) getCoordinatePrecision(lat, lon float64) int {
-	latStr := strconv.FormatFloat(lat, 'f', -1, 64)
-	lonStr := strconv.FormatFloat(lon, 'f', -1, 64)
-
-	latPrecision := 0
-	if dotIndex := strings.Index(latStr, "."); dotIndex != -1 {
-		latPrecision = len(latStr) - dotIndex - 1
-	}
-
-	lonPrecision := 0
-	if dotIndex := strings.Index(lonStr, "."); dotIndex != -1 {
-		lonPrecision = len(lonStr) - dotIndex - 1
-	}
-
-	// Return minimum precision
-	if latPrecision < lonPrecision {
-		return latPrecision
-	}
-	return lonPrecision
 }
 
 // haversineDistance calculates distance between two lat/lon points in meters

@@ -47,9 +47,9 @@ func main() {
 	if report.HasErrors() {
 		fmt.Printf("\nErrors found:\n")
 		errorCount := 0
-		for _, notice := range report.Notices {
-			if notice.Severity == "ERROR" && errorCount < 5 {
-				fmt.Printf("  - %s (%d instances)\n", notice.Code, notice.TotalNotices)
+		for _, group := range report.Notices {
+			if group.SeverityCounts.Errors > 0 && errorCount < 5 {
+				fmt.Printf("  - %s (%d instances)\n", group.Code, group.SeverityCounts.Errors)
 				errorCount++
 			}
 		}

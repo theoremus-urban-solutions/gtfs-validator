@@ -141,25 +141,6 @@ func (v *RouteConsistencyValidator) validateRouteColor(container *notice.NoticeC
 			))
 		}
 	}
-
-	// Check color contrast if both colors are provided
-	if hasRouteColor && hasRouteTextColor {
-		routeColorTrimmed := strings.TrimSpace(routeColor)
-		routeTextColorTrimmed := strings.TrimSpace(routeTextColor)
-
-		if routeColorTrimmed != "" && routeTextColorTrimmed != "" {
-			if v.isValidHexColor(routeColorTrimmed) && v.isValidHexColor(routeTextColorTrimmed) {
-				if !v.hasGoodContrast(routeColorTrimmed, routeTextColorTrimmed) {
-					container.AddNotice(notice.NewPoorColorContrastNotice(
-						routeID,
-						routeColorTrimmed,
-						routeTextColorTrimmed,
-						row.RowNumber,
-					))
-				}
-			}
-		}
-	}
 }
 
 // validateRouteURL validates the route_url field
@@ -195,57 +176,6 @@ func (v *RouteConsistencyValidator) isValidHexColor(color string) bool {
 	}
 
 	return true
-}
-
-// hasGoodContrast performs a simple contrast check (basic luminance difference)
-func (v *RouteConsistencyValidator) hasGoodContrast(color1, color2 string) bool {
-	// Simple contrast check - if colors are identical, that's poor contrast
-	if strings.EqualFold(color1, color2) {
-		return false
-	}
-
-	// Calculate basic luminance (simplified)
-	lum1 := v.calculateLuminance(color1)
-	lum2 := v.calculateLuminance(color2)
-
-	// Calculate contrast ratio (simplified)
-	contrast := (lum1 + 0.05) / (lum2 + 0.05)
-	if contrast < 1 {
-		contrast = 1 / contrast
-	}
-
-	// WCAG AA requires 3:1 for large text, 4.5:1 for normal text
-	// We'll use 3:1 as the minimum for route colors
-	return contrast >= 3.0
-}
-
-// calculateLuminance calculates relative luminance from hex color (simplified)
-func (v *RouteConsistencyValidator) calculateLuminance(hexColor string) float64 {
-	// Convert hex to RGB
-	r, _ := strconv.ParseInt(hexColor[0:2], 16, 64)
-	g, _ := strconv.ParseInt(hexColor[2:4], 16, 64)
-	b, _ := strconv.ParseInt(hexColor[4:6], 16, 64)
-
-	// Normalize to 0-1
-	rNorm := float64(r) / 255.0
-	gNorm := float64(g) / 255.0
-	bNorm := float64(b) / 255.0
-
-	// Apply gamma correction (simplified)
-	rLin := v.gammaCorrect(rNorm)
-	gLin := v.gammaCorrect(gNorm)
-	bLin := v.gammaCorrect(bNorm)
-
-	// Calculate relative luminance
-	return 0.2126*rLin + 0.7152*gLin + 0.0722*bLin
-}
-
-// gammaCorrect applies gamma correction for luminance calculation
-func (v *RouteConsistencyValidator) gammaCorrect(value float64) float64 {
-	if value <= 0.03928 {
-		return value / 12.92
-	}
-	return ((value + 0.055) / 1.055) * ((value + 0.055) / 1.055) * 2.4
 }
 
 // isValidURL performs basic URL validation

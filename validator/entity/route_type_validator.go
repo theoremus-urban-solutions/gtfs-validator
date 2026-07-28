@@ -38,11 +38,9 @@ func (v *RouteTypeValidator) Validate(loader *parser.FeedLoader, container *noti
 
 	for _, route := range routes {
 		v.validateRouteType(container, route)
-		v.validateRouteTypeConsistency(container, route)
 	}
 
 	// Check for route type distribution patterns
-	v.validateRouteTypeDistribution(container, routes)
 }
 
 // loadRoutes loads route information from routes.txt
@@ -140,148 +138,6 @@ func (v *RouteTypeValidator) validateRouteType(container *notice.NoticeContainer
 	}
 
 	// Check for uncommon route types that might be mistakes
-	if v.isUncommonRouteType(route.RouteType) {
-		container.AddNotice(notice.NewUncommonRouteTypeNotice(
-			route.RouteID,
-			route.RouteType,
-			v.getRouteTypeDescription(route.RouteType),
-			route.RowNumber,
-		))
-	}
-}
-
-// validateRouteTypeConsistency validates consistency with other route attributes
-func (v *RouteTypeValidator) validateRouteTypeConsistency(container *notice.NoticeContainer, route *RouteTypeInfo) {
-	// Check naming consistency with route type
-	v.validateRouteNamingConsistency(container, route)
-}
-
-// validateRouteNamingConsistency checks if route names match route type expectations
-func (v *RouteTypeValidator) validateRouteNamingConsistency(container *notice.NoticeContainer, route *RouteTypeInfo) {
-	routeType := route.RouteType
-	shortName := strings.ToLower(route.RouteShortName)
-	longName := strings.ToLower(route.RouteLongName)
-
-	// Check for naming patterns that might indicate wrong route type
-	switch routeType {
-	case 3: // Bus
-		if v.containsTransitModeKeywords(shortName, []string{"metro", "subway", "rail", "train"}) ||
-			v.containsTransitModeKeywords(longName, []string{"metro", "subway", "rail", "train"}) {
-			container.AddNotice(notice.NewRouteTypeNameMismatchNotice(
-				route.RouteID,
-				routeType,
-				"bus",
-				route.RouteShortName,
-				route.RouteLongName,
-				route.RowNumber,
-			))
-		}
-
-	case 1: // Subway/Metro
-		if v.containsTransitModeKeywords(shortName, []string{"bus", "coach"}) ||
-			v.containsTransitModeKeywords(longName, []string{"bus", "coach"}) {
-			container.AddNotice(notice.NewRouteTypeNameMismatchNotice(
-				route.RouteID,
-				routeType,
-				"subway/metro",
-				route.RouteShortName,
-				route.RouteLongName,
-				route.RowNumber,
-			))
-		}
-
-	case 2: // Rail
-		if v.containsTransitModeKeywords(shortName, []string{"bus", "metro", "subway"}) ||
-			v.containsTransitModeKeywords(longName, []string{"bus", "metro", "subway"}) {
-			container.AddNotice(notice.NewRouteTypeNameMismatchNotice(
-				route.RouteID,
-				routeType,
-				"rail",
-				route.RouteShortName,
-				route.RouteLongName,
-				route.RowNumber,
-			))
-		}
-
-	case 4: // Ferry
-		if !v.containsTransitModeKeywords(shortName, []string{"ferry", "boat", "water"}) &&
-			!v.containsTransitModeKeywords(longName, []string{"ferry", "boat", "water"}) &&
-			(route.RouteShortName != "" || route.RouteLongName != "") {
-			container.AddNotice(notice.NewRouteTypeNameMismatchNotice(
-				route.RouteID,
-				routeType,
-				"ferry",
-				route.RouteShortName,
-				route.RouteLongName,
-				route.RowNumber,
-			))
-		}
-	}
-}
-
-// validateRouteTypeDistribution analyzes route type distribution for patterns
-func (v *RouteTypeValidator) validateRouteTypeDistribution(container *notice.NoticeContainer, routes []*RouteTypeInfo) {
-	typeCount := make(map[int]int)
-	agencyTypes := make(map[string]map[int]int)
-
-	for _, route := range routes {
-		typeCount[route.RouteType]++
-
-		if route.AgencyID != "" {
-			if agencyTypes[route.AgencyID] == nil {
-				agencyTypes[route.AgencyID] = make(map[int]int)
-			}
-			agencyTypes[route.AgencyID][route.RouteType]++
-		}
-	}
-
-	// Check for agencies with mixed route types (might indicate data quality issues)
-	for agencyID, types := range agencyTypes {
-		if len(types) > 4 { // More than 4 different route types per agency
-			var routeTypes []int
-			for routeType := range types {
-				routeTypes = append(routeTypes, routeType)
-			}
-
-			container.AddNotice(notice.NewAgencyMixedRouteTypesNotice(
-				agencyID,
-				len(types),
-				routeTypes,
-			))
-		}
-	}
-
-	// Check for suspicious route type combinations
-	v.validateRouteTypeCombinations(container, typeCount)
-}
-
-// validateRouteTypeCombinations checks for suspicious route type combinations
-func (v *RouteTypeValidator) validateRouteTypeCombinations(container *notice.NoticeContainer, typeCount map[int]int) {
-	totalRoutes := 0
-	for _, count := range typeCount {
-		totalRoutes += count
-	}
-
-	// Check for feeds with only very specific route types (might indicate error)
-	if len(typeCount) == 1 {
-		for routeType := range typeCount {
-			if v.isUncommonAsOnlyRouteType(routeType) {
-				container.AddNotice(notice.NewSingleRouteTypeInFeedNotice(
-					routeType,
-					v.getRouteTypeDescription(routeType),
-					totalRoutes,
-				))
-			}
-		}
-	}
-
-	// Check for route types that rarely appear together
-	if typeCount[4] > 0 && typeCount[1] > 0 { // Ferry and Subway together is unusual
-		container.AddNotice(notice.NewUnusualRouteTypeCombinationNotice(
-			[]int{1, 4},
-			[]string{"subway", "ferry"},
-		))
-	}
 }
 
 // isValidRouteType checks if route type is valid according to GTFS spec
@@ -421,14 +277,4 @@ func (v *RouteTypeValidator) getRouteTypeDescription(routeType int) string {
 	default:
 		return "Extended Route Type"
 	}
-}
-
-// containsTransitModeKeywords checks if text contains transit mode keywords
-func (v *RouteTypeValidator) containsTransitModeKeywords(text string, keywords []string) bool {
-	for _, keyword := range keywords {
-		if strings.Contains(text, keyword) {
-			return true
-		}
-	}
-	return false
 }

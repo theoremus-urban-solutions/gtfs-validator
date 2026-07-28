@@ -30,7 +30,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				StopsFile: "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,91.0000,-118.2437", // Latitude > 90
 			},
-			expectedNoticeCodes: []string{"invalid_coordinate", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{"invalid_coordinate"},
 			description:         "Latitude exceeds valid range",
 		},
 		{
@@ -38,7 +38,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				StopsFile: "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,34.0522,181.0000", // Longitude > 180
 			},
-			expectedNoticeCodes: []string{"invalid_coordinate", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{"invalid_coordinate"},
 			description:         "Longitude exceeds valid range",
 		},
 		{
@@ -46,7 +46,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nS1,-91.0000,-118.2437,1", // Latitude < -90
 			},
-			expectedNoticeCodes: []string{"invalid_coordinate", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{"invalid_coordinate"},
 			description:         "Latitude below valid range",
 		},
 		{
@@ -54,7 +54,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nS1,34.0522,-181.0000,1", // Longitude < -180
 			},
-			expectedNoticeCodes: []string{"invalid_coordinate", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{"invalid_coordinate"},
 			description:         "Longitude below valid range",
 		},
 		{
@@ -70,7 +70,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				StopsFile: "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,0.0000,0.0000",
 			},
-			expectedNoticeCodes: []string{"suspicious_coordinate", "suspicious_coordinate", "insufficient_coordinate_precision", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{"suspicious_coordinate", "suspicious_coordinate"},
 			description:         "Zero coordinates are suspicious and may indicate missing data",
 		},
 		{
@@ -78,7 +78,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				StopsFile: "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,34.05,-118.24", // Only 2 decimal places
 			},
-			expectedNoticeCodes: []string{"insufficient_coordinate_precision", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{},
 			description:         "Coordinates with less than 4 decimal places have insufficient precision",
 		},
 		{
@@ -86,7 +86,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				StopsFile: "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,34,-118", // No decimal places
 			},
-			expectedNoticeCodes: []string{"insufficient_coordinate_precision", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{},
 			description:         "Integer coordinates have very low precision",
 		},
 		{
@@ -94,7 +94,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				StopsFile: "stop_id,stop_name,stop_lat,stop_lon\n1,North Pole,90.0000,0.0000\n2,South Pole,-90.0000,0.0000\n3,Date Line,0.0000,180.0000\n4,Anti-Meridian,0.0000,-180.0000",
 			},
-			expectedNoticeCodes: []string{"suspicious_coordinate", "suspicious_coordinate", "suspicious_coordinate", "suspicious_coordinate", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{"suspicious_coordinate", "suspicious_coordinate", "suspicious_coordinate", "suspicious_coordinate"},
 			description:         "Boundary coordinates are valid but zero values are suspicious",
 		},
 		{
@@ -110,7 +110,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				StopsFile: "stop_id,stop_name,stop_lat,stop_lon\n1,Valid,34.0522,-118.2437\n2,Invalid Lat,91.0000,-118.2437\n3,Invalid Lon,34.0522,181.0000",
 			},
-			expectedNoticeCodes: []string{"invalid_coordinate", "insufficient_coordinate_precision", "invalid_coordinate", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{"invalid_coordinate", "invalid_coordinate"},
 			description:         "Mix of valid and invalid coordinates",
 		},
 		{
@@ -150,7 +150,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				StopsFile: "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,3.40522e1,-1.182437e2", // Scientific notation
 			},
-			expectedNoticeCodes: []string{"insufficient_coordinate_precision", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{},
 			description:         "Scientific notation coordinates are valid numbers but may have precision issues",
 		},
 		{
@@ -166,7 +166,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nS1,34.0522,-118.2437,1\nS1,91.0000,-118.2437,2\nS1,34.0522,181.0000,3",
 			},
-			expectedNoticeCodes: []string{"invalid_coordinate", "insufficient_coordinate_precision", "invalid_coordinate", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{"invalid_coordinate", "invalid_coordinate"},
 			description:         "shapes.txt should have same coordinate validation as stops.txt",
 		},
 		{
@@ -174,7 +174,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				StopsFile: "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,91.0000,181.0000", // Both coordinates invalid
 			},
-			expectedNoticeCodes: []string{"invalid_coordinate", "insufficient_coordinate_precision", "invalid_coordinate", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{"invalid_coordinate", "invalid_coordinate"},
 			description:         "Multiple coordinate errors in single row should generate multiple notices",
 		},
 		{
@@ -198,7 +198,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				StopsFile: "stop_id,stop_name,stop_lat,stop_lon\n1,Exactly 4 decimals,34.0522,-118.2437\n2,Less than 4,34.052,-118.243\n3,More than 4,34.05223,-118.24376",
 			},
-			expectedNoticeCodes: []string{"insufficient_coordinate_precision", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{},
 			description:         "Only coordinates with less than 4 decimal places should generate precision notices",
 		},
 		{
@@ -206,7 +206,7 @@ func TestCoordinateValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				StopsFile: "stop_id,stop_name,stop_lat,stop_lon\n1,Equator,0.0000,45.0000\n2,Prime Meridian,45.0000,0.0000",
 			},
-			expectedNoticeCodes: []string{"suspicious_coordinate", "insufficient_coordinate_precision", "suspicious_coordinate", "insufficient_coordinate_precision"},
+			expectedNoticeCodes: []string{"suspicious_coordinate", "suspicious_coordinate"},
 			description:         "Zero coordinates should generate suspicious notices even when valid",
 		},
 	}
@@ -285,56 +285,56 @@ func TestCoordinateValidator_ValidateCoordinate(t *testing.T) {
 			name:            "invalid latitude too high",
 			fieldName:       "stop_lat",
 			coordValue:      "91.0000",
-			expectedNotices: []string{"invalid_coordinate", "insufficient_coordinate_precision"},
+			expectedNotices: []string{"invalid_coordinate"},
 			description:     "Latitude > 90 is invalid",
 		},
 		{
 			name:            "invalid latitude too low",
 			fieldName:       "stop_lat",
 			coordValue:      "-91.0000",
-			expectedNotices: []string{"invalid_coordinate", "insufficient_coordinate_precision"},
+			expectedNotices: []string{"invalid_coordinate"},
 			description:     "Latitude < -90 is invalid",
 		},
 		{
 			name:            "invalid longitude too high",
 			fieldName:       "stop_lon",
 			coordValue:      "181.0000",
-			expectedNotices: []string{"invalid_coordinate", "insufficient_coordinate_precision"},
+			expectedNotices: []string{"invalid_coordinate"},
 			description:     "Longitude > 180 is invalid",
 		},
 		{
 			name:            "invalid longitude too low",
 			fieldName:       "stop_lon",
 			coordValue:      "-181.0000",
-			expectedNotices: []string{"invalid_coordinate", "insufficient_coordinate_precision"},
+			expectedNotices: []string{"invalid_coordinate"},
 			description:     "Longitude < -180 is invalid",
 		},
 		{
 			name:            "suspicious zero latitude",
 			fieldName:       "stop_lat",
 			coordValue:      "0.0000",
-			expectedNotices: []string{"suspicious_coordinate", "insufficient_coordinate_precision"},
+			expectedNotices: []string{"suspicious_coordinate"},
 			description:     "Zero latitude is suspicious",
 		},
 		{
 			name:            "suspicious zero longitude",
 			fieldName:       "stop_lon",
 			coordValue:      "0.0000",
-			expectedNotices: []string{"suspicious_coordinate", "insufficient_coordinate_precision"},
+			expectedNotices: []string{"suspicious_coordinate"},
 			description:     "Zero longitude is suspicious",
 		},
 		{
 			name:            "insufficient precision",
 			fieldName:       "stop_lat",
 			coordValue:      "34.05",
-			expectedNotices: []string{"insufficient_coordinate_precision"},
+			expectedNotices: []string{},
 			description:     "Less than 4 decimal places",
 		},
 		{
 			name:            "no decimal places",
 			fieldName:       "stop_lat",
 			coordValue:      "34",
-			expectedNotices: []string{"insufficient_coordinate_precision"},
+			expectedNotices: []string{},
 			description:     "No decimal places at all",
 		},
 		{
@@ -348,28 +348,28 @@ func TestCoordinateValidator_ValidateCoordinate(t *testing.T) {
 			name:            "boundary latitude positive",
 			fieldName:       "stop_lat",
 			coordValue:      "90.0000",
-			expectedNotices: []string{"insufficient_coordinate_precision"},
+			expectedNotices: []string{},
 			description:     "Latitude 90 is valid but has precision issue",
 		},
 		{
 			name:            "boundary latitude negative",
 			fieldName:       "stop_lat",
 			coordValue:      "-90.0000",
-			expectedNotices: []string{"insufficient_coordinate_precision"},
+			expectedNotices: []string{},
 			description:     "Latitude -90 is valid but has precision issue",
 		},
 		{
 			name:            "boundary longitude positive",
 			fieldName:       "stop_lon",
 			coordValue:      "180.0000",
-			expectedNotices: []string{"insufficient_coordinate_precision"},
+			expectedNotices: []string{},
 			description:     "Longitude 180 is valid but has precision issue",
 		},
 		{
 			name:            "boundary longitude negative",
 			fieldName:       "stop_lon",
 			coordValue:      "-180.0000",
-			expectedNotices: []string{"insufficient_coordinate_precision"},
+			expectedNotices: []string{},
 			description:     "Longitude -180 is valid but has precision issue",
 		},
 		{
@@ -383,7 +383,7 @@ func TestCoordinateValidator_ValidateCoordinate(t *testing.T) {
 			name:            "scientific notation",
 			fieldName:       "stop_lat",
 			coordValue:      "3.40522e1",
-			expectedNotices: []string{"insufficient_coordinate_precision"},
+			expectedNotices: []string{},
 			description:     "Scientific notation is valid but may have precision issues",
 		},
 	}
@@ -513,7 +513,7 @@ func TestCoordinateValidator_ValidateFileCoordinates(t *testing.T) {
 			filename:            StopsFile,
 			content:             "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,91.0000,181.0000",
 			coordinateFields:    []string{"stop_lat", "stop_lon"},
-			expectedNoticeCount: 4, // 2 invalid coordinate + 2 insufficient precision
+			expectedNoticeCount: 2, // one invalid_coordinate per out-of-range field
 			description:         "Invalid coordinates should generate notices",
 		},
 		{

@@ -113,15 +113,6 @@ func (v *LevelValidator) parseLevel(row *parser.CSVRow) *LevelInfo {
 
 // validateLevel validates a single level record
 func (v *LevelValidator) validateLevel(container *notice.NoticeContainer, level *LevelInfo) {
-	// Validate level index range (reasonable bounds)
-	if level.LevelIndex < -50 || level.LevelIndex > 50 {
-		container.AddNotice(notice.NewUnreasonableLevelIndexNotice(
-			level.LevelID,
-			level.LevelIndex,
-			level.RowNumber,
-		))
-	}
-
 	// Check for missing level name (recommended)
 	if level.LevelName == "" {
 		container.AddNotice(notice.NewMissingRecommendedFieldNotice(

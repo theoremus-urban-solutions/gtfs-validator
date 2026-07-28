@@ -177,9 +177,6 @@ func (v *RouteColorContrastValidator) validateRouteColors(container *notice.Noti
 			severity,
 		))
 	}
-
-	// Additional checks for common problematic combinations
-	v.checkProblematicColorCombinations(container, route)
 }
 
 // calculateContrastRatio calculates WCAG contrast ratio between two colors
@@ -213,92 +210,4 @@ func (v *RouteColorContrastValidator) linearizeColorComponent(component float64)
 		return component / 12.92
 	}
 	return math.Pow((component+0.055)/1.055, 2.4)
-}
-
-// checkProblematicColorCombinations checks for known problematic color combinations
-func (v *RouteColorContrastValidator) checkProblematicColorCombinations(container *notice.NoticeContainer, route RouteColorInfo) {
-	// Check for white text on light backgrounds
-	if v.isLightColor(route.RouteColor) && v.isLightColor(route.RouteTextColor) {
-		container.AddNotice(notice.NewLightTextOnLightBackgroundNotice(
-			route.RouteID,
-			route.RouteColor.Hex,
-			route.RouteTextColor.Hex,
-			route.RowNumber,
-		))
-	}
-
-	// Check for dark text on dark backgrounds
-	if v.isDarkColor(route.RouteColor) && v.isDarkColor(route.RouteTextColor) {
-		container.AddNotice(notice.NewDarkTextOnDarkBackgroundNotice(
-			route.RouteID,
-			route.RouteColor.Hex,
-			route.RouteTextColor.Hex,
-			route.RowNumber,
-		))
-	}
-
-	// Check for identical or nearly identical colors
-	if v.colorsAreTooSimilar(route.RouteColor, route.RouteTextColor) {
-		container.AddNotice(notice.NewSimilarColorsNotice(
-			route.RouteID,
-			route.RouteColor.Hex,
-			route.RouteTextColor.Hex,
-			route.RowNumber,
-		))
-	}
-
-	// Check for red-green combinations (colorblind accessibility)
-	if v.isRedGreenCombination(route.RouteColor, route.RouteTextColor) {
-		container.AddNotice(notice.NewRedGreenColorCombinationNotice(
-			route.RouteID,
-			route.RouteColor.Hex,
-			route.RouteTextColor.Hex,
-			route.RowNumber,
-		))
-	}
-}
-
-// isLightColor determines if a color is light (luminance > 0.5)
-func (v *RouteColorContrastValidator) isLightColor(color *ColorInfo) bool {
-	luminance := v.calculateRelativeLuminance(color)
-	return luminance > 0.5
-}
-
-// isDarkColor determines if a color is dark (luminance < 0.2)
-func (v *RouteColorContrastValidator) isDarkColor(color *ColorInfo) bool {
-	luminance := v.calculateRelativeLuminance(color)
-	return luminance < 0.2
-}
-
-// colorsAreTooSimilar checks if two colors are too similar
-func (v *RouteColorContrastValidator) colorsAreTooSimilar(color1, color2 *ColorInfo) bool {
-	// Calculate Euclidean distance in RGB space
-	dr := float64(color1.R - color2.R)
-	dg := float64(color1.G - color2.G)
-	db := float64(color1.B - color2.B)
-
-	distance := math.Sqrt(dr*dr + dg*dg + db*db)
-
-	// If distance is very small, colors are too similar
-	return distance < 50.0 // Threshold for "too similar"
-}
-
-// isRedGreenCombination checks for red-green color combinations (problematic for colorblind users)
-func (v *RouteColorContrastValidator) isRedGreenCombination(color1, color2 *ColorInfo) bool {
-	isRed1 := v.isRedish(color1)
-	isGreen1 := v.isGreenish(color1)
-	isRed2 := v.isRedish(color2)
-	isGreen2 := v.isGreenish(color2)
-
-	return (isRed1 && isGreen2) || (isGreen1 && isRed2)
-}
-
-// isRedish determines if a color is reddish
-func (v *RouteColorContrastValidator) isRedish(color *ColorInfo) bool {
-	return color.R > color.G+30 && color.R > color.B+30 && color.R > 100
-}
-
-// isGreenish determines if a color is greenish
-func (v *RouteColorContrastValidator) isGreenish(color *ColorInfo) bool {
-	return color.G > color.R+30 && color.G > color.B+30 && color.G > 100
 }

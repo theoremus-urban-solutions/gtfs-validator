@@ -312,17 +312,6 @@ func (v *DateTripsValidator) validateNext7DaysService(container *notice.NoticeCo
 		))
 	}
 
-	// Warning: Very few trips per day on average
-	avgTripsPerDay := float64(totalTrips) / float64(daysWithService)
-	if avgTripsPerDay < 10 {
-		container.AddNotice(notice.NewLowTripVolumeNext7DaysNotice(
-			totalTrips,
-			daysWithService,
-			avgTripsPerDay,
-			v.formatGTFSDate(currentDate),
-			v.formatGTFSDate(currentDate.AddDate(0, 0, 7)),
-		))
-	}
 }
 
 // validateNext30DaysService validates service coverage for next 30 days

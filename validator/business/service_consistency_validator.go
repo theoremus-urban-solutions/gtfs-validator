@@ -287,18 +287,10 @@ func (v *ServiceConsistencyValidator) validateServiceDefinitions(container *noti
 					))
 				}
 
-				// Check if service is too old
-				if endDate.Before(currentDate.AddDate(0, 0, -90)) {
-					container.AddNotice(notice.NewVeryOldServiceNotice(
-						service.ServiceID,
-						service.EndDate,
-						service.RowNumber,
-					))
-				}
-
-				// Check if service is too far in the future
-				if startDate.After(currentDate.AddDate(2, 0, 0)) {
-					container.AddNotice(notice.NewVeryFutureServiceNotice(
+				// A service whose window opens more than a year out is almost
+				// always a typo in start_date rather than a real plan.
+				if startDate.After(currentDate.AddDate(1, 0, 0)) {
+					container.AddNotice(notice.NewFutureServiceNotice(
 						service.ServiceID,
 						service.StartDate,
 						service.RowNumber,
@@ -339,24 +331,6 @@ func (v *ServiceConsistencyValidator) validateServiceExceptions(container *notic
 			} else {
 				dateMap[exception.Date] = exception
 			}
-
-			// Check if exception date is reasonable
-			if date, err := time.Parse("20060102", exception.Date); err == nil {
-				if date.Before(currentDate.AddDate(-5, 0, 0)) {
-					container.AddNotice(notice.NewVeryOldCalendarDateNotice(
-						serviceID,
-						exception.Date,
-						exception.RowNumber,
-					))
-				}
-				if date.After(currentDate.AddDate(5, 0, 0)) {
-					container.AddNotice(notice.NewVeryFutureCalendarDateNotice(
-						serviceID,
-						exception.Date,
-						exception.RowNumber,
-					))
-				}
-			}
 		}
 	}
 }
@@ -396,16 +370,6 @@ func (v *ServiceConsistencyValidator) validateServiceUsage(container *notice.Not
 		}
 	}
 
-	// Check for services with very few trips (potential data issues)
-	for serviceID, service := range services {
-		if service.TripCount > 0 && service.TripCount <= 2 {
-			container.AddNotice(notice.NewLowServiceUsageNotice(
-				serviceID,
-				service.TripCount,
-				service.RowNumber,
-			))
-		}
-	}
 }
 
 // validateServicePatterns validates service patterns for operational efficiency
@@ -418,28 +382,6 @@ func (v *ServiceConsistencyValidator) validateServicePatterns(container *notice.
 			routeServiceMap[tripService.RouteID] = make(map[string]int)
 		}
 		routeServiceMap[tripService.RouteID][tripService.ServiceID]++
-	}
-
-	// Check for routes with too many different services
-	for routeID, serviceMap := range routeServiceMap {
-		serviceCount := len(serviceMap)
-		if serviceCount > 10 {
-			container.AddNotice(notice.NewExcessiveServiceVarietyNotice(
-				routeID,
-				serviceCount,
-			))
-		}
-
-		// Check for services with very few trips on a route
-		for serviceID, tripCount := range serviceMap {
-			if tripCount == 1 {
-				container.AddNotice(notice.NewSingleTripServiceNotice(
-					routeID,
-					serviceID,
-					tripCount,
-				))
-			}
-		}
 	}
 
 	// Analyze service day patterns
@@ -473,11 +415,4 @@ func (v *ServiceConsistencyValidator) validateServicePatterns(container *notice.
 		}
 	}
 
-	// Report service pattern summary
-	container.AddNotice(notice.NewServicePatternSummaryNotice(
-		weekdayServices,
-		weekendServices,
-		mixedServices,
-		len(services),
-	))
 }
