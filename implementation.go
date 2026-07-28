@@ -680,12 +680,10 @@ func (v *internalValidator) initializeValidators() {
 			core.NewMissingColumnValidator(),
 			core.NewRequiredFieldValidator(),
 			core.NewFieldFormatValidator(),
-			core.NewTimeFormatValidator(),
-			core.NewDateFormatValidator(),
 			core.NewCoordinateValidator(),
-			core.NewCurrencyValidator(),
 			core.NewDuplicateKeyValidator(),
 			core.NewInvalidRowValidator(),
+			core.NewFieldTypeValidator(),
 			// core.NewLeadingTrailingWhitespaceValidator(), // PROBLEMATIC: Hangs with large datasets (Sofia)
 		)
 	}
@@ -704,7 +702,6 @@ func (v *internalValidator) initializeValidators() {
 			entity.NewDuplicateRouteNameValidator(),
 			entity.NewRouteColorContrastValidator(),
 			entity.NewStopNameValidator(),
-			entity.NewBikesAllowanceValidator(),
 			entity.NewAttributionWithoutRoleValidator(),
 			entity.NewRouteTypeValidator(),
 		)

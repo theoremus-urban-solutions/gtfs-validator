@@ -173,33 +173,8 @@ func (v *FrequencyValidator) parseGTFSTime(timeStr string) (int, error) {
 
 // validateFrequency validates a single frequency record
 func (v *FrequencyValidator) validateFrequency(container *notice.NoticeContainer, frequency *FrequencyInfo) {
-	// Validate time range
-	if frequency.StartTime >= frequency.EndTime {
-		container.AddNotice(notice.NewInvalidFrequencyTimeRangeNotice(
-			frequency.TripID,
-			v.formatGTFSTime(frequency.StartTime),
-			v.formatGTFSTime(frequency.EndTime),
-			frequency.RowNumber,
-		))
-	}
-
-	// Validate headway seconds
-	if frequency.HeadwaySecs <= 0 {
-		container.AddNotice(notice.NewInvalidHeadwayNotice(
-			frequency.TripID,
-			frequency.HeadwaySecs,
-			frequency.RowNumber,
-		))
-	}
-
-	// Validate exact_times field
-	if frequency.ExactTimes != 0 && frequency.ExactTimes != 1 {
-		container.AddNotice(notice.NewInvalidExactTimesNotice(
-			frequency.TripID,
-			frequency.ExactTimes,
-			frequency.RowNumber,
-		))
-	}
+	// start_time/end_time ordering, headway_secs and exact_times are checked
+	// against the spec's types by core/field_type_validator.go.
 
 	// A window shorter than one headway generates no trips at all.
 	if duration := frequency.EndTime - frequency.StartTime; duration > 0 &&

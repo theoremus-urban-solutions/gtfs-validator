@@ -25,9 +25,6 @@ func TestTransferValidator_Validate(t *testing.T) {
 		codes[n.Code()]++
 	}
 
-	if codes["invalid_transfer_type"] == 0 {
-		t.Errorf("expected invalid_transfer_type notice")
-	}
 	if codes["transfer_to_same_stop"] == 0 {
 		t.Errorf("expected transfer_to_same_stop notice")
 	}

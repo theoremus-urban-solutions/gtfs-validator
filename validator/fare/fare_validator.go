@@ -19,12 +19,6 @@ func NewFareValidator() *FareValidator {
 	return &FareValidator{}
 }
 
-// validPaymentMethods contains valid GTFS payment methods
-var validPaymentMethods = map[int]bool{
-	0: true, // Fare is paid on board
-	1: true, // Fare must be paid before boarding
-}
-
 // FareAttributeInfo represents fare attribute information
 type FareAttributeInfo struct {
 	FareID           string
@@ -218,80 +212,20 @@ func (v *FareValidator) parseFareRule(row *parser.CSVRow) *FareRuleInfo {
 	return fareRule
 }
 
-// validateFareAttribute validates a single fare attribute
+// validateFareAttribute validates a single fare attribute.
+//
+// price, payment_method, transfers and transfer_duration are checked against
+// the spec's types by core/field_type_validator.go. What is left here is the
+// relationship between two of those fields.
 func (v *FareValidator) validateFareAttribute(container *notice.NoticeContainer, fareAttr *FareAttributeInfo) {
-	// Validate price format
-	v.validatePrice(container, fareAttr)
-
-	// Validate payment method
-	if fareAttr.PaymentMethod != nil && !validPaymentMethods[*fareAttr.PaymentMethod] {
-		container.AddNotice(notice.NewInvalidPaymentMethodNotice(
+	// A transfer duration means nothing on a fare that allows no transfers.
+	if fareAttr.TransferDuration != nil && fareAttr.Transfers != nil && *fareAttr.Transfers == 0 {
+		container.AddNotice(notice.NewUnnecessaryTransferDurationNotice(
 			fareAttr.FareID,
-			*fareAttr.PaymentMethod,
+			*fareAttr.TransferDuration,
 			fareAttr.RowNumber,
 		))
 	}
-
-	// Validate transfers
-	if fareAttr.Transfers != nil {
-		if *fareAttr.Transfers < 0 {
-			container.AddNotice(notice.NewInvalidTransfersNotice(
-				fareAttr.FareID,
-				*fareAttr.Transfers,
-				fareAttr.RowNumber,
-			))
-		}
-	}
-
-	// Validate transfer duration
-	if fareAttr.TransferDuration != nil {
-		if *fareAttr.TransferDuration < 0 {
-			container.AddNotice(notice.NewInvalidTransferDurationNotice(
-				fareAttr.FareID,
-				*fareAttr.TransferDuration,
-				fareAttr.RowNumber,
-			))
-		}
-
-		// Check if transfer duration is provided but transfers is 0
-		if fareAttr.Transfers != nil && *fareAttr.Transfers == 0 {
-			container.AddNotice(notice.NewUnnecessaryTransferDurationNotice(
-				fareAttr.FareID,
-				*fareAttr.TransferDuration,
-				fareAttr.RowNumber,
-			))
-		}
-	}
-}
-
-// validatePrice validates the price field format
-func (v *FareValidator) validatePrice(container *notice.NoticeContainer, fareAttr *FareAttributeInfo) {
-	if fareAttr.Price == "" {
-		return // Other validators handle missing price
-	}
-
-	// Try to parse as float
-	price, err := strconv.ParseFloat(fareAttr.Price, 64)
-	if err != nil {
-		container.AddNotice(notice.NewInvalidFarePriceNotice(
-			fareAttr.FareID,
-			fareAttr.Price,
-			fareAttr.RowNumber,
-			"Price must be a valid number",
-		))
-		return
-	}
-
-	// Price should not be negative
-	if price < 0 {
-		container.AddNotice(notice.NewInvalidFarePriceNotice(
-			fareAttr.FareID,
-			fareAttr.Price,
-			fareAttr.RowNumber,
-			"Price cannot be negative",
-		))
-	}
-
 }
 
 // validateFareRule validates a single fare rule

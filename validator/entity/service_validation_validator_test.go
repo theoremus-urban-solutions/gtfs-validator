@@ -47,7 +47,7 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 				"trips.txt": "trip_id,route_id,service_id\n" +
 					"trip1,route1,service1",
 			},
-			expectedNoticeCodes: []string{"invalid_service_date_range"},
+			expectedNoticeCodes: []string{}, // reported as start_and_end_range_out_of_order by the type layer
 			description:         "Service with end date before start date should generate error",
 		},
 		{
@@ -119,7 +119,7 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 					"trip2,route2,no_days\n" +
 					"trip3,route3,invalid_range",
 			},
-			expectedNoticeCodes: []string{"service_has_no_active_day_of_the_week", "invalid_service_date_range"},
+			expectedNoticeCodes: []string{"service_has_no_active_day_of_the_week"},
 			description:         "Multiple services with different issues should generate appropriate notices",
 		},
 		{

@@ -143,14 +143,11 @@ var codeFiles = map[string][]string{
 	"multiple_attribution_scopes":    attributions,
 
 	// calendar.txt
-	"invalid_day_value":                     calendar,
-	"invalid_service_date_range":            calendar,
 	"service_has_no_active_day_of_the_week": calendar,
 
 	// calendar_dates.txt
 	"conflicting_calendar_exception": calendarDates,
 	"duplicate_calendar_exception":   calendarDates,
-	"invalid_exception_type":         calendarDates,
 
 	// calendar.txt + calendar_dates.txt
 	"expired_service":                          calendars,
@@ -166,12 +163,8 @@ var codeFiles = map[string][]string{
 	"unused_service":                           {"calendar.txt", "trips.txt"},
 
 	// fares
-	"invalid_fare_price":            fareAttrs,
-	"invalid_payment_method":        fareAttrs,
-	"invalid_currency_code":         fareAttrs,
 	"unused_fare_attribute":         fareAttrs,
 	"missing_fare_attributes":       fareAttrs,
-	"invalid_transfer_duration":     fareAttrs,
 	"unnecessary_transfer_duration": fareAttrs,
 	"empty_fare_rule":               fareRules,
 	"conflicting_fare_rule_fields":  fareRules,
@@ -190,9 +183,6 @@ var codeFiles = map[string][]string{
 	"future_feed_start_date":               feedInfo,
 
 	// frequencies.txt
-	"invalid_exact_times":                     frequencies,
-	"invalid_frequency_time_range":            frequencies,
-	"invalid_headway":                         frequencies,
 	"frequency_duration_shorter_than_headway": frequencies,
 	"overlapping_frequency":                   frequencies,
 	"cross_trip_frequency_overlap":            frequencies,
@@ -205,17 +195,10 @@ var codeFiles = map[string][]string{
 	// pathways.txt
 	"duplicate_pathway":                  pathways,
 	"inconsistent_bidirectional_pathway": pathways,
-	"invalid_bidirectional":              pathways,
-	"invalid_pathway_length":             pathways,
-	"invalid_pathway_mode":               pathways,
-	"invalid_stair_count":                pathways,
-	"invalid_traversal_time":             pathways,
-	"invalid_min_width":                  pathways,
 	"pathway_to_same_stop":               pathways,
 
 	// routes.txt
 	"deprecated_route_type":                  routes,
-	"invalid_route_type":                     routes,
 	"duplicate_route_name":                   routes,
 	"route_short_name_too_long":              routes,
 	"route_both_short_and_long_name_missing": routes,
@@ -229,9 +212,7 @@ var codeFiles = map[string][]string{
 	"equal_shape_distance_same_coordinates":                          shapes,
 	"equal_shape_distance_diff_coordinates":                          shapes,
 	"equal_shape_distance_diff_coordinates_distance_below_threshold": shapes,
-	"negative_shape_distance":                                        shapes,
 	"shape_distance_inconsistent_with_geography":                     shapes,
-	"negative_shape_sequence":                                        shapes,
 	"single_shape_point":                                             shapes,
 	"shape_point_outside_feed_bounds":                                shapes,
 	"inconsistent_stop_time_shape_distance":                          {"stop_times.txt", "shapes.txt"},
@@ -241,13 +222,9 @@ var codeFiles = map[string][]string{
 	"stop_name_contains_control_character": stops,
 	"invalid_latitude":                     stops,
 	"invalid_longitude":                    stops,
-	"invalid_coordinate":                   stops,
-	"suspicious_coordinate":                stops,
-	"invalid_location_type":                stops,
 	"station_with_parent_station":          stops,
 	"circular_station_reference":           stops,
 	"child_station_too_far_from_parent":    stops,
-	"invalid_wheelchair_boarding":          stops,
 	"stop_without_service":                 {"stops.txt", "stop_times.txt"},
 	"stop_without_location":                stops,
 	"location_without_parent_station":      stops,
@@ -259,9 +236,7 @@ var codeFiles = map[string][]string{
 	"missing_trip_edge":                                     stopTimes,
 	"stop_time_arrival_after_departure":                     stopTimes,
 	"stop_time_with_arrival_before_previous_departure_time": stopTimes,
-	"invalid_timepoint":                                     stopTimes,
 	"duplicate_stop_sequence":                               stopTimes,
-	"negative_stop_sequence":                                stopTimes,
 	"non_increasing_stop_sequence":                          stopTimes,
 	"duplicate_stop_in_trip":                                stopTimes,
 	"consecutive_duplicate_stops":                           stopTimes,
@@ -285,8 +260,6 @@ var codeFiles = map[string][]string{
 
 	// transfers.txt
 	"duplicate_transfer":                       transfers,
-	"invalid_transfer_type":                    transfers,
-	"invalid_transfers":                        transfers,
 	"transfer_to_same_stop":                    transfers,
 	"missing_min_transfer_time":                transfers,
 	"negative_min_transfer_time":               transfers,
@@ -297,10 +270,6 @@ var codeFiles = map[string][]string{
 	"transfer_with_invalid_trip_and_stop":      {"transfers.txt", "stop_times.txt"},
 
 	// trips.txt
-	"invalid_direction_id":                    trips,
-	"invalid_bikes_allowed":                   trips,
-	"invalid_bikes_allowed_value":             trips,
-	"invalid_wheelchair_accessible":           trips,
 	"block_service_mismatch":                  trips,
 	"block_trips_with_overlapping_stop_times": trips,
 	"unusable_trip":                           trips,

@@ -19,14 +19,6 @@ func NewTransferValidator() *TransferValidator {
 	return &TransferValidator{}
 }
 
-// validTransferTypes contains valid GTFS transfer types
-var validTransferTypes = map[int]bool{
-	0: true, // Recommended transfer point
-	1: true, // Timed transfer point
-	2: true, // Minimum time required to transfer
-	3: true, // Transfers not possible
-}
-
 // TransferInfo represents transfer information
 type TransferInfo struct {
 	FromStopID      string
@@ -317,15 +309,7 @@ func (v *TransferValidator) validateTransferTripReferences(container *notice.Not
 
 // validateTransfer validates a single transfer record
 func (v *TransferValidator) validateTransfer(container *notice.NoticeContainer, transfer *TransferInfo, stops map[string]*stopReference) {
-	// Validate transfer type
-	if !validTransferTypes[transfer.TransferType] {
-		container.AddNotice(notice.NewInvalidTransferTypeNotice(
-			transfer.FromStopID,
-			transfer.ToStopID,
-			transfer.TransferType,
-			transfer.RowNumber,
-		))
-	}
+	// transfer_type's own value is checked by core/field_type_validator.go.
 
 	// Validate stop references. A transfer happens between places a passenger
 	// can stand, so only stops/platforms and stations may be named.

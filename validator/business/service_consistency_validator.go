@@ -272,30 +272,17 @@ func (v *ServiceConsistencyValidator) validateServiceDefinitions(container *noti
 			))
 		}
 
-		// Check date range validity
-		if service.StartDate != "" && service.EndDate != "" {
-			startDate, startErr := time.Parse("20060102", service.StartDate)
-			endDate, endErr := time.Parse("20060102", service.EndDate)
-
-			if startErr == nil && endErr == nil {
-				if endDate.Before(startDate) {
-					container.AddNotice(notice.NewInvalidServiceDateRangeNotice(
-						service.ServiceID,
-						service.StartDate,
-						service.EndDate,
-						service.RowNumber,
-					))
-				}
-
-				// A service whose window opens more than a year out is almost
-				// always a typo in start_date rather than a real plan.
-				if startDate.After(currentDate.AddDate(1, 0, 0)) {
-					container.AddNotice(notice.NewFutureServiceNotice(
-						service.ServiceID,
-						service.StartDate,
-						service.RowNumber,
-					))
-				}
+		// end_date before start_date is reported as
+		// start_and_end_range_out_of_order by the type layer. A service whose
+		// window opens more than a year out is almost always a typo in
+		// start_date rather than a real plan.
+		if startDate, err := time.Parse("20060102", service.StartDate); err == nil {
+			if startDate.After(currentDate.AddDate(1, 0, 0)) {
+				container.AddNotice(notice.NewFutureServiceNotice(
+					service.ServiceID,
+					service.StartDate,
+					service.RowNumber,
+				))
 			}
 		}
 	}

@@ -33,7 +33,7 @@ func TestRouteConsistencyValidator_Validate(t *testing.T) {
 					"route1,1,Bus Line,abc\n" + // Non-numeric
 					"route2,2,Metro Line,99", // Invalid number
 			},
-			expectedNoticeCodes: []string{"invalid_route_type", "invalid_route_type"},
+			expectedNoticeCodes: []string{}, // route_type is checked by core/field_type_validator.go
 			description:         "Invalid route types should generate errors",
 		},
 		{
@@ -107,7 +107,7 @@ func TestRouteConsistencyValidator_Validate(t *testing.T) {
 					"route4,4,Poor Contrast,3,FF0000,FF0000,https://example.com\n" +
 					"route5,5,Invalid URL,3,FF0000,FFFFFF,invalid-url",
 			},
-			expectedNoticeCodes: []string{"invalid_route_type", "invalid_color", "invalid_url"},
+			expectedNoticeCodes: []string{"invalid_color", "invalid_url"},
 			description:         "Mixed valid and invalid routes should generate appropriate notices",
 		},
 		{

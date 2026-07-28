@@ -3,7 +3,6 @@ package entity
 import (
 	"io"
 	"log"
-	"strconv"
 	"strings"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -17,20 +16,6 @@ type RouteConsistencyValidator struct{}
 // NewRouteConsistencyValidator creates a new route consistency validator
 func NewRouteConsistencyValidator() *RouteConsistencyValidator {
 	return &RouteConsistencyValidator{}
-}
-
-// validRouteTypes contains valid GTFS route types
-var validRouteTypes = map[int]bool{
-	0:  true, // Tram, Streetcar, Light rail
-	1:  true, // Subway, Metro
-	2:  true, // Rail
-	3:  true, // Bus
-	4:  true, // Ferry
-	5:  true, // Cable tram
-	6:  true, // Aerial lift, suspended cable car
-	7:  true, // Funicular
-	11: true, // Trolleybus
-	12: true, // Monorail
 }
 
 // Validate checks route data consistency
@@ -78,41 +63,12 @@ func (v *RouteConsistencyValidator) validateRouteRecord(container *notice.Notice
 	routeIDTrimmed := strings.TrimSpace(routeID)
 
 	// Validate route type
-	v.validateRouteType(container, row, routeIDTrimmed)
 
 	// Validate route color
 	v.validateRouteColor(container, row, routeIDTrimmed)
 
 	// Validate route URL
 	v.validateRouteURL(container, row)
-}
-
-// validateRouteType validates the route_type field
-func (v *RouteConsistencyValidator) validateRouteType(container *notice.NoticeContainer, row *parser.CSVRow, routeID string) {
-	routeTypeStr, hasRouteType := row.Values["route_type"]
-	if !hasRouteType || strings.TrimSpace(routeTypeStr) == "" {
-		return // Other validators handle missing route_type
-	}
-
-	routeType, err := strconv.Atoi(strings.TrimSpace(routeTypeStr))
-	if err != nil {
-		container.AddNotice(notice.NewInvalidRouteTypeNotice(
-			routeID,
-			strings.TrimSpace(routeTypeStr),
-			row.RowNumber,
-			"Route type must be a valid integer",
-		))
-		return
-	}
-
-	if !validRouteTypes[routeType] {
-		container.AddNotice(notice.NewInvalidRouteTypeNotice(
-			routeID,
-			strings.TrimSpace(routeTypeStr),
-			row.RowNumber,
-			"Unknown route type",
-		))
-	}
 }
 
 // validateRouteColor validates route_color and route_text_color fields

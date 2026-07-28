@@ -116,16 +116,7 @@ func (v *RouteTypeValidator) parseRoute(row *parser.CSVRow) *RouteTypeInfo {
 
 // validateRouteType validates individual route type values
 func (v *RouteTypeValidator) validateRouteType(container *notice.NoticeContainer, route *RouteTypeInfo) {
-	// Check if route type is valid according to GTFS specification
-	if !v.isValidRouteType(route.RouteType) {
-		container.AddNotice(notice.NewInvalidRouteTypeNotice(
-			route.RouteID,
-			strconv.Itoa(route.RouteType),
-			route.RowNumber,
-			"Invalid route type value",
-		))
-		return
-	}
+	// route_type's own value is checked by core/field_type_validator.go.
 
 	// Check for deprecated route types
 	if v.isDeprecatedRouteType(route.RouteType) {

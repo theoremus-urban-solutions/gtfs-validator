@@ -126,9 +126,6 @@ func (v *StopLocationValidator) loadStops(loader *parser.FeedLoader) map[string]
 
 // validateStop validates a single stop
 func (v *StopLocationValidator) validateStop(container *notice.NoticeContainer, stop *StopInfo, allStops map[string]*StopInfo) {
-	// Validate location type
-	v.validateLocationType(container, stop)
-
 	// Validate coordinates requirement
 	v.validateCoordinatesRequirement(container, stop)
 
@@ -137,17 +134,6 @@ func (v *StopLocationValidator) validateStop(container *notice.NoticeContainer, 
 
 	// Validate location type specific rules
 	v.validateLocationTypeRules(container, stop, allStops)
-}
-
-// validateLocationType validates the location_type field
-func (v *StopLocationValidator) validateLocationType(container *notice.NoticeContainer, stop *StopInfo) {
-	if !validLocationTypes[stop.LocationType] {
-		container.AddNotice(notice.NewInvalidLocationTypeNotice(
-			stop.StopID,
-			stop.LocationType,
-			stop.RowNumber,
-		))
-	}
 }
 
 // expectedParentLocationType gives the location_type a parent must have for a

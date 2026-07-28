@@ -28,10 +28,12 @@ func TestPathwayValidator_Validate(t *testing.T) {
 	if codes["pathway_to_same_stop"] == 0 { // P3 A->A
 		t.Errorf("expected pathway_to_same_stop for A->A")
 	}
-	if codes["invalid_pathway_mode"] == 0 { // P4 invalid mode 10
-		t.Errorf("expected invalid_pathway_mode for mode 10")
-	}
 	if codes["foreign_key_violation"] == 0 { // P5 references missing stop C
 		t.Errorf("expected foreign_key_violation for missing stop reference")
+	}
+
+	// pathway_mode's own value is checked by core/field_type_validator.go.
+	if codes["unexpected_enum_value"] != 0 {
+		t.Errorf("enum values are the field type validator's business, not this one's")
 	}
 }

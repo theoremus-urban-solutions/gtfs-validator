@@ -295,9 +295,6 @@ func (v *StopTimeConsistencyValidator) validateTripStopTimes(container *notice.N
 	// A row giving only one of arrival_time and departure_time is reported by
 	// stop_time_field_validator.go, which sees the raw row.
 
-	// Check for timepoint consistency
-	v.validateTimepointConsistency(container, stopTimes)
-
 	// Check for pickup/drop-off consistency
 	v.validatePickupDropoffConsistency(container, stopTimes)
 
@@ -367,25 +364,6 @@ func (v *StopTimeConsistencyValidator) validateDuplicateStops(container *notice.
 					occurrences[i].RowNumber,
 				))
 			}
-		}
-	}
-}
-
-// validateTimepointConsistency checks timepoint field consistency
-func (v *StopTimeConsistencyValidator) validateTimepointConsistency(container *notice.NoticeContainer, stopTimes []*StopTimeInfo) {
-	for _, stopTime := range stopTimes {
-		if stopTime.Timepoint == nil {
-			continue
-		}
-
-		// Validate timepoint value
-		if *stopTime.Timepoint != 0 && *stopTime.Timepoint != 1 {
-			container.AddNotice(notice.NewInvalidTimepointNotice(
-				stopTime.TripID,
-				stopTime.StopID,
-				*stopTime.Timepoint,
-				stopTime.RowNumber,
-			))
 		}
 	}
 }

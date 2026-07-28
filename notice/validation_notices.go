@@ -479,94 +479,6 @@ func NewMissingRequiredColumnNotice(filename string, columnName string) *Missing
 	}
 }
 
-// InvalidTimeFormatNotice is generated when a time field has invalid format
-type InvalidTimeFormatNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidTimeFormatNotice(filename string, fieldName string, timeValue string, rowNumber int) *InvalidTimeFormatNotice {
-	context := map[string]interface{}{
-		"filename":     filename,
-		"fieldName":    fieldName,
-		"timeValue":    timeValue,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidTimeFormatNotice{
-		BaseNotice: NewBaseNotice("invalid_time_format", WARNING, context),
-	}
-}
-
-// InvalidDateFormatNotice is generated when a date field has invalid format
-type InvalidDateFormatNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidDateFormatNotice(filename string, fieldName string, dateValue string, rowNumber int) *InvalidDateFormatNotice {
-	context := map[string]interface{}{
-		"filename":     filename,
-		"fieldName":    fieldName,
-		"dateValue":    dateValue,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidDateFormatNotice{
-		BaseNotice: NewBaseNotice("invalid_date_format", WARNING, context),
-	}
-}
-
-// InvalidCoordinateNotice is generated when a coordinate is out of valid range
-type InvalidCoordinateNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidCoordinateNotice(filename string, fieldName string, coordValue string, rowNumber int, reason string) *InvalidCoordinateNotice {
-	context := map[string]interface{}{
-		"filename":     filename,
-		"fieldName":    fieldName,
-		"fieldValue":   coordValue,
-		"csvRowNumber": rowNumber,
-		"reason":       reason,
-	}
-	return &InvalidCoordinateNotice{
-		BaseNotice: NewBaseNotice("invalid_coordinate", WARNING, context),
-	}
-}
-
-// SuspiciousCoordinateNotice is generated when a coordinate looks suspicious
-type SuspiciousCoordinateNotice struct {
-	*BaseNotice
-}
-
-func NewSuspiciousCoordinateNotice(filename string, fieldName string, coordValue string, rowNumber int, reason string) *SuspiciousCoordinateNotice {
-	context := map[string]interface{}{
-		"filename":     filename,
-		"fieldName":    fieldName,
-		"fieldValue":   coordValue,
-		"csvRowNumber": rowNumber,
-		"reason":       reason,
-	}
-	return &SuspiciousCoordinateNotice{
-		BaseNotice: NewBaseNotice("suspicious_coordinate", WARNING, context),
-	}
-}
-
-// InvalidCurrencyCodeNotice is generated when a currency code is invalid
-type InvalidCurrencyCodeNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidCurrencyCodeNotice(filename string, fieldName string, currencyCode string, rowNumber int, reason string) *InvalidCurrencyCodeNotice {
-	context := map[string]interface{}{
-		"filename":     filename,
-		"fieldName":    fieldName,
-		"currencyCode": currencyCode,
-		"csvRowNumber": rowNumber,
-		"reason":       reason,
-	}
-	return &InvalidCurrencyCodeNotice{
-		BaseNotice: NewBaseNotice("invalid_currency_code", WARNING, context),
-	}
-}
-
 // InvalidAgencyReferenceNotice is generated when a route references an invalid agency
 type InvalidAgencyReferenceNotice struct {
 	*BaseNotice
@@ -580,23 +492,6 @@ func NewInvalidAgencyReferenceNotice(routeID string, agencyID string, rowNumber 
 	}
 	return &InvalidAgencyReferenceNotice{
 		BaseNotice: NewBaseNotice("invalid_agency_reference", WARNING, context),
-	}
-}
-
-// InvalidRouteTypeNotice is generated when route_type is invalid
-type InvalidRouteTypeNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidRouteTypeNotice(routeID string, routeType string, rowNumber int, reason string) *InvalidRouteTypeNotice {
-	context := map[string]interface{}{
-		"routeId":      routeID,
-		"routeType":    routeType,
-		"csvRowNumber": rowNumber,
-		"reason":       reason,
-	}
-	return &InvalidRouteTypeNotice{
-		BaseNotice: NewBaseNotice("invalid_route_type", WARNING, context),
 	}
 }
 
@@ -632,23 +527,6 @@ func NewServiceWithoutActiveDaysNotice(serviceID string, rowNumber int) *Service
 	}
 }
 
-// InvalidServiceDateRangeNotice is generated when start_date > end_date
-type InvalidServiceDateRangeNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidServiceDateRangeNotice(serviceID string, startDate string, endDate string, rowNumber int) *InvalidServiceDateRangeNotice {
-	context := map[string]interface{}{
-		"serviceId":    serviceID,
-		"startDate":    startDate,
-		"endDate":      endDate,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidServiceDateRangeNotice{
-		BaseNotice: NewBaseNotice("invalid_service_date_range", WARNING, context),
-	}
-}
-
 // ExpiredServiceNotice is generated when a service is expired
 type ExpiredServiceNotice struct {
 	*BaseNotice
@@ -678,22 +556,6 @@ func NewUnusedServiceNotice(serviceID string, filename string, rowNumber int) *U
 	}
 	return &UnusedServiceNotice{
 		BaseNotice: NewBaseNotice("unused_service", WARNING, context),
-	}
-}
-
-// InvalidLocationTypeNotice is generated when location_type is invalid
-type InvalidLocationTypeNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidLocationTypeNotice(stopID string, locationType int, rowNumber int) *InvalidLocationTypeNotice {
-	context := map[string]interface{}{
-		"stopId":       stopID,
-		"locationType": locationType,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidLocationTypeNotice{
-		BaseNotice: NewBaseNotice("invalid_location_type", WARNING, context),
 	}
 }
 
@@ -728,55 +590,6 @@ func NewCircularStationReferenceNotice(stopID string, rowNumber int) *CircularSt
 	}
 }
 
-// InvalidFrequencyTimeRangeNotice is generated when frequency time range is invalid
-type InvalidFrequencyTimeRangeNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidFrequencyTimeRangeNotice(tripID string, startTime string, endTime string, rowNumber int) *InvalidFrequencyTimeRangeNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"startTime":    startTime,
-		"endTime":      endTime,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidFrequencyTimeRangeNotice{
-		BaseNotice: NewBaseNotice("invalid_frequency_time_range", WARNING, context),
-	}
-}
-
-// InvalidHeadwayNotice is generated when headway_secs is invalid
-type InvalidHeadwayNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidHeadwayNotice(tripID string, headwaySecs int, rowNumber int) *InvalidHeadwayNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"headwaySecs":  headwaySecs,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidHeadwayNotice{
-		BaseNotice: NewBaseNotice("invalid_headway", WARNING, context),
-	}
-}
-
-// InvalidExactTimesNotice is generated when exact_times field is invalid
-type InvalidExactTimesNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidExactTimesNotice(tripID string, exactTimes int, rowNumber int) *InvalidExactTimesNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"exactTimes":   exactTimes,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidExactTimesNotice{
-		BaseNotice: NewBaseNotice("invalid_exact_times", WARNING, context),
-	}
-}
-
 // OverlappingFrequencyNotice is generated when frequencies overlap for the same trip
 type OverlappingFrequencyNotice struct {
 	*BaseNotice
@@ -794,23 +607,6 @@ func NewOverlappingFrequencyNotice(tripID string, startTime1 string, endTime1 st
 	}
 	return &OverlappingFrequencyNotice{
 		BaseNotice: NewBaseNotice("overlapping_frequency", ERROR, context),
-	}
-}
-
-// InvalidTransferTypeNotice is generated when transfer_type is invalid
-type InvalidTransferTypeNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidTransferTypeNotice(fromStopID string, toStopID string, transferType int, rowNumber int) *InvalidTransferTypeNotice {
-	context := map[string]interface{}{
-		"fromStopId":   fromStopID,
-		"toStopId":     toStopID,
-		"transferType": transferType,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidTransferTypeNotice{
-		BaseNotice: NewBaseNotice("invalid_transfer_type", WARNING, context),
 	}
 }
 
@@ -915,38 +711,6 @@ func NewDuplicateTransferNotice(fromStopID string, toStopID string, rowNumber in
 
 // PATHWAY VALIDATOR NOTICES
 
-// InvalidPathwayModeNotice is generated when pathway_mode has invalid value
-type InvalidPathwayModeNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidPathwayModeNotice(pathwayID string, pathwayMode int, rowNumber int) *InvalidPathwayModeNotice {
-	context := map[string]interface{}{
-		"pathwayId":    pathwayID,
-		"pathwayMode":  pathwayMode,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidPathwayModeNotice{
-		BaseNotice: NewBaseNotice("invalid_pathway_mode", WARNING, context),
-	}
-}
-
-// InvalidBidirectionalNotice is generated when is_bidirectional has invalid value
-type InvalidBidirectionalNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidBidirectionalNotice(pathwayID string, isBidirectional int, rowNumber int) *InvalidBidirectionalNotice {
-	context := map[string]interface{}{
-		"pathwayId":       pathwayID,
-		"isBidirectional": isBidirectional,
-		"csvRowNumber":    rowNumber,
-	}
-	return &InvalidBidirectionalNotice{
-		BaseNotice: NewBaseNotice("invalid_bidirectional", WARNING, context),
-	}
-}
-
 // PathwayToSameStopNotice is generated when pathway connects stop to itself
 type PathwayToSameStopNotice struct {
 	*BaseNotice
@@ -960,70 +724,6 @@ func NewPathwayToSameStopNotice(pathwayID string, stopID string, rowNumber int) 
 	}
 	return &PathwayToSameStopNotice{
 		BaseNotice: NewBaseNotice("pathway_to_same_stop", WARNING, context),
-	}
-}
-
-// InvalidStairCountNotice is generated when stair_count is invalid
-type InvalidStairCountNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidStairCountNotice(pathwayID string, stairCount int, rowNumber int) *InvalidStairCountNotice {
-	context := map[string]interface{}{
-		"pathwayId":    pathwayID,
-		"stairCount":   stairCount,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidStairCountNotice{
-		BaseNotice: NewBaseNotice("invalid_stair_count", WARNING, context),
-	}
-}
-
-// InvalidPathwayLengthNotice is generated when pathway length is invalid
-type InvalidPathwayLengthNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidPathwayLengthNotice(pathwayID string, length float64, rowNumber int) *InvalidPathwayLengthNotice {
-	context := map[string]interface{}{
-		"pathwayId":    pathwayID,
-		"length":       length,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidPathwayLengthNotice{
-		BaseNotice: NewBaseNotice("invalid_pathway_length", WARNING, context),
-	}
-}
-
-// InvalidTraversalTimeNotice is generated when traversal_time is invalid
-type InvalidTraversalTimeNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidTraversalTimeNotice(pathwayID string, traversalTime int, rowNumber int) *InvalidTraversalTimeNotice {
-	context := map[string]interface{}{
-		"pathwayId":     pathwayID,
-		"traversalTime": traversalTime,
-		"csvRowNumber":  rowNumber,
-	}
-	return &InvalidTraversalTimeNotice{
-		BaseNotice: NewBaseNotice("invalid_traversal_time", WARNING, context),
-	}
-}
-
-// InvalidMinWidthNotice is generated when min_width is invalid
-type InvalidMinWidthNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidMinWidthNotice(pathwayID string, minWidth float64, rowNumber int) *InvalidMinWidthNotice {
-	context := map[string]interface{}{
-		"pathwayId":    pathwayID,
-		"minWidth":     minWidth,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidMinWidthNotice{
-		BaseNotice: NewBaseNotice("invalid_min_width", WARNING, context),
 	}
 }
 
@@ -1064,54 +764,6 @@ func NewInconsistentBidirectionalPathwayNotice(pathwayID1 string, pathwayID2 str
 
 // FARE VALIDATOR NOTICES
 
-// InvalidPaymentMethodNotice is generated when payment_method has invalid value
-type InvalidPaymentMethodNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidPaymentMethodNotice(fareID string, paymentMethod int, rowNumber int) *InvalidPaymentMethodNotice {
-	context := map[string]interface{}{
-		"fareId":        fareID,
-		"paymentMethod": paymentMethod,
-		"csvRowNumber":  rowNumber,
-	}
-	return &InvalidPaymentMethodNotice{
-		BaseNotice: NewBaseNotice("invalid_payment_method", WARNING, context),
-	}
-}
-
-// InvalidTransfersNotice is generated when transfers field has invalid value
-type InvalidTransfersNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidTransfersNotice(fareID string, transfers int, rowNumber int) *InvalidTransfersNotice {
-	context := map[string]interface{}{
-		"fareId":       fareID,
-		"transfers":    transfers,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidTransfersNotice{
-		BaseNotice: NewBaseNotice("invalid_transfers", WARNING, context),
-	}
-}
-
-// InvalidTransferDurationNotice is generated when transfer_duration is invalid
-type InvalidTransferDurationNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidTransferDurationNotice(fareID string, transferDuration int, rowNumber int) *InvalidTransferDurationNotice {
-	context := map[string]interface{}{
-		"fareId":           fareID,
-		"transferDuration": transferDuration,
-		"csvRowNumber":     rowNumber,
-	}
-	return &InvalidTransferDurationNotice{
-		BaseNotice: NewBaseNotice("invalid_transfer_duration", WARNING, context),
-	}
-}
-
 // UnnecessaryTransferDurationNotice is generated when transfer_duration is provided but transfers is 0
 type UnnecessaryTransferDurationNotice struct {
 	*BaseNotice
@@ -1125,23 +777,6 @@ func NewUnnecessaryTransferDurationNotice(fareID string, transferDuration int, r
 	}
 	return &UnnecessaryTransferDurationNotice{
 		BaseNotice: NewBaseNotice("unnecessary_transfer_duration", WARNING, context),
-	}
-}
-
-// InvalidFarePriceNotice is generated when fare price is invalid
-type InvalidFarePriceNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidFarePriceNotice(fareID string, price string, rowNumber int, reason string) *InvalidFarePriceNotice {
-	context := map[string]interface{}{
-		"fareId":       fareID,
-		"price":        price,
-		"csvRowNumber": rowNumber,
-		"reason":       reason,
-	}
-	return &InvalidFarePriceNotice{
-		BaseNotice: NewBaseNotice("invalid_fare_price", WARNING, context),
 	}
 }
 
@@ -1351,23 +986,6 @@ func NewFutureServiceNotice(serviceID string, startDate string, rowNumber int) *
 	}
 	return &FutureServiceNotice{
 		BaseNotice: NewBaseNotice("future_service", WARNING, context),
-	}
-}
-
-// InvalidExceptionTypeNotice is generated when exception_type has invalid value
-type InvalidExceptionTypeNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidExceptionTypeNotice(serviceID string, date string, exceptionType int, rowNumber int) *InvalidExceptionTypeNotice {
-	context := map[string]interface{}{
-		"serviceId":     serviceID,
-		"date":          date,
-		"exceptionType": exceptionType,
-		"csvRowNumber":  rowNumber,
-	}
-	return &InvalidExceptionTypeNotice{
-		BaseNotice: NewBaseNotice("invalid_exception_type", WARNING, context),
 	}
 }
 
@@ -1660,23 +1278,6 @@ func NewDuplicateStopInTripNotice(tripID string, stopID string, stopSequence int
 	}
 }
 
-// InvalidTimepointNotice is generated when timepoint has invalid value
-type InvalidTimepointNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidTimepointNotice(tripID string, stopID string, timepoint int, rowNumber int) *InvalidTimepointNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"stopId":       stopID,
-		"timepoint":    timepoint,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidTimepointNotice{
-		BaseNotice: NewBaseNotice("invalid_timepoint", WARNING, context),
-	}
-}
-
 // FirstStopNoPickupNotice is generated when first stop has no pickup
 type FirstStopNoPickupNotice struct {
 	*BaseNotice
@@ -1816,135 +1417,6 @@ func NewWrongNumberOfFieldsNotice(filename string, rowNumber, expectedFields, ac
 	}
 	return &WrongNumberOfFieldsNotice{
 		BaseNotice: NewBaseNotice("invalid_row_length", ERROR, context),
-	}
-}
-
-// NegativeStopSequenceNotice represents negative stop_sequence
-type NegativeStopSequenceNotice struct {
-	*BaseNotice
-}
-
-func NewNegativeStopSequenceNotice(tripID string, stopSequence, rowNumber int) *NegativeStopSequenceNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"stopSequence": stopSequence,
-		"rowNumber":    rowNumber,
-	}
-	return &NegativeStopSequenceNotice{
-		BaseNotice: NewBaseNotice("negative_stop_sequence", WARNING, context),
-	}
-}
-
-// NegativeShapeDistanceNotice represents negative shape_dist_traveled
-type NegativeShapeDistanceNotice struct {
-	*BaseNotice
-}
-
-func NewNegativeShapeDistanceNotice(tripID string, shapeDistance float64, rowNumber int) *NegativeShapeDistanceNotice {
-	context := map[string]interface{}{
-		"tripId":        tripID,
-		"shapeDistance": shapeDistance,
-		"rowNumber":     rowNumber,
-	}
-	return &NegativeShapeDistanceNotice{
-		BaseNotice: NewBaseNotice("negative_shape_distance", WARNING, context),
-	}
-}
-
-// InvalidWheelchairBoardingNotice represents invalid wheelchair_boarding value
-type InvalidWheelchairBoardingNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidWheelchairBoardingNotice(stopID string, wheelchairBoarding, rowNumber int) *InvalidWheelchairBoardingNotice {
-	context := map[string]interface{}{
-		"stopId":             stopID,
-		"wheelchairBoarding": wheelchairBoarding,
-		"rowNumber":          rowNumber,
-	}
-	return &InvalidWheelchairBoardingNotice{
-		BaseNotice: NewBaseNotice("invalid_wheelchair_boarding", WARNING, context),
-	}
-}
-
-// InvalidDirectionIdNotice represents invalid direction_id value
-type InvalidDirectionIdNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidDirectionIdNotice(tripID string, directionId, rowNumber int) *InvalidDirectionIdNotice {
-	context := map[string]interface{}{
-		"tripId":      tripID,
-		"directionId": directionId,
-		"rowNumber":   rowNumber,
-	}
-	return &InvalidDirectionIdNotice{
-		BaseNotice: NewBaseNotice("invalid_direction_id", WARNING, context),
-	}
-}
-
-// InvalidWheelchairAccessibleNotice represents invalid wheelchair_accessible value
-type InvalidWheelchairAccessibleNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidWheelchairAccessibleNotice(tripID string, wheelchairAccessible, rowNumber int) *InvalidWheelchairAccessibleNotice {
-	context := map[string]interface{}{
-		"tripId":               tripID,
-		"wheelchairAccessible": wheelchairAccessible,
-		"rowNumber":            rowNumber,
-	}
-	return &InvalidWheelchairAccessibleNotice{
-		BaseNotice: NewBaseNotice("invalid_wheelchair_accessible", WARNING, context),
-	}
-}
-
-// InvalidBikesAllowedNotice represents invalid bikes_allowed value
-type InvalidBikesAllowedNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidBikesAllowedNotice(tripID string, bikesAllowed, rowNumber int) *InvalidBikesAllowedNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"bikesAllowed": bikesAllowed,
-		"rowNumber":    rowNumber,
-	}
-	return &InvalidBikesAllowedNotice{
-		BaseNotice: NewBaseNotice("invalid_bikes_allowed", WARNING, context),
-	}
-}
-
-// InvalidDayValueNotice represents invalid day field value in calendar.txt
-type InvalidDayValueNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidDayValueNotice(serviceID, field, value string, rowNumber int) *InvalidDayValueNotice {
-	context := map[string]interface{}{
-		"serviceId": serviceID,
-		"field":     field,
-		"value":     value,
-		"rowNumber": rowNumber,
-	}
-	return &InvalidDayValueNotice{
-		BaseNotice: NewBaseNotice("invalid_day_value", WARNING, context),
-	}
-}
-
-// NegativeShapeSequenceNotice represents negative shape_pt_sequence
-type NegativeShapeSequenceNotice struct {
-	*BaseNotice
-}
-
-func NewNegativeShapeSequenceNotice(shapeID string, sequence, rowNumber int) *NegativeShapeSequenceNotice {
-	context := map[string]interface{}{
-		"shapeId":   shapeID,
-		"sequence":  sequence,
-		"rowNumber": rowNumber,
-	}
-	return &NegativeShapeSequenceNotice{
-		BaseNotice: NewBaseNotice("negative_shape_sequence", WARNING, context),
 	}
 }
 
@@ -2442,22 +1914,6 @@ func NewStopNameContainsControlCharacterNotice(stopID, stopName string, position
 // === DATE TRIPS NOTICES ===
 
 // === BIKES ALLOWANCE NOTICES ===
-
-// InvalidBikesAllowedValueNotice represents invalid bikes_allowed value
-type InvalidBikesAllowedValueNotice struct {
-	*BaseNotice
-}
-
-func NewInvalidBikesAllowedValueNotice(tripID string, bikesAllowed, rowNumber int) *InvalidBikesAllowedValueNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"bikesAllowed": bikesAllowed,
-		"csvRowNumber": rowNumber,
-	}
-	return &InvalidBikesAllowedValueNotice{
-		BaseNotice: NewBaseNotice("invalid_bikes_allowed_value", WARNING, context),
-	}
-}
 
 // === SHAPE DISTANCE NOTICES ===
 

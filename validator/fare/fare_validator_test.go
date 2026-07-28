@@ -25,16 +25,8 @@ func TestFareValidator_Validate(t *testing.T) {
 		codes[n.Code()]++
 	}
 
-	// From fare_attributes
-	if codes["invalid_fare_price"] == 0 {
-		t.Errorf("expected invalid_fare_price notice")
-	}
-	if codes["invalid_payment_method"] == 0 {
-		t.Errorf("expected invalid_payment_method notice")
-	}
-	if codes["invalid_transfer_duration"] == 0 {
-		t.Errorf("expected invalid_transfer_duration notice for negative duration")
-	}
+	// price, payment_method, transfers and transfer_duration are checked
+	// against the spec's types by core/field_type_validator.go.
 	if codes["unnecessary_transfer_duration"] == 0 {
 		t.Errorf("expected unnecessary_transfer_duration when transfers=0 but duration given")
 	}

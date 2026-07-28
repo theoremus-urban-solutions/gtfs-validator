@@ -19,17 +19,6 @@ func NewPathwayValidator() *PathwayValidator {
 	return &PathwayValidator{}
 }
 
-// validPathwayModes contains valid GTFS pathway modes
-var validPathwayModes = map[int]bool{
-	1: true, // Walkway
-	2: true, // Stairs
-	3: true, // Moving sidewalk/travelator
-	4: true, // Escalator
-	5: true, // Elevator
-	6: true, // Fare gate
-	7: true, // Exit gate
-}
-
 // PathwayInfo represents pathway information
 type PathwayInfo struct {
 	PathwayID            string
@@ -217,23 +206,8 @@ func (v *PathwayValidator) loadStopsForPathways(loader *parser.FeedLoader) map[s
 
 // validatePathway validates a single pathway record
 func (v *PathwayValidator) validatePathway(container *notice.NoticeContainer, pathway *PathwayInfo, stops map[string]bool) {
-	// Validate pathway mode
-	if !validPathwayModes[pathway.PathwayMode] {
-		container.AddNotice(notice.NewInvalidPathwayModeNotice(
-			pathway.PathwayID,
-			pathway.PathwayMode,
-			pathway.RowNumber,
-		))
-	}
-
-	// Validate is_bidirectional
-	if pathway.IsBidirectional != 0 && pathway.IsBidirectional != 1 {
-		container.AddNotice(notice.NewInvalidBidirectionalNotice(
-			pathway.PathwayID,
-			pathway.IsBidirectional,
-			pathway.RowNumber,
-		))
-	}
+	// pathway_mode, is_bidirectional and the numeric fields are checked
+	// against the spec's types by core/field_type_validator.go.
 
 	// Validate stop references
 	if !stops[pathway.FromStopID] {
@@ -269,9 +243,6 @@ func (v *PathwayValidator) validatePathway(container *notice.NoticeContainer, pa
 
 	// Validate pathway-specific requirements
 	v.validatePathwaySpecificRequirements(container, pathway)
-
-	// Validate numeric fields
-	v.validatePathwayNumericFields(container, pathway)
 }
 
 // validatePathwaySpecificRequirements validates requirements specific to pathway modes
@@ -283,12 +254,6 @@ func (v *PathwayValidator) validatePathwaySpecificRequirements(container *notice
 			container.AddNotice(notice.NewMissingRecommendedFieldNotice(
 				"pathways.txt",
 				"stair_count",
-				pathway.RowNumber,
-			))
-		} else if *pathway.StairCount <= 0 {
-			container.AddNotice(notice.NewInvalidStairCountNotice(
-				pathway.PathwayID,
-				*pathway.StairCount,
 				pathway.RowNumber,
 			))
 		}
@@ -303,36 +268,6 @@ func (v *PathwayValidator) validatePathwaySpecificRequirements(container *notice
 			))
 		}
 
-	}
-}
-
-// validatePathwayNumericFields validates numeric field constraints
-func (v *PathwayValidator) validatePathwayNumericFields(container *notice.NoticeContainer, pathway *PathwayInfo) {
-	// Validate length
-	if pathway.Length != nil && *pathway.Length <= 0 {
-		container.AddNotice(notice.NewInvalidPathwayLengthNotice(
-			pathway.PathwayID,
-			*pathway.Length,
-			pathway.RowNumber,
-		))
-	}
-
-	// Validate traversal time
-	if pathway.TraversalTime != nil && *pathway.TraversalTime <= 0 {
-		container.AddNotice(notice.NewInvalidTraversalTimeNotice(
-			pathway.PathwayID,
-			*pathway.TraversalTime,
-			pathway.RowNumber,
-		))
-	}
-
-	// Validate min width
-	if pathway.MinWidth != nil && *pathway.MinWidth <= 0 {
-		container.AddNotice(notice.NewInvalidMinWidthNotice(
-			pathway.PathwayID,
-			*pathway.MinWidth,
-			pathway.RowNumber,
-		))
 	}
 }
 

@@ -174,31 +174,11 @@ func (v *ServiceValidationValidator) validateCalendarService(container *notice.N
 
 	// Validate date range
 	if service.StartDate != "" && service.EndDate != "" {
-		v.validateServiceDateRange(container, service)
 	}
 
 	// Check if service is expired
 	if service.EndDate != "" {
 		v.validateServiceExpiration(container, service)
-	}
-}
-
-// validateServiceDateRange validates that start_date <= end_date
-func (v *ServiceValidationValidator) validateServiceDateRange(container *notice.NoticeContainer, service *ServiceInfo) {
-	startDate, err1 := v.parseGTFSDate(service.StartDate)
-	endDate, err2 := v.parseGTFSDate(service.EndDate)
-
-	if err1 != nil || err2 != nil {
-		return // Invalid dates - other validators handle this
-	}
-
-	if startDate.After(*endDate) {
-		container.AddNotice(notice.NewInvalidServiceDateRangeNotice(
-			service.ServiceID,
-			service.StartDate,
-			service.EndDate,
-			service.RowNumber,
-		))
 	}
 }
 

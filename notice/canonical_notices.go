@@ -403,3 +403,39 @@ func NewTripCoverageNotActiveForNext7DaysNotice(currentDate string, lastServiceD
 		BaseNotice: NewBaseNotice("trip_coverage_not_active_for_next7_days", WARNING, context),
 	}
 }
+
+// PointNearOriginNotice reports a coordinate at (0, 0), in the Gulf of Guinea.
+// A stop there is almost always a field left empty and defaulted to zero.
+type PointNearOriginNotice struct {
+	*BaseNotice
+}
+
+func NewPointNearOriginNotice(filename string, fieldName string, fieldValue string, rowNumber int) *PointNearOriginNotice {
+	context := map[string]interface{}{
+		"filename":     filename,
+		"fieldName":    fieldName,
+		"fieldValue":   fieldValue,
+		"csvRowNumber": rowNumber,
+	}
+	return &PointNearOriginNotice{
+		BaseNotice: NewBaseNotice("point_near_origin", ERROR, context),
+	}
+}
+
+// PointNearPoleNotice reports a coordinate at one of the poles, the other
+// position a missing value tends to become.
+type PointNearPoleNotice struct {
+	*BaseNotice
+}
+
+func NewPointNearPoleNotice(filename string, fieldName string, fieldValue string, rowNumber int) *PointNearPoleNotice {
+	context := map[string]interface{}{
+		"filename":     filename,
+		"fieldName":    fieldName,
+		"fieldValue":   fieldValue,
+		"csvRowNumber": rowNumber,
+	}
+	return &PointNearPoleNotice{
+		BaseNotice: NewBaseNotice("point_near_pole", ERROR, context),
+	}
+}
