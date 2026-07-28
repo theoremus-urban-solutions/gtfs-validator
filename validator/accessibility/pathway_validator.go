@@ -303,15 +303,6 @@ func (v *PathwayValidator) validatePathwaySpecificRequirements(container *notice
 			))
 		}
 
-	case 6, 7: // Fare gate, Exit gate
-		// Gates should typically not be bidirectional
-		if pathway.IsBidirectional == 1 {
-			container.AddNotice(notice.NewUnexpectedBidirectionalGateNotice(
-				pathway.PathwayID,
-				pathway.PathwayMode,
-				pathway.RowNumber,
-			))
-		}
 	}
 }
 

@@ -50,7 +50,7 @@ func NewInvalidFieldFormatNotice(filename string, fieldName string, fieldValue s
 		"expectedFormat": expectedFormat,
 	}
 	return &InvalidFieldFormatNotice{
-		BaseNotice: NewBaseNotice("invalid_field_format", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_field_format", WARNING, context),
 	}
 }
 
@@ -83,7 +83,7 @@ func NewEmptyFileNotice(filename string) *EmptyFileNotice {
 		"filename": filename,
 	}
 	return &EmptyFileNotice{
-		BaseNotice: NewBaseNotice("empty_file", WARNING, context),
+		BaseNotice: NewBaseNotice("empty_file", ERROR, context),
 	}
 }
 
@@ -212,7 +212,7 @@ func NewDuplicateStopSequenceNotice(tripID string, stopSequence int, stopID stri
 		"duplicateRowNumber": duplicateRowNumber,
 	}
 	return &DuplicateStopSequenceNotice{
-		BaseNotice: NewBaseNotice("duplicate_stop_sequence", ERROR, context),
+		BaseNotice: NewBaseNotice("duplicate_stop_sequence", WARNING, context),
 	}
 }
 
@@ -301,7 +301,7 @@ func NewTripUsabilityNotice(tripID string, stopCount int, rowNumber int) *TripUs
 		"csvRowNumber": rowNumber,
 	}
 	return &TripUsabilityNotice{
-		BaseNotice: NewBaseNotice("unusable_trip", ERROR, context),
+		BaseNotice: NewBaseNotice("unusable_trip", WARNING, context),
 	}
 }
 
@@ -319,7 +319,7 @@ func NewStopTimeArrivalAfterDepartureNotice(tripID string, stopSequence int, arr
 		"csvRowNumber":  rowNumber,
 	}
 	return &StopTimeArrivalAfterDepartureNotice{
-		BaseNotice: NewBaseNotice("stop_time_arrival_after_departure", ERROR, context),
+		BaseNotice: NewBaseNotice("stop_time_arrival_after_departure", WARNING, context),
 	}
 }
 
@@ -356,7 +356,7 @@ func NewDuplicateShapeSequenceNotice(shapeID string, shapePtSequence int, rowNum
 		"duplicateRowNumber": duplicateRowNumber,
 	}
 	return &DuplicateShapeSequenceNotice{
-		BaseNotice: NewBaseNotice("duplicate_shape_sequence", ERROR, context),
+		BaseNotice: NewBaseNotice("duplicate_shape_sequence", WARNING, context),
 	}
 }
 
@@ -376,7 +376,7 @@ func NewDecreasingOrEqualShapeDistanceNotice(shapeID string, shapePtSequence int
 		"prevShapeDistTraveled": prevShapeDistTraveled,
 	}
 	return &DecreasingOrEqualShapeDistanceNotice{
-		BaseNotice: NewBaseNotice("decreasing_or_equal_shape_distance", ERROR, context),
+		BaseNotice: NewBaseNotice("decreasing_or_equal_shape_distance", WARNING, context),
 	}
 }
 
@@ -439,7 +439,7 @@ func NewMissingFeedInfoNotice() *MissingFeedInfoNotice {
 		"message": "feed_info.txt is required when translations.txt is present",
 	}
 	return &MissingFeedInfoNotice{
-		BaseNotice: NewBaseNotice("missing_feed_info", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_feed_info", WARNING, context),
 	}
 }
 
@@ -453,7 +453,7 @@ func NewMissingFareAttributesNotice() *MissingFareAttributesNotice {
 		"message": "fare_attributes.txt is required when fare_rules.txt is present",
 	}
 	return &MissingFareAttributesNotice{
-		BaseNotice: NewBaseNotice("missing_fare_attributes", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_fare_attributes", WARNING, context),
 	}
 }
 
@@ -467,7 +467,7 @@ func NewMissingLevelsNotice() *MissingLevelsNotice {
 		"message": "levels.txt is required when pathways.txt is present",
 	}
 	return &MissingLevelsNotice{
-		BaseNotice: NewBaseNotice("missing_levels", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_levels", WARNING, context),
 	}
 }
 
@@ -529,7 +529,7 @@ func NewInvalidTimeFormatNotice(filename string, fieldName string, timeValue str
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidTimeFormatNotice{
-		BaseNotice: NewBaseNotice("invalid_time_format", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_time_format", WARNING, context),
 	}
 }
 
@@ -546,7 +546,7 @@ func NewInvalidDateFormatNotice(filename string, fieldName string, dateValue str
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidDateFormatNotice{
-		BaseNotice: NewBaseNotice("invalid_date_format", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_date_format", WARNING, context),
 	}
 }
 
@@ -564,7 +564,7 @@ func NewInvalidCoordinateNotice(filename string, fieldName string, coordValue st
 		"reason":       reason,
 	}
 	return &InvalidCoordinateNotice{
-		BaseNotice: NewBaseNotice("invalid_coordinate", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_coordinate", WARNING, context),
 	}
 }
 
@@ -600,7 +600,7 @@ func NewInvalidCurrencyCodeNotice(filename string, fieldName string, currencyCod
 		"reason":       reason,
 	}
 	return &InvalidCurrencyCodeNotice{
-		BaseNotice: NewBaseNotice("invalid_currency_code", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_currency_code", WARNING, context),
 	}
 }
 
@@ -616,7 +616,7 @@ func NewMissingAgencyIdNotice(agencyName string, rowNumber int) *MissingAgencyId
 		"message":      "agency_id is required when multiple agencies exist",
 	}
 	return &MissingAgencyIdNotice{
-		BaseNotice: NewBaseNotice("missing_agency_id", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_agency_id", WARNING, context),
 	}
 }
 
@@ -632,7 +632,7 @@ func NewInvalidAgencyReferenceNotice(routeID string, agencyID string, rowNumber 
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidAgencyReferenceNotice{
-		BaseNotice: NewBaseNotice("invalid_agency_reference", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_agency_reference", WARNING, context),
 	}
 }
 
@@ -648,7 +648,7 @@ func NewMissingRouteAgencyIdNotice(routeID string, rowNumber int) *MissingRouteA
 		"message":      "agency_id is required for routes when multiple agencies exist",
 	}
 	return &MissingRouteAgencyIdNotice{
-		BaseNotice: NewBaseNotice("missing_route_agency_id", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_route_agency_id", WARNING, context),
 	}
 }
 
@@ -665,7 +665,7 @@ func NewInvalidRouteTypeNotice(routeID string, routeType string, rowNumber int, 
 		"reason":       reason,
 	}
 	return &InvalidRouteTypeNotice{
-		BaseNotice: NewBaseNotice("invalid_route_type", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_route_type", WARNING, context),
 	}
 }
 
@@ -697,7 +697,7 @@ func NewServiceWithoutActiveDaysNotice(serviceID string, rowNumber int) *Service
 		"csvRowNumber": rowNumber,
 	}
 	return &ServiceWithoutActiveDaysNotice{
-		BaseNotice: NewBaseNotice("service_has_no_active_day_of_the_week", ERROR, context),
+		BaseNotice: NewBaseNotice("service_has_no_active_day_of_the_week", WARNING, context),
 	}
 }
 
@@ -714,7 +714,7 @@ func NewInvalidServiceDateRangeNotice(serviceID string, startDate string, endDat
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidServiceDateRangeNotice{
-		BaseNotice: NewBaseNotice("invalid_service_date_range", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_service_date_range", WARNING, context),
 	}
 }
 
@@ -762,7 +762,7 @@ func NewInvalidLocationTypeNotice(stopID string, locationType int, rowNumber int
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidLocationTypeNotice{
-		BaseNotice: NewBaseNotice("invalid_location_type", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_location_type", WARNING, context),
 	}
 }
 
@@ -778,7 +778,7 @@ func NewMissingCoordinatesNotice(stopID string, locationType int, rowNumber int)
 		"csvRowNumber": rowNumber,
 	}
 	return &MissingCoordinatesNotice{
-		BaseNotice: NewBaseNotice("missing_coordinates", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_coordinates", WARNING, context),
 	}
 }
 
@@ -794,7 +794,7 @@ func NewInvalidParentStationReferenceNotice(stopID string, parentStation string,
 		"csvRowNumber":  rowNumber,
 	}
 	return &InvalidParentStationReferenceNotice{
-		BaseNotice: NewBaseNotice("invalid_parent_station_reference", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_parent_station_reference", WARNING, context),
 	}
 }
 
@@ -811,7 +811,7 @@ func NewInvalidParentStationTypeNotice(stopID string, parentStation string, pare
 		"csvRowNumber":       rowNumber,
 	}
 	return &InvalidParentStationTypeNotice{
-		BaseNotice: NewBaseNotice("invalid_parent_station_type", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_parent_station_type", WARNING, context),
 	}
 }
 
@@ -843,7 +843,7 @@ func NewMissingParentStationNotice(stopID string, locationType int, rowNumber in
 		"csvRowNumber": rowNumber,
 	}
 	return &MissingParentStationNotice{
-		BaseNotice: NewBaseNotice("missing_parent_station", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_parent_station", WARNING, context),
 	}
 }
 
@@ -858,7 +858,7 @@ func NewCircularStationReferenceNotice(stopID string, rowNumber int) *CircularSt
 		"csvRowNumber": rowNumber,
 	}
 	return &CircularStationReferenceNotice{
-		BaseNotice: NewBaseNotice("circular_station_reference", ERROR, context),
+		BaseNotice: NewBaseNotice("circular_station_reference", WARNING, context),
 	}
 }
 
@@ -890,7 +890,7 @@ func NewInvalidFrequencyTimeRangeNotice(tripID string, startTime string, endTime
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidFrequencyTimeRangeNotice{
-		BaseNotice: NewBaseNotice("invalid_frequency_time_range", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_frequency_time_range", WARNING, context),
 	}
 }
 
@@ -906,7 +906,7 @@ func NewInvalidHeadwayNotice(tripID string, headwaySecs int, rowNumber int) *Inv
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidHeadwayNotice{
-		BaseNotice: NewBaseNotice("invalid_headway", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_headway", WARNING, context),
 	}
 }
 
@@ -922,7 +922,7 @@ func NewInvalidExactTimesNotice(tripID string, exactTimes int, rowNumber int) *I
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidExactTimesNotice{
-		BaseNotice: NewBaseNotice("invalid_exact_times", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_exact_times", WARNING, context),
 	}
 }
 
@@ -959,7 +959,7 @@ func NewInvalidTransferTypeNotice(fromStopID string, toStopID string, transferTy
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidTransferTypeNotice{
-		BaseNotice: NewBaseNotice("invalid_transfer_type", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_transfer_type", WARNING, context),
 	}
 }
 
@@ -990,7 +990,7 @@ func NewMissingMinTransferTimeNotice(fromStopID string, toStopID string, rowNumb
 		"csvRowNumber": rowNumber,
 	}
 	return &MissingMinTransferTimeNotice{
-		BaseNotice: NewBaseNotice("missing_min_transfer_time", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_min_transfer_time", WARNING, context),
 	}
 }
 
@@ -1024,7 +1024,7 @@ func NewNegativeMinTransferTimeNotice(fromStopID string, toStopID string, minTra
 		"csvRowNumber":    rowNumber,
 	}
 	return &NegativeMinTransferTimeNotice{
-		BaseNotice: NewBaseNotice("negative_min_transfer_time", ERROR, context),
+		BaseNotice: NewBaseNotice("negative_min_transfer_time", WARNING, context),
 	}
 }
 
@@ -1058,7 +1058,7 @@ func NewDuplicateTransferNotice(fromStopID string, toStopID string, rowNumber in
 		"duplicateRowNumber": duplicateRowNumber,
 	}
 	return &DuplicateTransferNotice{
-		BaseNotice: NewBaseNotice("duplicate_transfer", ERROR, context),
+		BaseNotice: NewBaseNotice("duplicate_transfer", WARNING, context),
 	}
 }
 
@@ -1076,7 +1076,7 @@ func NewInvalidPathwayModeNotice(pathwayID string, pathwayMode int, rowNumber in
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidPathwayModeNotice{
-		BaseNotice: NewBaseNotice("invalid_pathway_mode", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_pathway_mode", WARNING, context),
 	}
 }
 
@@ -1092,7 +1092,7 @@ func NewInvalidBidirectionalNotice(pathwayID string, isBidirectional int, rowNum
 		"csvRowNumber":    rowNumber,
 	}
 	return &InvalidBidirectionalNotice{
-		BaseNotice: NewBaseNotice("invalid_bidirectional", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_bidirectional", WARNING, context),
 	}
 }
 
@@ -1108,7 +1108,7 @@ func NewPathwayToSameStopNotice(pathwayID string, stopID string, rowNumber int) 
 		"csvRowNumber": rowNumber,
 	}
 	return &PathwayToSameStopNotice{
-		BaseNotice: NewBaseNotice("pathway_to_same_stop", ERROR, context),
+		BaseNotice: NewBaseNotice("pathway_to_same_stop", WARNING, context),
 	}
 }
 
@@ -1124,23 +1124,7 @@ func NewInvalidStairCountNotice(pathwayID string, stairCount int, rowNumber int)
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidStairCountNotice{
-		BaseNotice: NewBaseNotice("invalid_stair_count", ERROR, context),
-	}
-}
-
-// UnexpectedBidirectionalGateNotice is generated when gate is marked as bidirectional
-type UnexpectedBidirectionalGateNotice struct {
-	*BaseNotice
-}
-
-func NewUnexpectedBidirectionalGateNotice(pathwayID string, pathwayMode int, rowNumber int) *UnexpectedBidirectionalGateNotice {
-	context := map[string]interface{}{
-		"pathwayId":    pathwayID,
-		"pathwayMode":  pathwayMode,
-		"csvRowNumber": rowNumber,
-	}
-	return &UnexpectedBidirectionalGateNotice{
-		BaseNotice: NewBaseNotice("unexpected_bidirectional_gate", WARNING, context),
+		BaseNotice: NewBaseNotice("invalid_stair_count", WARNING, context),
 	}
 }
 
@@ -1156,7 +1140,7 @@ func NewInvalidPathwayLengthNotice(pathwayID string, length float64, rowNumber i
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidPathwayLengthNotice{
-		BaseNotice: NewBaseNotice("invalid_pathway_length", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_pathway_length", WARNING, context),
 	}
 }
 
@@ -1172,7 +1156,7 @@ func NewInvalidTraversalTimeNotice(pathwayID string, traversalTime int, rowNumbe
 		"csvRowNumber":  rowNumber,
 	}
 	return &InvalidTraversalTimeNotice{
-		BaseNotice: NewBaseNotice("invalid_traversal_time", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_traversal_time", WARNING, context),
 	}
 }
 
@@ -1188,7 +1172,7 @@ func NewInvalidMinWidthNotice(pathwayID string, minWidth float64, rowNumber int)
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidMinWidthNotice{
-		BaseNotice: NewBaseNotice("invalid_min_width", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_min_width", WARNING, context),
 	}
 }
 
@@ -1241,7 +1225,7 @@ func NewInvalidPaymentMethodNotice(fareID string, paymentMethod int, rowNumber i
 		"csvRowNumber":  rowNumber,
 	}
 	return &InvalidPaymentMethodNotice{
-		BaseNotice: NewBaseNotice("invalid_payment_method", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_payment_method", WARNING, context),
 	}
 }
 
@@ -1273,7 +1257,7 @@ func NewInvalidTransferDurationNotice(fareID string, transferDuration int, rowNu
 		"csvRowNumber":     rowNumber,
 	}
 	return &InvalidTransferDurationNotice{
-		BaseNotice: NewBaseNotice("invalid_transfer_duration", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_transfer_duration", WARNING, context),
 	}
 }
 
@@ -1306,7 +1290,7 @@ func NewInvalidFarePriceNotice(fareID string, price string, rowNumber int, reaso
 		"reason":       reason,
 	}
 	return &InvalidFarePriceNotice{
-		BaseNotice: NewBaseNotice("invalid_fare_price", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_fare_price", WARNING, context),
 	}
 }
 
@@ -1370,7 +1354,7 @@ func NewDuplicateLevelIndexNotice(levelID string, levelIndex float64, rowNumber 
 		"duplicateRowNumber": duplicateRowNumber,
 	}
 	return &DuplicateLevelIndexNotice{
-		BaseNotice: NewBaseNotice("duplicate_level_index", ERROR, context),
+		BaseNotice: NewBaseNotice("duplicate_level_index", WARNING, context),
 	}
 }
 
@@ -1402,7 +1386,7 @@ func NewInsufficientShapePointsNotice(shapeID string, pointCount int) *Insuffici
 		"pointCount": pointCount,
 	}
 	return &InsufficientShapePointsNotice{
-		BaseNotice: NewBaseNotice("single_shape_point", ERROR, context),
+		BaseNotice: NewBaseNotice("single_shape_point", WARNING, context),
 	}
 }
 
@@ -1419,7 +1403,7 @@ func NewNonIncreasingShapeSequenceNotice(shapeID string, currentSequence int, pr
 		"csvRowNumber":     rowNumber,
 	}
 	return &NonIncreasingShapeSequenceNotice{
-		BaseNotice: NewBaseNotice("non_increasing_shape_sequence", ERROR, context),
+		BaseNotice: NewBaseNotice("non_increasing_shape_sequence", WARNING, context),
 	}
 }
 
@@ -1537,7 +1521,7 @@ func NewServiceNeverActiveNotice(serviceID string, rowNumber int) *ServiceNeverA
 		"csvRowNumber": rowNumber,
 	}
 	return &ServiceNeverActiveNotice{
-		BaseNotice: NewBaseNotice("service_never_active", ERROR, context),
+		BaseNotice: NewBaseNotice("service_never_active", WARNING, context),
 	}
 }
 
@@ -1570,7 +1554,7 @@ func NewInvalidExceptionTypeNotice(serviceID string, date string, exceptionType 
 		"csvRowNumber":  rowNumber,
 	}
 	return &InvalidExceptionTypeNotice{
-		BaseNotice: NewBaseNotice("invalid_exception_type", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_exception_type", WARNING, context),
 	}
 }
 
@@ -1584,7 +1568,7 @@ func NewUndefinedServiceNotice(serviceID string) *UndefinedServiceNotice {
 		"serviceId": serviceID,
 	}
 	return &UndefinedServiceNotice{
-		BaseNotice: NewBaseNotice("undefined_service", ERROR, context),
+		BaseNotice: NewBaseNotice("undefined_service", WARNING, context),
 	}
 }
 
@@ -1601,7 +1585,7 @@ func NewConflictingCalendarExceptionNotice(serviceID string, date string, rowNum
 		"csvRowNumber2": rowNumber2,
 	}
 	return &ConflictingCalendarExceptionNotice{
-		BaseNotice: NewBaseNotice("conflicting_calendar_exception", ERROR, context),
+		BaseNotice: NewBaseNotice("conflicting_calendar_exception", WARNING, context),
 	}
 }
 
@@ -1635,7 +1619,7 @@ func NewMissingAttributionRoleNotice(attributionID string, rowNumber int) *Missi
 		"csvRowNumber":  rowNumber,
 	}
 	return &MissingAttributionRoleNotice{
-		BaseNotice: NewBaseNotice("missing_attribution_role", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_attribution_role", WARNING, context),
 	}
 }
 
@@ -1665,7 +1649,7 @@ func NewConflictingAttributionScopeNotice(attributionID string, rowNumber int) *
 		"csvRowNumber":  rowNumber,
 	}
 	return &ConflictingAttributionScopeNotice{
-		BaseNotice: NewBaseNotice("conflicting_attribution_scope", ERROR, context),
+		BaseNotice: NewBaseNotice("conflicting_attribution_scope", WARNING, context),
 	}
 }
 
@@ -1714,7 +1698,7 @@ func NewMultipleFeedInfoEntriesNotice(count int) *MultipleFeedInfoEntriesNotice 
 		"count": count,
 	}
 	return &MultipleFeedInfoEntriesNotice{
-		BaseNotice: NewBaseNotice("multiple_feed_info_entries", ERROR, context),
+		BaseNotice: NewBaseNotice("multiple_feed_info_entries", WARNING, context),
 	}
 }
 
@@ -1731,7 +1715,7 @@ func NewInvalidLanguageCodeNotice(filename string, fieldName string, languageCod
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidLanguageCodeNotice{
-		BaseNotice: NewBaseNotice("invalid_language_code", WARNING, context),
+		BaseNotice: NewBaseNotice("invalid_language_code", ERROR, context),
 	}
 }
 
@@ -1747,7 +1731,7 @@ func NewFeedInfoEndDateBeforeStartDateNotice(startDate string, endDate string, r
 		"csvRowNumber": rowNumber,
 	}
 	return &FeedInfoEndDateBeforeStartDateNotice{
-		BaseNotice: NewBaseNotice("feed_info_end_date_before_start_date", ERROR, context),
+		BaseNotice: NewBaseNotice("feed_info_end_date_before_start_date", WARNING, context),
 	}
 }
 
@@ -1808,7 +1792,7 @@ func NewUndefinedZoneNotice(zoneID string) *UndefinedZoneNotice {
 		"zoneId": zoneID,
 	}
 	return &UndefinedZoneNotice{
-		BaseNotice: NewBaseNotice("undefined_zone", ERROR, context),
+		BaseNotice: NewBaseNotice("undefined_zone", WARNING, context),
 	}
 }
 
@@ -1877,7 +1861,7 @@ func NewMissingArrivalTimeNotice(tripID string, stopID string, stopSequence int,
 		"csvRowNumber": rowNumber,
 	}
 	return &MissingArrivalTimeNotice{
-		BaseNotice: NewBaseNotice("missing_arrival_time", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_arrival_time", WARNING, context),
 	}
 }
 
@@ -1895,7 +1879,7 @@ func NewMissingDepartureTimeNotice(tripID string, stopID string, stopSequence in
 		"csvRowNumber": rowNumber,
 	}
 	return &MissingDepartureTimeNotice{
-		BaseNotice: NewBaseNotice("missing_departure_time", ERROR, context),
+		BaseNotice: NewBaseNotice("missing_departure_time", WARNING, context),
 	}
 }
 
@@ -1912,7 +1896,7 @@ func NewInvalidTimepointNotice(tripID string, stopID string, timepoint int, rowN
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidTimepointNotice{
-		BaseNotice: NewBaseNotice("invalid_timepoint", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_timepoint", WARNING, context),
 	}
 }
 
@@ -1958,7 +1942,7 @@ func NewAllStopsNoPickupNotice(tripID string) *AllStopsNoPickupNotice {
 		"tripId": tripID,
 	}
 	return &AllStopsNoPickupNotice{
-		BaseNotice: NewBaseNotice("all_stops_no_pickup", ERROR, context),
+		BaseNotice: NewBaseNotice("all_stops_no_pickup", WARNING, context),
 	}
 }
 
@@ -1972,7 +1956,7 @@ func NewAllStopsNoDropOffNotice(tripID string) *AllStopsNoDropOffNotice {
 		"tripId": tripID,
 	}
 	return &AllStopsNoDropOffNotice{
-		BaseNotice: NewBaseNotice("all_stops_no_drop_off", ERROR, context),
+		BaseNotice: NewBaseNotice("all_stops_no_drop_off", WARNING, context),
 	}
 }
 
@@ -2006,7 +1990,7 @@ func NewDuplicateCompositeKeyNotice(filename, keyFields, keyValue string, firstR
 		"duplicateRow": duplicateRow,
 	}
 	return &DuplicateCompositeKeyNotice{
-		BaseNotice: NewBaseNotice("duplicate_composite_key", ERROR, context),
+		BaseNotice: NewBaseNotice("duplicate_composite_key", WARNING, context),
 	}
 }
 
@@ -2021,7 +2005,7 @@ func NewMultipleRecordsInSingleRecordFileNotice(filename string, recordCount int
 		"recordCount": recordCount,
 	}
 	return &MultipleRecordsInSingleRecordFileNotice{
-		BaseNotice: NewBaseNotice("more_than_one_entity", ERROR, context),
+		BaseNotice: NewBaseNotice("more_than_one_entity", WARNING, context),
 	}
 }
 
@@ -2037,7 +2021,7 @@ func NewInvalidRowNotice(filename string, rowNumber int, reason string) *Invalid
 		"reason":    reason,
 	}
 	return &InvalidRowNotice{
-		BaseNotice: NewBaseNotice("invalid_row", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_row", WARNING, context),
 	}
 }
 
@@ -2070,7 +2054,7 @@ func NewNegativeStopSequenceNotice(tripID string, stopSequence, rowNumber int) *
 		"rowNumber":    rowNumber,
 	}
 	return &NegativeStopSequenceNotice{
-		BaseNotice: NewBaseNotice("negative_stop_sequence", ERROR, context),
+		BaseNotice: NewBaseNotice("negative_stop_sequence", WARNING, context),
 	}
 }
 
@@ -2086,7 +2070,7 @@ func NewNegativeShapeDistanceNotice(tripID string, shapeDistance float64, rowNum
 		"rowNumber":     rowNumber,
 	}
 	return &NegativeShapeDistanceNotice{
-		BaseNotice: NewBaseNotice("negative_shape_distance", ERROR, context),
+		BaseNotice: NewBaseNotice("negative_shape_distance", WARNING, context),
 	}
 }
 
@@ -2102,7 +2086,7 @@ func NewInvalidWheelchairBoardingNotice(stopID string, wheelchairBoarding, rowNu
 		"rowNumber":          rowNumber,
 	}
 	return &InvalidWheelchairBoardingNotice{
-		BaseNotice: NewBaseNotice("invalid_wheelchair_boarding", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_wheelchair_boarding", WARNING, context),
 	}
 }
 
@@ -2118,7 +2102,7 @@ func NewInvalidDirectionIdNotice(tripID string, directionId, rowNumber int) *Inv
 		"rowNumber":   rowNumber,
 	}
 	return &InvalidDirectionIdNotice{
-		BaseNotice: NewBaseNotice("invalid_direction_id", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_direction_id", WARNING, context),
 	}
 }
 
@@ -2134,7 +2118,7 @@ func NewInvalidWheelchairAccessibleNotice(tripID string, wheelchairAccessible, r
 		"rowNumber":            rowNumber,
 	}
 	return &InvalidWheelchairAccessibleNotice{
-		BaseNotice: NewBaseNotice("invalid_wheelchair_accessible", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_wheelchair_accessible", WARNING, context),
 	}
 }
 
@@ -2150,7 +2134,7 @@ func NewInvalidBikesAllowedNotice(tripID string, bikesAllowed, rowNumber int) *I
 		"rowNumber":    rowNumber,
 	}
 	return &InvalidBikesAllowedNotice{
-		BaseNotice: NewBaseNotice("invalid_bikes_allowed", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_bikes_allowed", WARNING, context),
 	}
 }
 
@@ -2167,7 +2151,7 @@ func NewInvalidDayValueNotice(serviceID, field, value string, rowNumber int) *In
 		"rowNumber": rowNumber,
 	}
 	return &InvalidDayValueNotice{
-		BaseNotice: NewBaseNotice("invalid_day_value", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_day_value", WARNING, context),
 	}
 }
 
@@ -2183,7 +2167,7 @@ func NewNegativeShapeSequenceNotice(shapeID string, sequence, rowNumber int) *Ne
 		"rowNumber": rowNumber,
 	}
 	return &NegativeShapeSequenceNotice{
-		BaseNotice: NewBaseNotice("negative_shape_sequence", ERROR, context),
+		BaseNotice: NewBaseNotice("negative_shape_sequence", WARNING, context),
 	}
 }
 
@@ -2248,7 +2232,7 @@ func NewInsufficientStopTimesNotice(tripID string, stopCount int) *InsufficientS
 		"stopCount": stopCount,
 	}
 	return &InsufficientStopTimesNotice{
-		BaseNotice: NewBaseNotice("insufficient_stop_times", ERROR, context),
+		BaseNotice: NewBaseNotice("insufficient_stop_times", WARNING, context),
 	}
 }
 
@@ -2265,24 +2249,7 @@ func NewNonIncreasingStopSequenceNotice(tripID string, currentSeq, previousSeq, 
 		"rowNumber":   rowNumber,
 	}
 	return &NonIncreasingStopSequenceNotice{
-		BaseNotice: NewBaseNotice("non_increasing_stop_sequence", ERROR, context),
-	}
-}
-
-// StopSequenceGapNotice represents gaps in stop sequence numbering
-type StopSequenceGapNotice struct {
-	*BaseNotice
-}
-
-func NewStopSequenceGapNotice(tripID string, expectedSeq, actualSeq, rowNumber int) *StopSequenceGapNotice {
-	context := map[string]interface{}{
-		"tripId":      tripID,
-		"expectedSeq": expectedSeq,
-		"actualSeq":   actualSeq,
-		"rowNumber":   rowNumber,
-	}
-	return &StopSequenceGapNotice{
-		BaseNotice: NewBaseNotice("stop_sequence_gap", INFO, context),
+		BaseNotice: NewBaseNotice("non_increasing_stop_sequence", WARNING, context),
 	}
 }
 
@@ -2317,7 +2284,7 @@ func NewStopWithoutServiceNotice(tripID, stopID string, stopSequence, rowNumber 
 		"rowNumber":    rowNumber,
 	}
 	return &StopWithoutServiceNotice{
-		BaseNotice: NewBaseNotice("stop_without_service", ERROR, context),
+		BaseNotice: NewBaseNotice("stop_without_service", WARNING, context),
 	}
 }
 
@@ -2348,7 +2315,7 @@ func NewInvalidLatitudeNotice(stopID string, latitude float64, rowNumber int) *I
 		"rowNumber": rowNumber,
 	}
 	return &InvalidLatitudeNotice{
-		BaseNotice: NewBaseNotice("invalid_latitude", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_latitude", WARNING, context),
 	}
 }
 
@@ -2364,7 +2331,7 @@ func NewInvalidLongitudeNotice(stopID string, longitude float64, rowNumber int) 
 		"rowNumber": rowNumber,
 	}
 	return &InvalidLongitudeNotice{
-		BaseNotice: NewBaseNotice("invalid_longitude", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_longitude", WARNING, context),
 	}
 }
 
@@ -2452,7 +2419,7 @@ func NewFeedExpiredNotice(endDate, currentDate string, daysExpired int) *FeedExp
 		"daysExpired": daysExpired,
 	}
 	return &FeedExpiredNotice{
-		BaseNotice: NewBaseNotice("feed_expired", ERROR, context),
+		BaseNotice: NewBaseNotice("feed_expired", WARNING, context),
 	}
 }
 
@@ -2468,7 +2435,7 @@ func NewFeedExpiresWithin7DaysNotice(endDate, currentDate string, daysUntilExpir
 		"daysUntilExpiration": daysUntilExpiration,
 	}
 	return &FeedExpiresWithin7DaysNotice{
-		BaseNotice: NewBaseNotice("feed_expiration_date7_days", ERROR, context),
+		BaseNotice: NewBaseNotice("feed_expiration_date7_days", WARNING, context),
 	}
 }
 
@@ -2500,7 +2467,7 @@ func NewServiceExpiredNotice(lastServiceDate, currentDate string, daysExpired in
 		"daysExpired":     daysExpired,
 	}
 	return &ServiceExpiredNotice{
-		BaseNotice: NewBaseNotice("service_expired", ERROR, context),
+		BaseNotice: NewBaseNotice("service_expired", WARNING, context),
 	}
 }
 
@@ -2516,7 +2483,7 @@ func NewServiceExpiresWithin7DaysNotice(lastServiceDate, currentDate string, day
 		"daysUntilExpiration": daysUntilExpiration,
 	}
 	return &ServiceExpiresWithin7DaysNotice{
-		BaseNotice: NewBaseNotice("service_expires_within_7_days", ERROR, context),
+		BaseNotice: NewBaseNotice("service_expires_within_7_days", WARNING, context),
 	}
 }
 
@@ -2543,7 +2510,7 @@ type NoServiceDateFoundNotice struct {
 
 func NewNoServiceDateFoundNotice() *NoServiceDateFoundNotice {
 	return &NoServiceDateFoundNotice{
-		BaseNotice: NewBaseNotice("no_service_date_found", ERROR, map[string]interface{}{}),
+		BaseNotice: NewBaseNotice("no_service_date_found", WARNING, map[string]interface{}{}),
 	}
 }
 
@@ -2574,7 +2541,7 @@ func NewNoTripsNext7DaysNotice(startDate, endDate string, serviceCount int) *NoT
 		"serviceCount": serviceCount,
 	}
 	return &NoTripsNext7DaysNotice{
-		BaseNotice: NewBaseNotice("no_trips_next_7_days", ERROR, context),
+		BaseNotice: NewBaseNotice("no_trips_next_7_days", WARNING, context),
 	}
 }
 
@@ -2677,24 +2644,6 @@ func NewMissingRequiredStopNameNotice(stopID string, locationType, rowNumber int
 	}
 }
 
-// StopNameMissingButInheritedNotice represents stop name inherited from parent
-type StopNameMissingButInheritedNotice struct {
-	*BaseNotice
-}
-
-func NewStopNameMissingButInheritedNotice(stopID, parentStationID, parentName string, locationType, rowNumber int) *StopNameMissingButInheritedNotice {
-	context := map[string]interface{}{
-		"stopId":          stopID,
-		"parentStationId": parentStationID,
-		"parentName":      parentName,
-		"locationType":    locationType,
-		"csvRowNumber":    rowNumber,
-	}
-	return &StopNameMissingButInheritedNotice{
-		BaseNotice: NewBaseNotice("stop_name_missing_but_inherited", INFO, context),
-	}
-}
-
 // StopNameContainsControlCharacterNotice represents control characters in stop names
 type StopNameContainsControlCharacterNotice struct {
 	*BaseNotice
@@ -2722,7 +2671,7 @@ type NoServiceDefinedNotice struct {
 
 func NewNoServiceDefinedNotice() *NoServiceDefinedNotice {
 	return &NoServiceDefinedNotice{
-		BaseNotice: NewBaseNotice("no_service_defined", ERROR, map[string]interface{}{}),
+		BaseNotice: NewBaseNotice("no_service_defined", WARNING, map[string]interface{}{}),
 	}
 }
 
@@ -2763,22 +2712,6 @@ func NewInsufficientServiceNext30DaysNotice(daysWithService, totalDays int, serv
 
 // === BIKES ALLOWANCE NOTICES ===
 
-// MissingBikesAllowedForFerryNotice represents missing bike allowance for ferry trips
-type MissingBikesAllowedForFerryNotice struct {
-	*BaseNotice
-}
-
-func NewMissingBikesAllowedForFerryNotice(tripID, routeID string, rowNumber int) *MissingBikesAllowedForFerryNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"routeId":      routeID,
-		"csvRowNumber": rowNumber,
-	}
-	return &MissingBikesAllowedForFerryNotice{
-		BaseNotice: NewBaseNotice("missing_bikes_allowed_for_ferry", WARNING, context),
-	}
-}
-
 // InvalidBikesAllowedValueNotice represents invalid bikes_allowed value
 type InvalidBikesAllowedValueNotice struct {
 	*BaseNotice
@@ -2791,7 +2724,7 @@ func NewInvalidBikesAllowedValueNotice(tripID string, bikesAllowed, rowNumber in
 		"csvRowNumber": rowNumber,
 	}
 	return &InvalidBikesAllowedValueNotice{
-		BaseNotice: NewBaseNotice("invalid_bikes_allowed_value", ERROR, context),
+		BaseNotice: NewBaseNotice("invalid_bikes_allowed_value", WARNING, context),
 	}
 }
 
@@ -2812,7 +2745,7 @@ func NewShapeDistanceDecreasingNotice(shapeID string, prevSequence, currentSeque
 		"csvRowNumber":    rowNumber,
 	}
 	return &ShapeDistanceDecreasingNotice{
-		BaseNotice: NewBaseNotice("shape_distance_decreasing", ERROR, context),
+		BaseNotice: NewBaseNotice("shape_distance_decreasing", WARNING, context),
 	}
 }
 
@@ -2922,7 +2855,7 @@ func NewFrequencyDurationShorterThanHeadwayNotice(tripID string, duration, headw
 		"csvRowNumber": rowNumber,
 	}
 	return &FrequencyDurationShorterThanHeadwayNotice{
-		BaseNotice: NewBaseNotice("frequency_duration_shorter_than_headway", ERROR, context),
+		BaseNotice: NewBaseNotice("frequency_duration_shorter_than_headway", WARNING, context),
 	}
 }
 
@@ -2962,7 +2895,7 @@ func NewAttributionWithoutRoleNotice(attributionID, organizationName string, row
 		"csvRowNumber":     rowNumber,
 	}
 	return &AttributionWithoutRoleNotice{
-		BaseNotice: NewBaseNotice("attribution_without_role", ERROR, context),
+		BaseNotice: NewBaseNotice("attribution_without_role", WARNING, context),
 	}
 }
 
@@ -3016,7 +2949,7 @@ func NewBlockServiceMismatchNotice(blockID, trip1ID, service1ID, trip2ID, servic
 		"csvRowNumber": rowNumber,
 	}
 	return &BlockServiceMismatchNotice{
-		BaseNotice: NewBaseNotice("block_service_mismatch", ERROR, context),
+		BaseNotice: NewBaseNotice("block_service_mismatch", WARNING, context),
 	}
 }
 
@@ -3047,7 +2980,10 @@ func NewDeprecatedRouteTypeNotice(routeID string, routeType, recommendedType, ro
 
 // === VALIDATOR SYSTEM NOTICES ===
 
-// ValidatorErrorNotice is generated when a validator encounters an error
+// ValidatorErrorNotice reports that one of our validators panicked. It is not
+// a feed defect: it means that validator's checks did not run, so the report
+// has a hole in it. ERROR is deliberate — at WARNING a crashed validator would
+// sit unnoticed among ordinary feed warnings.
 type ValidatorErrorNotice struct {
 	*BaseNotice
 }
@@ -3058,6 +2994,6 @@ func NewValidatorErrorNotice(validatorName string, errorMessage string) *Validat
 		"errorMessage":  errorMessage,
 	}
 	return &ValidatorErrorNotice{
-		BaseNotice: NewBaseNotice("validator_error", ERROR, context),
+		BaseNotice: NewBaseNotice("runtime_exception_in_validator_error", ERROR, context),
 	}
 }

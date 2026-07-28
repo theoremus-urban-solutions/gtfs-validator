@@ -191,29 +191,12 @@ func (v *BikesAllowanceValidator) parseTrip(row *parser.CSVRow, routes map[strin
 
 // validateTripBikeAllowance validates bike allowance for a trip
 func (v *BikesAllowanceValidator) validateTripBikeAllowance(container *notice.NoticeContainer, trip *TripBikeInfo) {
-	// Check if this is a ferry trip (route_type = 4)
-	if trip.RouteType == 4 {
-		v.validateFerryBikeAllowance(container, trip)
-	}
-
 	// Validate bikes_allowed values are valid
 	if trip.BikesAllowed != nil {
 		v.validateBikesAllowedValue(container, trip)
 	}
 
 	// Additional validation for bike-related accessibility
-}
-
-// validateFerryBikeAllowance validates bike allowance for ferry trips
-func (v *BikesAllowanceValidator) validateFerryBikeAllowance(container *notice.NoticeContainer, trip *TripBikeInfo) {
-	if trip.BikesAllowed == nil {
-		// Ferry trips should specify bike allowance
-		container.AddNotice(notice.NewMissingBikesAllowedForFerryNotice(
-			trip.TripID,
-			trip.RouteID,
-			trip.RowNumber,
-		))
-	}
 }
 
 // validateBikesAllowedValue validates that bikes_allowed has a valid value

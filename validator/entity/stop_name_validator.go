@@ -125,34 +125,14 @@ func (v *StopNameValidator) validateStopName(container *notice.NoticeContainer, 
 	// Check if stop_name is required for this location type
 	nameRequired := v.isStopNameRequired(stop.LocationType)
 
+	// A required stop_name is required whether or not a parent station has
+	// one; nothing in GTFS inherits it.
 	if nameRequired && stop.StopName == "" {
-		// Check if this is a child stop that might inherit name from parent
-		if stop.ParentStation != "" {
-			if parent, exists := parentStations[stop.ParentStation]; exists && parent.StopName != "" {
-				// Child can inherit parent name, but should be noted as INFO
-				container.AddNotice(notice.NewStopNameMissingButInheritedNotice(
-					stop.StopID,
-					stop.ParentStation,
-					parent.StopName,
-					stop.LocationType,
-					stop.RowNumber,
-				))
-			} else {
-				// Parent doesn't have a name either
-				container.AddNotice(notice.NewMissingRequiredStopNameNotice(
-					stop.StopID,
-					stop.LocationType,
-					stop.RowNumber,
-				))
-			}
-		} else {
-			// No parent station, name is definitely required
-			container.AddNotice(notice.NewMissingRequiredStopNameNotice(
-				stop.StopID,
-				stop.LocationType,
-				stop.RowNumber,
-			))
-		}
+		container.AddNotice(notice.NewMissingRequiredStopNameNotice(
+			stop.StopID,
+			stop.LocationType,
+			stop.RowNumber,
+		))
 	}
 
 	// Additional validations only if name exists

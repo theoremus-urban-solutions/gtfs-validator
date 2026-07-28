@@ -306,9 +306,9 @@ func GetEnhancedNoticeDescription(code string) NoticeDescription {
 			AffectedFields: []string{"currency_type"},
 			ExampleFix:     "Use valid codes: USD, EUR, CAD, GBP, JPY, etc.",
 		},
-		"validator_error": {
-			Description: "A validator encountered an error during processing. This may indicate data corruption or validator issues.",
-			ExampleFix:  "Check data file integrity and report issue if problem persists",
+		"runtime_exception_in_validator_error": {
+			Description: "A validator panicked and its checks did not run, so the report is incomplete for the files it covers. This is a bug in the validator, not a defect in the feed.",
+			ExampleFix:  "Report the issue with the feed that triggered it; the remaining validators' results are still valid",
 		},
 	}
 

@@ -182,19 +182,8 @@ func (v *TripPatternValidator) validateTripStopSequence(container *notice.Notice
 		}
 	}
 
-	// Check for gaps in sequence (not critical but informational)
-	expectedSeq := stopTimes[0].StopSequence
-	for _, stopTime := range stopTimes {
-		if stopTime.StopSequence != expectedSeq {
-			container.AddNotice(notice.NewStopSequenceGapNotice(
-				tripID,
-				expectedSeq,
-				stopTime.StopSequence,
-				stopTime.RowNumber,
-			))
-		}
-		expectedSeq = stopTime.StopSequence + 1
-	}
+	// Gaps in stop_sequence are legal: the spec requires the values to
+	// increase along the trip, not to be contiguous.
 
 	// Check for consecutive duplicate stops
 	for i := 1; i < len(stopTimes); i++ {
