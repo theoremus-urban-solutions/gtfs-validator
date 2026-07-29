@@ -310,11 +310,20 @@ func TestChooseMatch(t *testing.T) {
 		description      string
 	}{
 		{
-			name:          "first stop takes the closest pass",
+			name:          "first stop anchors at the earliest pass, not the closest",
 			passes:        []shapeMatch{{Along: 900, Metres: 5}, {Along: 100, Metres: 60}},
 			previousAlong: math.Inf(-1),
-			expectedAlong: 900, expectedForwards: true,
-			description: "nothing has been matched yet, so every pass lies ahead",
+			expectedAlong: 100, expectedForwards: true,
+			description: "a loop's first stop sits near both ends; anchoring at the near " +
+				"end would put the trip behind its own start and report every " +
+				"following stop as out of order",
+		},
+		{
+			name:          "first stop with a single pass takes it",
+			passes:        []shapeMatch{{Along: 400, Metres: 8}},
+			previousAlong: math.Inf(-1),
+			expectedAlong: 400, expectedForwards: true,
+			description: "a trip starting mid-shape has only one place it can begin",
 		},
 		{
 			name:          "prefers a pass ahead over a closer one behind",

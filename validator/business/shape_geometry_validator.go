@@ -286,6 +286,21 @@ func clusterMatches(matches []shapeMatch) []shapeMatch {
 // stop matches the shape out of order and the closest pass overall is used to
 // carry on from.
 func chooseMatch(passes []shapeMatch, previousAlong float64) (chosen shapeMatch, forwards bool) {
+	// The first stop has nothing behind it to travel forwards from, so it
+	// anchors the traversal at the earliest place it touches the shape rather
+	// than the nearest one. On a loop the first stop sits within metres of both
+	// ends; anchoring at the near end would put the whole trip behind its own
+	// starting point and report every following stop as out of order.
+	if math.IsInf(previousAlong, -1) {
+		earliest := passes[0]
+		for _, pass := range passes[1:] {
+			if pass.Along < earliest.Along {
+				earliest = pass
+			}
+		}
+		return earliest, true
+	}
+
 	best := shapeMatch{Metres: math.Inf(1)}
 	ahead := shapeMatch{Metres: math.Inf(1)}
 	found := false

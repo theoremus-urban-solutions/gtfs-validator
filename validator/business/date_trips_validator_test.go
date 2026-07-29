@@ -146,3 +146,34 @@ func TestDateTripsValidator_Validate(t *testing.T) {
 		})
 	}
 }
+
+// Service dates are midnight-UTC and the coverage check compares days by
+// equality, so a current date carrying a wall-clock time and a local zone used
+// to miss every comparison and report any feed as uncovered.
+func TestDateTripsValidator_CurrentDateWithClockTime(t *testing.T) {
+	files := map[string]string{
+		"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
+			"S1,1,1,1,1,1,1,1,20240101,20241231",
+		"trips.txt": "route_id,service_id,trip_id\nR1,S1,T1",
+	}
+
+	// Mid-afternoon in a zone well east of UTC: the worst case for a
+	// comparison that assumes midnight.
+	sofia := time.FixedZone("EEST", 3*3600)
+	for _, currentDate := range []time.Time{
+		time.Date(2024, 6, 12, 14, 32, 11, 0, sofia),
+		time.Date(2024, 6, 12, 23, 59, 59, 0, sofia),
+		time.Date(2024, 6, 12, 0, 0, 0, 0, time.UTC),
+	} {
+		loader := testutil.CreateTestFeedLoader(t, files)
+		container := notice.NewNoticeContainer()
+
+		NewDateTripsValidator().Validate(loader, container, gtfsvalidator.Config{CurrentDate: currentDate})
+
+		for _, n := range container.GetNotices() {
+			if n.Code() == "trip_coverage_not_active_for_next7_days" {
+				t.Errorf("service runs every day all year, but %v reported it as uncovered", currentDate)
+			}
+		}
+	}
+}

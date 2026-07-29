@@ -67,6 +67,11 @@ func (v *DateTripsValidator) Validate(loader *parser.FeedLoader, container *noti
 		currentDate = time.Now()
 	}
 
+	// Service dates are midnights in UTC, and the day comparisons below are by
+	// equality. time.Now() carries a wall-clock time and a local zone, so
+	// without this every comparison misses and the feed looks uncovered.
+	currentDate = startOfUTCDay(currentDate)
+
 	// Load service information
 	services := v.loadServices(loader)
 	exceptions := v.loadCalendarExceptions(loader)
@@ -352,6 +357,14 @@ func (v *DateTripsValidator) parseGTFSDate(dateStr string) *time.Time {
 
 	date := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
 	return &date
+}
+
+// startOfUTCDay reduces an instant to the midnight-UTC that identifies its
+// calendar day, which is how service dates are represented throughout this
+// validator.
+func startOfUTCDay(t time.Time) time.Time {
+	year, month, day := t.Date()
+	return time.Date(year, month, day, 0, 0, 0, 0, time.UTC)
 }
 
 // formatGTFSDate formats time as GTFS date
