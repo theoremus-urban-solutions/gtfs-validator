@@ -110,7 +110,7 @@ func (v *DateTripsValidator) Validate(loader *parser.FeedLoader, container *noti
 
 	v.validateNext7DaysService(container, calendar, currentDate)
 	v.validateServiceGaps(container, calendar.Dates)
-	v.validateAgainstFeedPeriod(loader, container, services, exceptionsByService, tripCounts, calendar.Dates)
+	v.validateAgainstFeedPeriod(loader, container, calendar)
 }
 
 // groupExceptionsByService collects calendar_dates.txt rows under the service
@@ -595,19 +595,19 @@ func (v *DateTripsValidator) validateServiceGaps(container *notice.NoticeContain
 // thing and should agree in both directions: service outside the declared
 // period is dropped by consumers that honour it, and a declared period reaching
 // far past the last day of service promises coverage that is not there.
-func (v *DateTripsValidator) validateAgainstFeedPeriod(loader *parser.FeedLoader, container *notice.NoticeContainer, services map[string]*ServiceInfo, exceptionsByService map[string][]CalendarException, tripCounts map[string]int, serviceDates []time.Time) {
+func (v *DateTripsValidator) validateAgainstFeedPeriod(loader *parser.FeedLoader, container *notice.NoticeContainer, calendar ServiceCalendar) {
 	feedStart, feedEnd, rowNumber := v.loadFeedPeriod(loader)
 	if feedStart == nil || feedEnd == nil {
 		// A feed_info.txt without dates is reported as missing_feed_info_date.
 		return
 	}
 
-	v.validateServiceWindows(container, services, exceptionsByService, tripCounts, *feedStart, *feedEnd)
+	v.validateServiceWindows(container, calendar.Windows, *feedStart, *feedEnd)
 
-	if len(serviceDates) == 0 {
+	if len(calendar.Dates) == 0 {
 		return
 	}
-	windowEnd := serviceDates[len(serviceDates)-1]
+	windowEnd := calendar.Dates[len(calendar.Dates)-1]
 	if feedEnd.After(windowEnd.AddDate(0, 0, feedValidityGraceDays)) {
 		container.AddNotice(notice.NewFeedValidBeyondTotalServiceWindowNotice(
 			rowNumber,
@@ -622,28 +622,26 @@ func (v *DateTripsValidator) validateAgainstFeedPeriod(loader *parser.FeedLoader
 // outside the declared feed period. Per service rather than once for the feed:
 // a single feed-wide span says only that something somewhere is out of period,
 // while the service id says which calendar to go and fix.
-func (v *DateTripsValidator) validateServiceWindows(container *notice.NoticeContainer, services map[string]*ServiceInfo, exceptionsByService map[string][]CalendarException, tripCounts map[string]int, feedStart time.Time, feedEnd time.Time) {
-	for _, serviceID := range serviceIDsOf(services, exceptionsByService) {
-		if tripCounts[serviceID] == 0 {
-			// A calendar no trip references puts no service anywhere, so it
-			// cannot put service outside the feed period either. Its own defect
-			// is reported as unused_service.
-			continue
-		}
+//
+// Only services trips reference are in windows, which is what the rule wants: a
+// calendar nothing runs on puts no service outside the period, and its own
+// defect is reported as unused_service.
+func (v *DateTripsValidator) validateServiceWindows(container *notice.NoticeContainer, windows map[string]ServiceWindow, feedStart time.Time, feedEnd time.Time) {
+	serviceIDs := make([]string, 0, len(windows))
+	for serviceID := range windows {
+		serviceIDs = append(serviceIDs, serviceID)
+	}
+	sort.Strings(serviceIDs)
 
-		windowStart, windowEnd, ok := v.serviceWindow(services[serviceID], exceptionsByService[serviceID])
-		if !ok {
-			// A service with no active date at all runs nowhere, so it cannot
-			// run outside the period either.
-			continue
-		}
+	for _, serviceID := range serviceIDs {
+		window := windows[serviceID]
 
 		daysBeforeFeedStart, daysAfterFeedEnd := 0, 0
-		if windowStart.Before(feedStart) {
-			daysBeforeFeedStart = daysBetween(windowStart, feedStart)
+		if window.Start.Before(feedStart) {
+			daysBeforeFeedStart = daysBetween(window.Start, feedStart)
 		}
-		if windowEnd.After(feedEnd) {
-			daysAfterFeedEnd = daysBetween(feedEnd, windowEnd)
+		if window.End.After(feedEnd) {
+			daysAfterFeedEnd = daysBetween(feedEnd, window.End)
 		}
 		if daysBeforeFeedStart == 0 && daysAfterFeedEnd == 0 {
 			continue
@@ -651,27 +649,12 @@ func (v *DateTripsValidator) validateServiceWindows(container *notice.NoticeCont
 
 		container.AddNotice(notice.NewServiceWindowOutsideFeedPeriodNotice(
 			serviceID,
-			v.formatGTFSDate(windowStart),
-			v.formatGTFSDate(windowEnd),
+			v.formatGTFSDate(window.Start),
+			v.formatGTFSDate(window.End),
 			daysBeforeFeedStart,
 			daysAfterFeedEnd,
 		))
 	}
-}
-
-// serviceWindow returns the first and last date one service is active on, both
-// files taken together.
-func (v *DateTripsValidator) serviceWindow(service *ServiceInfo, exceptions []CalendarException) (start time.Time, end time.Time, ok bool) {
-	for _, date := range v.datesForService(service, exceptions) {
-		if !ok || date.Before(start) {
-			start = date
-		}
-		if !ok || date.After(end) {
-			end = date
-		}
-		ok = true
-	}
-	return start, end, ok
 }
 
 // daysBetween counts whole days from the earlier date to the later one. Both

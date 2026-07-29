@@ -712,6 +712,7 @@ func (v *internalValidator) initializeValidators() {
 			entity.NewAttributionWithoutRoleValidator(),
 			entity.NewRouteTypeValidator(),
 			entity.NewNameComparisonValidator(),
+			entity.NewMixedCaseNameValidator(),
 			entity.NewBikeAllowanceValidator(),
 		)
 	}
