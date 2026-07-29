@@ -15,11 +15,18 @@ const pathwaysHeader = "pathway_id,from_stop_id,to_stop_id,pathway_mode,is_bidir
 // entrance, so that a location's reachability is the case's own doing.
 const stationAndEntrance = "ST,Station,1,,,\nE1,Entrance,2,ST,,\n"
 
+// The two graph-shaped codes, named because the cases below assert on them
+// from several directions.
+const (
+	codeUnreachableLocation = "pathway_unreachable_location"
+	codeDanglingGenericNode = "pathway_dangling_generic_node"
+)
+
 // pathwayCodes is every code this validator may emit for a pathway graph.
 var pathwayCodes = []string{
 	"pathway_loop",
-	"pathway_dangling_generic_node",
-	"pathway_unreachable_location",
+	codeDanglingGenericNode,
+	codeUnreachableLocation,
 	"pathway_to_wrong_location_type",
 	"pathway_to_platform_with_boarding_areas",
 	"pathway_to_stop_with_access_outside_of_station_pathways",
@@ -71,6 +78,15 @@ func TestPathwayValidator_Validate(t *testing.T) {
 			stops:    stationAndEntrance + "P1,Platform 1,0,ST,,\nBA1,Boarding area,4,P1,,\n",
 			pathways: "PW1,E1,P1,1,1,\n",
 			expected: map[string]int{"pathway_to_platform_with_boarding_areas": 1},
+		},
+		{
+			name:  "platform with boarding areas that cannot be left",
+			stops: stationAndEntrance + "P1,Platform 1,0,ST,,\nBA1,Boarding area,4,P1,,\n",
+			// Passengers reach the platform through its boarding areas, so the
+			// platform's own reachability is not the question; the pathway
+			// naming it is what is wrong here.
+			pathways: "PW1,E1,P1,1,0,\n",
+			expected: map[string]int{"pathway_to_platform_with_boarding_areas": 1, "pathway_unreachable_location": 0},
 		},
 		{
 			name:     "pathway ending at a stop reached from the street",
@@ -184,7 +200,7 @@ func TestPathwayValidator_UnreachableNamesTheDirection(t *testing.T) {
 
 	var found bool
 	for _, n := range container.GetNotices() {
-		if n.Code() != "pathway_unreachable_location" {
+		if n.Code() != codeUnreachableLocation {
 			continue
 		}
 		found = true
@@ -207,14 +223,15 @@ func TestPathwayValidator_UnreachableNamesTheDirection(t *testing.T) {
 	}
 }
 
-// TestPathwayValidator_TraversesEachStationSeparately checks that a defect in
-// one station does not follow pathways into another.
-func TestPathwayValidator_TraversesEachStationSeparately(t *testing.T) {
+// TestPathwayValidator_UnconnectedStationStaysUnreachable checks that a station
+// whose pathways lead to no entrance at all is still reported, now that the
+// walk is over the whole feed rather than one station at a time.
+func TestPathwayValidator_UnconnectedStationStaysUnreachable(t *testing.T) {
 	stops := pathwayStopsHeader +
 		"ST1,Station 1,1,,,\nE1,Entrance 1,2,ST1,,\nP1,Platform 1,0,ST1,,\n" +
-		"ST2,Station 2,1,,,\nP2,Platform 2,0,ST2,,\n"
-	// ST2's platform has a pathway but no entrance anywhere in its station.
-	pathways := pathwaysHeader + "PW1,E1,P1,1,1,\nPW2,P2,P2,1,1,\n"
+		"ST2,Station 2,1,,,\nP2,Platform 2,0,ST2,,\nP3,Platform 3,0,ST2,,\n"
+	// ST2's platforms are joined to each other and to nothing else.
+	pathways := pathwaysHeader + "PW1,E1,P1,1,1,\nPW2,P2,P3,1,1,\n"
 
 	loader := testutil.CreateTestFeedLoader(t, map[string]string{
 		"stops.txt":    stops,
@@ -225,14 +242,54 @@ func TestPathwayValidator_TraversesEachStationSeparately(t *testing.T) {
 
 	unreachable := map[string]bool{}
 	for _, n := range container.GetNotices() {
-		if n.Code() == "pathway_unreachable_location" {
+		if n.Code() == codeUnreachableLocation {
 			unreachable[n.Context()["stopId"].(string)] = true
 		}
 	}
-	if !unreachable["P2"] {
-		t.Error("expected P2 to be unreachable: its station has no entrance")
+	if !unreachable["P2"] || !unreachable["P3"] {
+		t.Error("expected ST2's platforms to be unreachable: no entrance leads to them")
 	}
 	if unreachable["P1"] {
-		t.Error("P1 is reachable from its own station's entrance")
+		t.Error("P1 is reachable from the entrance it shares a pathway with")
+	}
+}
+
+// TestPathwayValidator_PathwayNetworkSpansStations pins the topology from a
+// real feed that the per-station traversal got wrong: two adjacent stations
+// joined by a pathway, where SU_N13's route to an entrance leaves through
+// OM_N9, a node belonging to the other station.
+func TestPathwayValidator_PathwayNetworkSpansStations(t *testing.T) {
+	stops := pathwayStopsHeader +
+		"SUSt,Station SU,1,,,\nSU_E1,Entrance SU,2,SUSt,,\n" +
+		"SU_N11,,3,SUSt,,\nSU_N12,,3,SUSt,,\nSU_N13,,3,SUSt,,\n" +
+		"OMSt,Station OM,1,,,\nOM_E1,Entrance OM,2,OMSt,,\n" +
+		"OM_N8,,3,OMSt,,\nOM_N9,,3,OMSt,,\n"
+	pathways := pathwaysHeader +
+		"SU1,SU_E1,SU_N11,1,1,\n" +
+		"SU32,SU_N11,SU_N12,1,1,\n" +
+		"SU33,SU_N11,SU_N13,1,1,\n" +
+		"SU34,SU_N12,SU_N13,1,1,\n" +
+		// The two stations meet here: one bidirectional pathway plus the
+		// one-way pair that used to land in whichever graph its from end
+		// belonged to.
+		"OM1,SU_N13,OM_N9,1,1,\n" +
+		"OM2,SU_N13,OM_N9,3,0,\n" +
+		"OM3,OM_N9,SU_N13,3,0,\n" +
+		"OM4,OM_N9,OM_N8,1,1,\n" +
+		"OM7,OM_N8,OM_E1,1,1,\n"
+
+	loader := testutil.CreateTestFeedLoader(t, map[string]string{
+		"stops.txt":    stops,
+		"pathways.txt": pathways,
+	})
+	container := notice.NewNoticeContainer()
+	NewPathwayValidator().Validate(loader, container, gtfsvalidator.Config{})
+
+	for _, n := range container.GetNotices() {
+		switch n.Code() {
+		case codeUnreachableLocation, codeDanglingGenericNode:
+			t.Errorf("%s reported for %v: every node reaches an entrance and is reached by one",
+				n.Code(), n.Context()["stopId"])
+		}
 	}
 }

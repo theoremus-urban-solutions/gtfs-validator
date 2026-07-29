@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -84,6 +85,47 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			},
 			wantCodes:   nil,
 			description: "Additions in the future are exactly what the feed is for",
+		},
+		{
+			// 20240603 is a Monday and 20240530 the Thursday before it, with
+			// the current date the Saturday in between.
+			name: "end_date outlives the last day of the week the service runs on",
+			files: map[string]string{
+				"calendar.txt": calendarHeader + "service1,0,0,0,1,0,0,0,20240101,20240603",
+				"trips.txt":    "trip_id,route_id,service_id\ntrip1,route1,service1",
+			},
+			wantCodes:   []string{"expired_calendar"},
+			description: "A Thursday-only calendar running to a Monday last ran the Thursday before it",
+		},
+		{
+			name: "the last days of a service are removed",
+			files: map[string]string{
+				"calendar.txt":       calendarHeader + "service1,1,1,1,1,1,1,1,20240101,20240602",
+				"calendar_dates.txt": "service_id,date,exception_type\nservice1,20240602,2\nservice1,20240601,2",
+				"trips.txt":          "trip_id,route_id,service_id\ntrip1,route1,service1",
+			},
+			wantCodes:   []string{"expired_calendar"},
+			description: "Taking both remaining days away leaves the service last running before today",
+		},
+		{
+			name: "a removal that does not touch the last day",
+			files: map[string]string{
+				"calendar.txt":       calendarHeader + "service1,1,1,1,1,1,1,1,20240101,20240701",
+				"calendar_dates.txt": "service_id,date,exception_type\nservice1,20240615,2",
+				"trips.txt":          "trip_id,route_id,service_id\ntrip1,route1,service1",
+			},
+			wantCodes:   nil,
+			description: "One day off in the middle leaves the end of the service where it was",
+		},
+		{
+			name: "the last added date of a calendar_dates-only service is removed",
+			files: map[string]string{
+				"calendar_dates.txt": "service_id,date,exception_type\n" +
+					"holiday,20240101,1\nholiday,20241225,1\nholiday,20241225,2",
+				"trips.txt": "trip_id,route_id,service_id\ntrip1,route1,holiday",
+			},
+			wantCodes:   []string{"expired_calendar"},
+			description: "Christmas is taken back, so the service last ran in January",
 		},
 		{
 			name: "service ending more than two years out",
@@ -209,6 +251,85 @@ func TestServiceValidationValidator_Validate(t *testing.T) {
 			}
 			if len(got) != len(tt.wantCodes) {
 				t.Errorf("expected exactly %v, got %v: %s", tt.wantCodes, got, tt.description)
+			}
+		})
+	}
+}
+
+// A service with no calendar.txt row behind it is only reported as expired when
+// calendar.txt is absent altogether and nothing in the feed still runs. Feeds
+// that keep their whole schedule in calendar_dates.txt — no calendar.txt at all
+// — accumulate past dates as a matter of course, and reporting each of those
+// would bury the case the rule is for: a dataset that has stopped being useful.
+func TestServiceValidationValidator_ExpiredCalendarDatesOnly(t *testing.T) {
+	currentDate := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
+	const calendarHeader = "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n"
+
+	tests := []struct {
+		name        string
+		files       map[string]string
+		want        int
+		description string
+	}{
+		{
+			name: "every service is in the past",
+			files: map[string]string{
+				"calendar_dates.txt": "service_id,date,exception_type\n" +
+					"holiday,20240101,1\n" +
+					"weekday,20240215,1",
+				"trips.txt": "trip_id,route_id,service_id\ntrip1,route1,holiday\ntrip2,route2,weekday",
+			},
+			want:        2,
+			description: "Nothing in the feed runs any more, which is the dataset itself having expired",
+		},
+		{
+			name: "one stale service among live ones",
+			files: map[string]string{
+				"calendar_dates.txt": "service_id,date,exception_type\n" +
+					"holiday,20240101,1\n" +
+					"weekday,20241225,1",
+				"trips.txt": "trip_id,route_id,service_id\ntrip1,route1,holiday\ntrip2,route2,weekday",
+			},
+			want:        0,
+			description: "The feed is still current, and the dates it has already run past are simply left in place",
+		},
+		{
+			name: "stale service alongside a calendar.txt",
+			files: map[string]string{
+				"calendar.txt":       calendarHeader + "service1,1,1,1,1,1,0,0,20240101,20241201",
+				"calendar_dates.txt": "service_id,date,exception_type\nholiday,20240101,1",
+				"trips.txt":          "trip_id,route_id,service_id\ntrip1,route1,service1\ntrip2,route2,holiday",
+			},
+			want:        0,
+			description: "A service the feed's calendar.txt never mentions is a dangling reference, not an expired calendar",
+		},
+		{
+			name: "every service in the past but calendar.txt present",
+			files: map[string]string{
+				"calendar.txt":       calendarHeader + "service1,1,1,1,1,1,0,0,20230101,20230228",
+				"calendar_dates.txt": "service_id,date,exception_type\nholiday,20240101,1",
+				"trips.txt":          "trip_id,route_id,service_id\ntrip1,route1,service1\ntrip2,route2,holiday",
+			},
+			want:        1,
+			description: "The calendar.txt service is reported on its own account; the dangling one still is not",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			feedLoader := testutil.CreateTestFeedLoader(t, tt.files)
+			container := notice.NewNoticeContainer()
+
+			NewServiceValidationValidator().Validate(feedLoader, container, gtfsvalidator.Config{CurrentDate: currentDate})
+
+			got := 0
+			for _, n := range container.GetNotices() {
+				if n.Code() == "expired_calendar" {
+					got++
+				}
+			}
+			if got != tt.want {
+				t.Errorf("expected %d expired_calendar, got %d: %s", tt.want, got, tt.description)
 			}
 		})
 	}
@@ -364,43 +485,60 @@ func TestServiceValidationValidator_LoadCalendarServices(t *testing.T) {
 func TestServiceValidationValidator_LoadCalendarDateServices(t *testing.T) {
 	validator := NewServiceValidationValidator()
 
+	type exceptions struct {
+		added   []string
+		removed []string
+		rowNum  int
+	}
+
 	tests := []struct {
 		name        string
 		csvData     string
-		expected    map[string]string // service_id -> last added date, "" for none
+		expected    map[string]exceptions
 		description string
 	}{
 		{
 			name:        "removal only",
 			csvData:     "service_id,date,exception_type\nservice1,20240704,2",
-			expected:    map[string]string{"service1": ""},
-			description: "A service only ever removed has no active date",
+			expected:    map[string]exceptions{"service1": {removed: []string{"20240704"}, rowNum: 2}},
+			description: "A service only ever removed puts service on no date at all",
 		},
 		{
-			name: "latest addition wins",
+			name: "every addition is kept",
 			csvData: "service_id,date,exception_type\n" +
 				"service1,20240704,1\n" +
 				"service2,20241225,1\n" +
 				"service1,20240101,1",
-			expected:    map[string]string{"service1": "20240704", "service2": "20241225"},
-			description: "Rows arrive in no particular order",
+			expected: map[string]exceptions{
+				"service1": {added: []string{"20240704", "20240101"}, rowNum: 2},
+				"service2": {added: []string{"20241225"}, rowNum: 3},
+			},
+			description: "Rows arrive in no particular order, and which one is last is not decided here",
 		},
 		{
-			name:        "removals do not count as additions",
-			csvData:     "service_id,date,exception_type\nservice1,20240101,1\nservice1,20241225,2",
-			expected:    map[string]string{"service1": "20240101"},
-			description: "A later removal must not extend the service",
+			name:    "additions and removals are kept apart",
+			csvData: "service_id,date,exception_type\nservice1,20240101,1\nservice1,20241225,2",
+			expected: map[string]exceptions{
+				"service1": {added: []string{"20240101"}, removed: []string{"20241225"}, rowNum: 2},
+			},
+			description: "A removal must not read as service on that date",
+		},
+		{
+			name:        "unknown exception type",
+			csvData:     "service_id,date,exception_type\nservice1,20240101,1\nservice1,20240102,3",
+			expected:    map[string]exceptions{"service1": {added: []string{"20240101"}, rowNum: 2}},
+			description: "Reported as invalid_value by the type layer; it neither adds nor removes here",
 		},
 		{
 			name:        "whitespace trimming",
 			csvData:     "service_id,date,exception_type\n service1 , 20240704 , 1 ",
-			expected:    map[string]string{"service1": "20240704"},
+			expected:    map[string]exceptions{"service1": {added: []string{"20240704"}, rowNum: 2}},
 			description: "Values are padded in real feeds",
 		},
 		{
 			name:        "empty file",
 			csvData:     "service_id,date,exception_type\n",
-			expected:    map[string]string{},
+			expected:    map[string]exceptions{},
 			description: "A header-only file defines no services",
 		},
 	}
@@ -417,19 +555,36 @@ func TestServiceValidationValidator_LoadCalendarDateServices(t *testing.T) {
 				t.Errorf("Expected %d services, got %d: %s", len(tt.expected), len(result), tt.description)
 			}
 
-			for serviceID, expectedDate := range tt.expected {
+			for serviceID, want := range tt.expected {
 				service, exists := result[serviceID]
 				if !exists {
 					t.Errorf("Expected service %s not found: %s", serviceID, tt.description)
 					continue
 				}
 
-				got := ""
-				if service.LastAddedDate != nil {
-					got = service.LastAddedDate.Format("20060102")
+				var added []string
+				for _, date := range service.AddedDates {
+					added = append(added, date.Format("20060102"))
 				}
-				if got != expectedDate {
-					t.Errorf("Service %s: expected last added date %q, got %q: %s", serviceID, expectedDate, got, tt.description)
+				if strings.Join(added, ",") != strings.Join(want.added, ",") {
+					t.Errorf("Service %s: expected added dates %v, got %v: %s", serviceID, want.added, added, tt.description)
+				}
+
+				for _, date := range want.removed {
+					parsed, err := time.Parse("20060102", date)
+					if err != nil {
+						t.Fatalf("bad test date %q: %v", date, err)
+					}
+					if !service.RemovedDates[parsed.Unix()] {
+						t.Errorf("Service %s: expected %s to be removed: %s", serviceID, date, tt.description)
+					}
+				}
+				if len(service.RemovedDates) != len(want.removed) {
+					t.Errorf("Service %s: expected %d removals, got %d: %s", serviceID, len(want.removed), len(service.RemovedDates), tt.description)
+				}
+
+				if service.RowNumber != want.rowNum {
+					t.Errorf("Service %s: expected row %d, got %d: %s", serviceID, want.rowNum, service.RowNumber, tt.description)
 				}
 			}
 		})

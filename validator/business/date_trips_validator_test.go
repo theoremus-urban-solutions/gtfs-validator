@@ -215,6 +215,163 @@ func TestDateTripsValidator_Validate(t *testing.T) {
 	}
 }
 
+// service_window_outside_feed_period names one service per notice, so what
+// matters here is which services are reported and what each notice says about
+// how far out of period that service runs.
+func TestDateTripsValidator_ServiceWindowOutsideFeedPeriod(t *testing.T) {
+	currentDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	const calendarHeader = "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n"
+	const feedInfoHeader = "feed_publisher_name,feed_publisher_url,feed_lang,feed_start_date,feed_end_date\n"
+	// The window a service has to stay inside for every case below.
+	const feedInfo = feedInfoHeader + "A,http://a,en,20240201,20241130"
+
+	type window struct {
+		serviceID           string
+		start, end          string
+		daysBeforeFeedStart int
+		daysAfterFeedEnd    int
+	}
+
+	tests := []struct {
+		name        string
+		files       map[string]string
+		want        []window
+		description string
+	}{
+		{
+			name: "service starting before the feed period",
+			files: map[string]string{
+				"calendar.txt":  calendarHeader + "S1,1,1,1,1,1,1,1,20240101,20241130",
+				"trips.txt":     "route_id,service_id,trip_id\nR1,S1,T1",
+				"feed_info.txt": feedInfo,
+			},
+			want:        []window{{"S1", "20240101", "20241130", 31, 0}},
+			description: "January runs before the period opens on 1 February",
+		},
+		{
+			name: "service running past the feed period",
+			files: map[string]string{
+				"calendar.txt":  calendarHeader + "S1,1,1,1,1,1,1,1,20240201,20241231",
+				"trips.txt":     "route_id,service_id,trip_id\nR1,S1,T1",
+				"feed_info.txt": feedInfo,
+			},
+			want:        []window{{"S1", "20240201", "20241231", 0, 31}},
+			description: "December runs after the period closes on 30 November",
+		},
+		{
+			name: "service on both sides of the feed period",
+			files: map[string]string{
+				"calendar.txt":  calendarHeader + "S1,1,1,1,1,1,1,1,20240101,20241231",
+				"trips.txt":     "route_id,service_id,trip_id\nR1,S1,T1",
+				"feed_info.txt": feedInfo,
+			},
+			want:        []window{{"S1", "20240101", "20241231", 31, 31}},
+			description: "Both counts are reported, not whichever end is worse",
+		},
+		{
+			name: "one service out of period among several inside it",
+			files: map[string]string{
+				"calendar.txt": calendarHeader +
+					"S1,1,1,1,1,1,1,1,20240201,20240630\n" +
+					"S2,1,1,1,1,1,1,1,20240701,20241130\n" +
+					"S3,1,1,1,1,1,1,1,20240701,20241205",
+				"trips.txt":     "route_id,service_id,trip_id\nR1,S1,T1\nR1,S2,T2\nR1,S3,T3",
+				"feed_info.txt": feedInfo,
+			},
+			want:        []window{{"S3", "20240701", "20241205", 0, 5}},
+			description: "The services that stay inside the period are not the subject",
+		},
+		{
+			name: "calendar_dates-only feed",
+			files: map[string]string{
+				// No calendar.txt at all: the only thing defining these
+				// services is their added dates.
+				"calendar_dates.txt": "service_id,date,exception_type\n" +
+					"S1,20240115,1\nS1,20240220,1\n" +
+					"S2,20240301,1\nS2,20240401,1",
+				"trips.txt":     "route_id,service_id,trip_id\nR1,S1,T1\nR1,S2,T2",
+				"feed_info.txt": feedInfo,
+			},
+			want:        []window{{"S1", "20240115", "20240220", 17, 0}},
+			description: "A service defined purely by exceptions has a window like any other",
+		},
+		{
+			name: "removals pull the window back inside the period",
+			files: map[string]string{
+				"calendar.txt": calendarHeader + "S1,1,1,1,1,1,1,1,20240130,20241130",
+				"calendar_dates.txt": "service_id,date,exception_type\n" +
+					"S1,20240130,2\nS1,20240131,2",
+				"trips.txt":     "route_id,service_id,trip_id\nR1,S1,T1",
+				"feed_info.txt": feedInfo,
+			},
+			want:        nil,
+			description: "The two January days the calendar claims are taken back, so nothing runs out of period",
+		},
+		{
+			name: "service no trip references",
+			files: map[string]string{
+				"calendar.txt":  calendarHeader + "S1,1,1,1,1,1,1,1,20240101,20241130",
+				"trips.txt":     "route_id,service_id,trip_id\nR1,S2,T1",
+				"feed_info.txt": feedInfo,
+			},
+			want:        nil,
+			description: "A calendar nothing runs on puts no service outside the period; unused_service is its defect",
+		},
+		{
+			name: "service with no active day of the week",
+			files: map[string]string{
+				"calendar.txt":  calendarHeader + "S1,0,0,0,0,0,0,0,20240101,20241231",
+				"trips.txt":     "route_id,service_id,trip_id\nR1,S1,T1",
+				"feed_info.txt": feedInfo,
+			},
+			want:        nil,
+			description: "A service that runs on no date cannot run outside the period",
+		},
+		{
+			name: "no feed_info.txt",
+			files: map[string]string{
+				"calendar.txt": calendarHeader + "S1,1,1,1,1,1,1,1,20240101,20241231",
+				"trips.txt":    "route_id,service_id,trip_id\nR1,S1,T1",
+			},
+			want:        nil,
+			description: "Nothing declares a period, so there is nothing to disagree with",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			loader := testutil.CreateTestFeedLoader(t, tt.files)
+			container := notice.NewNoticeContainer()
+
+			NewDateTripsValidator().Validate(loader, container, gtfsvalidator.Config{CurrentDate: currentDate})
+
+			var got []window
+			for _, n := range container.GetNotices() {
+				if n.Code() != "service_window_outside_feed_period" {
+					continue
+				}
+				context := n.Context()
+				got = append(got, window{
+					serviceID:           context["serviceId"].(string),
+					start:               context["serviceWindowStartDate"].(string),
+					end:                 context["serviceWindowEndDate"].(string),
+					daysBeforeFeedStart: context["daysBeforeFeedStart"].(int),
+					daysAfterFeedEnd:    context["daysAfterFeedEnd"].(int),
+				})
+			}
+
+			if len(got) != len(tt.want) {
+				t.Fatalf("expected %d notices %v, got %d %v: %s", len(tt.want), tt.want, len(got), got, tt.description)
+			}
+			for i, want := range tt.want {
+				if got[i] != want {
+					t.Errorf("notice %d: expected %v, got %v: %s", i, want, got[i], tt.description)
+				}
+			}
+		})
+	}
+}
+
 // Service dates are midnight-UTC and the coverage check compares them against
 // the current date, so a current date carrying a wall-clock time and a local
 // zone used to miss every comparison and report any feed as uncovered. The

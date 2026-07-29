@@ -15,24 +15,39 @@ func TestStopLocationValidator_PlatformAndStopAccess(t *testing.T) {
 		expected map[string]int
 	}{
 		{
-			name: "platform outside a station in a feed that has stations",
-			stops: "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n" +
-				"ST1,Central,1.0,1.0,1,\n" +
-				"P1,Platform 1,1.0,1.0,0,ST1\n" +
-				"S1,Roadside,2.0,2.0,0,",
+			// platform_code is the stop declaring itself part of a larger stop,
+			// which is exactly the parent it then fails to name.
+			name: "stop with a platform_code and no parent",
+			stops: "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,platform_code\n" +
+				"ST1,Central,1.0,1.0,1,,\n" +
+				"P1,Platform 1,1.0,1.0,0,ST1,A\n" +
+				"S1,Platform 2,2.0,2.0,0,,B",
 			expected: map[string]int{"platform_without_parent_station": 1},
 		},
 		{
 			name:     "platform inside a station",
-			stops:    "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nST1,Central,1.0,1.0,1,\nS1,Platform 1,1.0,1.0,0,ST1",
+			stops:    "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,platform_code\nST1,Central,1.0,1.0,1,,\nS1,Platform 1,1.0,1.0,0,ST1,A",
 			expected: map[string]int{"platform_without_parent_station": 0},
 		},
 		{
 			name: "location type defaults to platform",
-			stops: "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n" +
-				"ST1,Central,1.0,1.0,1,\n" +
-				"S1,Roadside,2.0,2.0,,",
+			stops: "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,platform_code\n" +
+				"ST1,Central,1.0,1.0,1,,\n" +
+				"S1,Roadside,2.0,2.0,,,B",
 			expected: map[string]int{"platform_without_parent_station": 1},
+		},
+		{
+			// An ordinary roadside stop is not a platform of anything, so a
+			// missing parent is not an omission — even where the feed models
+			// stations elsewhere. Only platform_code separates the two cases.
+			name: "parentless stops without a platform_code in a feed that has stations",
+			stops: "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,platform_code\n" +
+				"ST1,Central,1.0,1.0,1,,\n" +
+				"E1,North entrance,1.0,1.0,2,ST1,\n" +
+				"P1,Platform 1,1.0,1.0,0,ST1,\n" +
+				"S1,Roadside,2.0,2.0,0,,\n" +
+				"S2,Kerbside,3.0,3.0,0,,",
+			expected: map[string]int{"platform_without_parent_station": 0},
 		},
 		{
 			// A flat feed has no hierarchy to be incomplete, so the advisory
@@ -48,6 +63,19 @@ func TestStopLocationValidator_PlatformAndStopAccess(t *testing.T) {
 			name:     "flat feed with no location_type column",
 			stops:    "stop_id,stop_name,stop_lat,stop_lon\nS1,Central,1.0,1.0\nS2,Midtown,2.0,2.0",
 			expected: map[string]int{"platform_without_parent_station": 0},
+		},
+		{
+			// An empty platform_code carries no assertion either way.
+			name:     "empty platform_code",
+			stops:    "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,platform_code\nST1,Central,1.0,1.0,1,,\nS1,Roadside,2.0,2.0,0,,",
+			expected: map[string]int{"platform_without_parent_station": 0},
+		},
+		{
+			// The signal only means anything on a stop; the other location
+			// types have their own, stricter rule.
+			name:     "platform_code on an entrance",
+			stops:    "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station,platform_code\nE1,North entrance,1.0,1.0,2,,A",
+			expected: map[string]int{"platform_without_parent_station": 0, "location_without_parent_station": 1},
 		},
 		{
 			// An entrance is meaningless outside a station whether or not the

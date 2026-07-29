@@ -61,11 +61,39 @@ func TestTripHeadsignValidator_Validate(t *testing.T) {
 			expected:  0,
 		},
 		{
-			name:      "one notice per trip regardless of repeats",
+			// Each call at the named stop misleads the passengers boarding
+			// there, so each is worth its own notice.
+			name:      "one notice per call at the named stop",
 			stops:     stops,
 			trips:     "route_id,service_id,trip_id,trip_headsign\nR1,SV1,T1,Midtown",
 			stopTimes: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S2,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S3,3",
+			expected:  2,
+		},
+		{
+			// Two distinct stops can share a name, and the headsign is just as
+			// ambiguous at each of them.
+			name: "two differently identified stops share the headsign name",
+			stops: "stop_id,stop_name,stop_lat,stop_lon\n" +
+				"S1,Midtown,1.0,1.0\nS2,Midtown,2.0,2.0\nS3,Airport,3.0,3.0",
+			trips:     "route_id,service_id,trip_id,trip_headsign\nR1,SV1,T1,Midtown",
+			stopTimes: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S1,1\nT1,08:10:00,08:10:00,S2,2\nT1,08:20:00,08:20:00,S3,3",
+			expected:  2,
+		},
+		{
+			// The final call is what the headsign promises, so only the earlier
+			// one contradicts it.
+			name:      "trip returning to the named terminus reports only the earlier call",
+			stops:     stops,
+			trips:     "route_id,service_id,trip_id,trip_headsign\nR1,SV1,T1,Midtown",
+			stopTimes: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S2,1\nT1,08:10:00,08:10:00,S3,2\nT1,08:20:00,08:20:00,S2,3",
 			expected:  1,
+		},
+		{
+			name:      "single stop trip has no intermediate stop",
+			stops:     stops,
+			trips:     "route_id,service_id,trip_id,trip_headsign\nR1,SV1,T1,Midtown",
+			stopTimes: "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,S2,1",
+			expected:  0,
 		},
 	}
 

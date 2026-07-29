@@ -225,6 +225,10 @@ func (v *FieldTypeValidator) checkRange(container *notice.NoticeContainer, filen
 // validateCurrencyAmount checks an amount's decimal places against the subunit
 // its currency actually has: 1.5 USD is wrong where 1.50 is meant, and 100.00
 // JPY is wrong because the yen has no subunit.
+//
+// This is the spec's Currency amount type, which only the Fares v2 amounts
+// carry. A field the spec types as a plain float — fare_attributes.price — is
+// not held to it, however its currency is written.
 func (v *FieldTypeValidator) validateCurrencyAmount(container *notice.NoticeContainer, filename string, row *parser.CSVRow, spec *fieldSpec, value string) {
 	if _, err := strconv.ParseFloat(value, 64); err != nil {
 		container.AddNotice(notice.NewInvalidFloatNotice(filename, row.RowNumber, spec.Name, value))

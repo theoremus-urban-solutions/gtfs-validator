@@ -6,18 +6,17 @@ package notice
 
 // ExpiredCalendarNotice reports a service whose last active date has already
 // passed. Nothing can be planned on it, and a feed carrying a pile of them
-// looks better covered than it is. The last active date accounts for
-// calendar_dates.txt additions, not only the calendar.txt end_date.
+// looks better covered than it is. The last active date is the date the service
+// really last runs on, which both calendar.txt and calendar_dates.txt have a
+// say in; see the emitting validator for how it is arrived at.
 type ExpiredCalendarNotice struct {
 	*BaseNotice
 }
 
-func NewExpiredCalendarNotice(rowNumber int, serviceID string, endDate string, currentDate string) *ExpiredCalendarNotice {
+func NewExpiredCalendarNotice(rowNumber int, serviceID string) *ExpiredCalendarNotice {
 	context := map[string]interface{}{
 		"csvRowNumber": rowNumber,
 		"serviceId":    serviceID,
-		"endDate":      endDate,
-		"currentDate":  currentDate,
 	}
 	return &ExpiredCalendarNotice{
 		BaseNotice: NewBaseNotice("expired_calendar", WARNING, context),
@@ -102,21 +101,25 @@ func NewFeedValidBeyondTotalServiceWindowNotice(rowNumber int, feedEndDate strin
 	}
 }
 
-// ServiceWindowOutsideFeedPeriodNotice reports service scheduled outside the
-// validity period feed_info.txt declares for the feed. The two disagree about
-// what the feed contains, and a consumer that honours feed_start_date and
-// feed_end_date drops whatever falls outside them.
+// ServiceWindowOutsideFeedPeriodNotice reports one service whose active dates
+// reach outside the validity period feed_info.txt declares for the feed. The
+// two disagree about what the feed contains, and a consumer that honours
+// feed_start_date and feed_end_date drops whatever falls outside them.
+//
+// The subject is the individual service rather than the feed as a whole,
+// because that is what a publisher has to go and fix: one notice names one
+// calendar to correct, and the number of them is how far the two are apart.
 type ServiceWindowOutsideFeedPeriodNotice struct {
 	*BaseNotice
 }
 
-func NewServiceWindowOutsideFeedPeriodNotice(rowNumber int, feedStartDate string, feedEndDate string, serviceWindowStart string, serviceWindowEnd string) *ServiceWindowOutsideFeedPeriodNotice {
+func NewServiceWindowOutsideFeedPeriodNotice(serviceID string, serviceWindowStartDate string, serviceWindowEndDate string, daysBeforeFeedStart int, daysAfterFeedEnd int) *ServiceWindowOutsideFeedPeriodNotice {
 	context := map[string]interface{}{
-		"csvRowNumber":       rowNumber,
-		"feedStartDate":      feedStartDate,
-		"feedEndDate":        feedEndDate,
-		"serviceWindowStart": serviceWindowStart,
-		"serviceWindowEnd":   serviceWindowEnd,
+		"serviceId":              serviceID,
+		"serviceWindowStartDate": serviceWindowStartDate,
+		"serviceWindowEndDate":   serviceWindowEndDate,
+		"daysBeforeFeedStart":    daysBeforeFeedStart,
+		"daysAfterFeedEnd":       daysAfterFeedEnd,
 	}
 	return &ServiceWindowOutsideFeedPeriodNotice{
 		BaseNotice: NewBaseNotice("service_window_outside_feed_period", INFO, context),

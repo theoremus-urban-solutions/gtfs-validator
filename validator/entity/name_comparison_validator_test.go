@@ -184,6 +184,34 @@ func TestNameComparisonValidator_NeedsMixedCase(t *testing.T) {
 		{name: "empty", value: "", needed: false},
 		{name: "accented mixed case", value: "Gare du Nord", needed: false},
 		{name: "accented upper case only", value: "GARE DU NORD", needed: true},
+
+		// Cyrillic is cased, so the rule has something to say about it. Feeds
+		// written in it are the reason this check cannot lean on ASCII.
+		{name: "Cyrillic upper case only", value: "ЦЕНТРАЛНА ГАРА", needed: true},
+		{name: "Cyrillic mixed case", value: "Централна гара", needed: false},
+		{name: "Cyrillic lower case only", value: "централна гара", needed: true},
+		{name: "Cyrillic upper case behind digits", value: "6ТМ", needed: true},
+		{name: "Cyrillic abbreviations with one mixed word", value: "Ул. Ген. Гурко", needed: false},
+
+		// Scripts with no case cannot answer the question, whether they are
+		// written as one word or several.
+		{name: "two caseless words", value: "東京 駅行", needed: false},
+		{name: "Arabic", value: "محطة القطار", needed: false},
+		{name: "Hebrew", value: "תחנה מרכזית", needed: false},
+
+		// A word of one letter says nothing about the producer's intent.
+		{name: "single letter", value: "A", needed: false},
+		{name: "single letters only", value: "A B C", needed: false},
+		{name: "single letter beside a word", value: "A Street", needed: false},
+
+		// Canonical judges a lone word only when it is lower case, so an
+		// all-caps single word is left alone while "GALLERIA MALL" is not.
+		{name: "single upper case word", value: "GALLERIA", needed: false},
+		{name: "single lower case word", value: "galleria", needed: true},
+		{name: "mixed case single word", value: "GalleriaMall", needed: false},
+
+		// One mixed-case word is enough to acquit the whole name.
+		{name: "one mixed word among upper case", value: "Main ST NW", needed: false},
 	}
 
 	for _, tt := range tests {

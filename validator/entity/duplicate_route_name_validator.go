@@ -11,7 +11,13 @@ import (
 	"github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
 
-// DuplicateRouteNameValidator validates route names are unique within agency/route type
+// DuplicateRouteNameValidator reports routes that another route of the same
+// agency and route type is already indistinguishable from.
+//
+// Two routes collide only when the whole of what a passenger sees — short name
+// and long name together — is identical. Sharing just one of the two names is
+// ordinary: a family of routes commonly shares a long name while the short
+// name separates the branches, and vice versa.
 type DuplicateRouteNameValidator struct{}
 
 // NewDuplicateRouteNameValidator creates a new duplicate route name validator
@@ -29,26 +35,40 @@ type RouteInfo struct {
 	RowNumber      int
 }
 
-// Validate checks for duplicate route names within same agency and route type
+// Validate reports each route whose name pair is already taken.
 func (v *DuplicateRouteNameValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
-	routes := v.loadRoutes(loader)
-	if len(routes) == 0 {
-		return
-	}
+	// The routes are kept in file order so that the route named as the first
+	// occurrence is the one a reader would reach first in routes.txt.
+	firstByKey := make(map[string]RouteInfo)
 
-	// Group routes by agency_id and route_type
-	routeGroups := make(map[string][]RouteInfo)
-
-	for _, route := range routes {
-		// Create key from agency_id and route_type
-		key := route.AgencyID + "_" + strconv.Itoa(route.RouteType)
-		routeGroups[key] = append(routeGroups[key], route)
+	for _, route := range v.loadRoutes(loader) {
+		key := v.routeKey(route)
+		first, taken := firstByKey[key]
+		if !taken {
+			firstByKey[key] = route
+			continue
+		}
+		container.AddNotice(notice.NewDuplicateRouteNameCombinationNotice(
+			route.RouteID,
+			first.RouteLongName,
+			first.RouteShortName,
+			first.RouteID,
+			route.AgencyID,
+			route.RouteType,
+			route.RowNumber,
+		))
 	}
+}
 
-	// Check each group for duplicates
-	for _, group := range routeGroups {
-		v.checkGroupForDuplicates(container, group)
-	}
+// routeKey identifies a route by everything that has to match for two routes
+// to be confusable: both names, the mode, and the operator.
+//
+// The names are compared as written. Two routes differing only in case are
+// distinguishable on a printed timetable, and feeds legitimately use casing to
+// separate an all-caps terminus from a title-case one.
+func (v *DuplicateRouteNameValidator) routeKey(route RouteInfo) string {
+	return route.RouteLongName + "\x00" + route.RouteShortName + "\x00" +
+		strconv.Itoa(route.RouteType) + "\x00" + route.AgencyID
 }
 
 // loadRoutes loads route information from routes.txt
@@ -127,122 +147,4 @@ func (v *DuplicateRouteNameValidator) parseRoute(row *parser.CSVRow) *RouteInfo 
 	}
 
 	return route
-}
-
-// checkGroupForDuplicates checks a group of routes for duplicate names
-func (v *DuplicateRouteNameValidator) checkGroupForDuplicates(container *notice.NoticeContainer, routes []RouteInfo) {
-	if len(routes) <= 1 {
-		return
-	}
-
-	// Check for duplicate long names
-	v.checkDuplicateLongNames(container, routes)
-
-	// Check for duplicate short names
-	v.checkDuplicateShortNames(container, routes)
-
-	// Check for routes with same long name and short name combination
-	v.checkDuplicateNameCombinations(container, routes)
-}
-
-// checkDuplicateLongNames checks for duplicate route_long_name within the group
-func (v *DuplicateRouteNameValidator) checkDuplicateLongNames(container *notice.NoticeContainer, routes []RouteInfo) {
-	longNameMap := make(map[string][]RouteInfo)
-
-	for _, route := range routes {
-		// Only check non-empty long names
-		if route.RouteLongName != "" {
-			// Normalize name for comparison (case-insensitive, trimmed whitespace)
-			normalizedName := strings.ToLower(strings.TrimSpace(route.RouteLongName))
-			longNameMap[normalizedName] = append(longNameMap[normalizedName], route)
-		}
-	}
-
-	// Report duplicates
-	for _, duplicateRoutes := range longNameMap {
-		if len(duplicateRoutes) > 1 {
-			// Get the original name from first route
-			originalName := duplicateRoutes[0].RouteLongName
-
-			for i := 1; i < len(duplicateRoutes); i++ {
-				container.AddNotice(notice.NewDuplicateRouteLongNameNotice(
-					duplicateRoutes[i].RouteID,
-					originalName,
-					duplicateRoutes[0].RouteID,
-					duplicateRoutes[i].AgencyID,
-					duplicateRoutes[i].RouteType,
-					duplicateRoutes[i].RowNumber,
-				))
-			}
-		}
-	}
-}
-
-// checkDuplicateShortNames checks for duplicate route_short_name within the group
-func (v *DuplicateRouteNameValidator) checkDuplicateShortNames(container *notice.NoticeContainer, routes []RouteInfo) {
-	shortNameMap := make(map[string][]RouteInfo)
-
-	for _, route := range routes {
-		// Only check non-empty short names
-		if route.RouteShortName != "" {
-			// Normalize name for comparison (case-insensitive, trimmed whitespace)
-			normalizedName := strings.ToLower(strings.TrimSpace(route.RouteShortName))
-			shortNameMap[normalizedName] = append(shortNameMap[normalizedName], route)
-		}
-	}
-
-	// Report duplicates
-	for _, duplicateRoutes := range shortNameMap {
-		if len(duplicateRoutes) > 1 {
-			// Get the original name from first route
-			originalName := duplicateRoutes[0].RouteShortName
-
-			for i := 1; i < len(duplicateRoutes); i++ {
-				container.AddNotice(notice.NewDuplicateRouteShortNameNotice(
-					duplicateRoutes[i].RouteID,
-					originalName,
-					duplicateRoutes[0].RouteID,
-					duplicateRoutes[i].AgencyID,
-					duplicateRoutes[i].RouteType,
-					duplicateRoutes[i].RowNumber,
-				))
-			}
-		}
-	}
-}
-
-// checkDuplicateNameCombinations checks for routes with identical name combinations
-func (v *DuplicateRouteNameValidator) checkDuplicateNameCombinations(container *notice.NoticeContainer, routes []RouteInfo) {
-	nameComboMap := make(map[string][]RouteInfo)
-
-	for _, route := range routes {
-		// Create combination key from both names (only if both exist)
-		if route.RouteLongName != "" && route.RouteShortName != "" {
-			// Normalize both names for comparison
-			normalizedLong := strings.ToLower(strings.TrimSpace(route.RouteLongName))
-			normalizedShort := strings.ToLower(strings.TrimSpace(route.RouteShortName))
-			comboKey := normalizedLong + "|" + normalizedShort
-			nameComboMap[comboKey] = append(nameComboMap[comboKey], route)
-		}
-	}
-
-	// Report duplicates
-	for _, duplicateRoutes := range nameComboMap {
-		if len(duplicateRoutes) > 1 {
-			// Get the original names from first route
-			firstRoute := duplicateRoutes[0]
-
-			for i := 1; i < len(duplicateRoutes); i++ {
-				container.AddNotice(notice.NewDuplicateRouteNameCombinationNotice(
-					duplicateRoutes[i].RouteID,
-					firstRoute.RouteLongName,
-					firstRoute.RouteShortName,
-					firstRoute.RouteID,
-					duplicateRoutes[i].AgencyID,
-					duplicateRoutes[i].RouteType,
-					duplicateRoutes[i].RowNumber,
-				))
-			}
-		}
-	}
 }

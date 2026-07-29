@@ -27,6 +27,7 @@ type StopInfo struct {
 	ParentStation  string
 	ZoneID         string
 	StopAccess     string
+	PlatformCode   string
 	RowNumber      int
 	HasCoordinates bool
 }
@@ -34,11 +35,10 @@ type StopInfo struct {
 // Validate checks stop location consistency and hierarchy
 func (v *StopLocationValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
 	stops := v.loadStops(loader)
-	hasStation := feedHasStation(stops)
 
 	// Validate each stop
 	for _, stop := range stops {
-		v.validateStop(container, stop, stops, hasStation)
+		v.validateStop(container, stop, stops)
 	}
 
 	// Validate parent-child relationships
@@ -108,6 +108,7 @@ func (v *StopLocationValidator) loadStops(loader *parser.FeedLoader) map[string]
 
 		stop.ZoneID = strings.TrimSpace(row.Values["zone_id"])
 		stop.StopAccess = strings.TrimSpace(row.Values["stop_access"])
+		stop.PlatformCode = strings.TrimSpace(row.Values["platform_code"])
 
 		// Check if coordinates are present.
 		// A column may exist in the row map but hold an empty value (e.g. a stop
@@ -125,7 +126,7 @@ func (v *StopLocationValidator) loadStops(loader *parser.FeedLoader) map[string]
 }
 
 // validateStop validates a single stop
-func (v *StopLocationValidator) validateStop(container *notice.NoticeContainer, stop *StopInfo, allStops map[string]*StopInfo, hasStation bool) {
+func (v *StopLocationValidator) validateStop(container *notice.NoticeContainer, stop *StopInfo, allStops map[string]*StopInfo) {
 	// Validate coordinates requirement
 	v.validateCoordinatesRequirement(container, stop)
 
@@ -133,20 +134,10 @@ func (v *StopLocationValidator) validateStop(container *notice.NoticeContainer, 
 	v.validateParentStationReference(container, stop, allStops)
 
 	// Validate location type specific rules
-	v.validateLocationTypeRules(container, stop, hasStation)
+	v.validateLocationTypeRules(container, stop)
 
 	// Validate stop_access, which only a platform inside a station may declare
 	v.validateStopAccess(container, stop)
-}
-
-// feedHasStation reports whether the feed models station hierarchy at all.
-func feedHasStation(stops map[string]*StopInfo) bool {
-	for _, stop := range stops {
-		if stop.LocationType == 1 {
-			return true
-		}
-	}
-	return false
 }
 
 // expectedParentLocationType gives the location_type a parent must have for a
@@ -217,18 +208,21 @@ func (v *StopLocationValidator) validateParentStationReference(container *notice
 }
 
 // validateLocationTypeRules validates location type specific rules
-func (v *StopLocationValidator) validateLocationTypeRules(container *notice.NoticeContainer, stop *StopInfo, hasStation bool) {
+func (v *StopLocationValidator) validateLocationTypeRules(container *notice.NoticeContainer, stop *StopInfo) {
 	switch stop.LocationType {
 	case 0: // Stop/platform
-		// A platform outside a station is legal — a lone bus stop is exactly
-		// that — so this is an advisory rather than the error raised for the
-		// location types that only exist within a station.
+		// location_type=0 covers both a lone roadside stop and a platform
+		// inside a station complex, and only the latter is missing something
+		// when it has no parent. platform_code is what tells the two apart:
+		// a stop that names its platform within a larger stop is asserting it
+		// belongs to one, so the parent it never declared is a real omission.
+		// Without that signal the notice would fire on every ordinary stop in
+		// the feed and point at nothing fixable, so it stays silent — which is
+		// also why a feed merely containing stations elsewhere is not enough.
 		//
-		// The advisory is worth making only where the feed models station
-		// hierarchy somewhere. A feed that declares no station at all gives a
-		// platform nothing to be a child of, so the notice would fire on every
-		// stop in the feed and point at no fixable omission.
-		if hasStation && stop.ParentStation == "" {
+		// It is still an advisory rather than the error raised for the location
+		// types that cannot exist outside a station at all.
+		if stop.PlatformCode != "" && stop.ParentStation == "" {
 			container.AddNotice(notice.NewPlatformWithoutParentStationNotice(
 				stop.StopID,
 				stop.RowNumber,

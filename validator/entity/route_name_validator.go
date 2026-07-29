@@ -90,16 +90,11 @@ func (v *RouteNameValidator) validateRoute(container *notice.NoticeContainer, ro
 
 	v.validateRouteDescription(container, row, strings.TrimSpace(routeID), shortName, longName)
 
-	// route_long_name is prose read by riders, unlike route_short_name, which
-	// is normally a code and legitimately upper case.
-	if needsMixedCase(longName) {
-		container.AddNotice(notice.NewMixedCaseRecommendedFieldNotice(
-			"routes.txt",
-			"route_long_name",
-			longName,
-			row.RowNumber,
-		))
-	}
+	// All three route fields reach the rider, so all three are asked for Mixed
+	// Case. route_short_name is included despite usually being a bare code:
+	// a code carries too few letters to trip the check, so what it catches
+	// there is a short name that has quietly become prose.
+	reportMixedCase(container, "routes.txt", row, []string{"route_short_name", "route_long_name", "route_desc"})
 
 	// Validate route type specific naming conventions
 	if hasRouteType {

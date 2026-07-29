@@ -100,52 +100,96 @@ func (v *DateTripsValidator) Validate(loader *parser.FeedLoader, container *noti
 		return
 	}
 
+	exceptionsByService := groupExceptionsByService(exceptions)
+
 	// Counting trips per service in one pass over trips.txt, rather than
 	// re-reading the file for each service, keeps this linear in the feed size
 	// instead of quadratic.
-	calendar := v.buildServiceCalendar(services, exceptions, v.countTripsByService(loader))
+	tripCounts := v.countTripsByService(loader)
+	calendar := v.buildServiceCalendar(services, exceptionsByService, tripCounts)
 
 	v.validateNext7DaysService(container, calendar, currentDate)
 	v.validateServiceGaps(container, calendar.Dates)
-	v.validateAgainstFeedPeriod(loader, container, calendar.Dates)
+	v.validateAgainstFeedPeriod(loader, container, services, exceptionsByService, tripCounts, calendar.Dates)
+}
+
+// groupExceptionsByService collects calendar_dates.txt rows under the service
+// they belong to, which is how every check below wants them.
+func groupExceptionsByService(exceptions []CalendarException) map[string][]CalendarException {
+	byService := make(map[string][]CalendarException)
+	for _, exception := range exceptions {
+		byService[exception.ServiceID] = append(byService[exception.ServiceID], exception)
+	}
+	return byService
+}
+
+// serviceIDsOf returns every service either file defines, in a stable order so
+// the notices come out the same way on every run.
+func serviceIDsOf(services map[string]*ServiceInfo, exceptionsByService map[string][]CalendarException) []string {
+	seen := make(map[string]bool, len(services)+len(exceptionsByService))
+	for serviceID := range services {
+		seen[serviceID] = true
+	}
+	for serviceID := range exceptionsByService {
+		seen[serviceID] = true
+	}
+
+	ids := make([]string, 0, len(seen))
+	for serviceID := range seen {
+		ids = append(ids, serviceID)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // ServiceCalendar is the feed's schedule reduced to what the date rules need:
-// every date it runs at least one trip on, in order, and how many trips run on
-// each of them.
+// every date it runs at least one trip on, in order, how many trips run on each
+// of them, and the span each service covers on its own.
 type ServiceCalendar struct {
 	Dates      []time.Time
 	TripCounts map[int64]int // keyed by Unix second, as the dates are
+	Windows    map[string]ServiceWindow
+}
+
+// ServiceWindow is the first and last date one service is active on.
+type ServiceWindow struct {
+	Start time.Time
+	End   time.Time
 }
 
 // buildServiceCalendar spreads each service's trips over the dates that service
 // runs on. A service no trip references contributes nothing however wide its
 // window, so those are left out and the result describes the feed's real
 // service rather than what its calendars claim.
-func (v *DateTripsValidator) buildServiceCalendar(services map[string]*ServiceInfo, exceptions []CalendarException, tripCounts map[string]int) ServiceCalendar {
-	exceptionsByService := make(map[string][]CalendarException)
-	for _, exception := range exceptions {
-		exceptionsByService[exception.ServiceID] = append(exceptionsByService[exception.ServiceID], exception)
-	}
-
-	serviceIDs := make(map[string]bool, len(services)+len(exceptionsByService))
-	for serviceID := range services {
-		serviceIDs[serviceID] = true
-	}
-	for serviceID := range exceptionsByService {
-		serviceIDs[serviceID] = true
-	}
-
+//
+// Each service's own window is taken here rather than in the rule that wants
+// it, because this is the one place that walks a service's dates: a feed whose
+// schedule lives entirely in calendar_dates.txt has hundreds of thousands of
+// them, and once is enough.
+func (v *DateTripsValidator) buildServiceCalendar(services map[string]*ServiceInfo, exceptionsByService map[string][]CalendarException, tripCounts map[string]int) ServiceCalendar {
 	active := make(map[int64]time.Time)
 	counts := make(map[int64]int)
-	for serviceID := range serviceIDs {
+	windows := make(map[string]ServiceWindow)
+	for _, serviceID := range serviceIDsOf(services, exceptionsByService) {
 		tripCount := tripCounts[serviceID]
 		if tripCount == 0 {
 			continue
 		}
+
+		var window ServiceWindow
 		for key, date := range v.datesForService(services[serviceID], exceptionsByService[serviceID]) {
 			active[key] = date
 			counts[key] += tripCount
+
+			if window.Start.IsZero() || date.Before(window.Start) {
+				window.Start = date
+			}
+			if date.After(window.End) {
+				window.End = date
+			}
+		}
+		if !window.Start.IsZero() {
+			windows[serviceID] = window
 		}
 	}
 
@@ -155,7 +199,7 @@ func (v *DateTripsValidator) buildServiceCalendar(services map[string]*ServiceIn
 	}
 	sort.Slice(dates, func(i, j int) bool { return dates[i].Before(dates[j]) })
 
-	return ServiceCalendar{Dates: dates, TripCounts: counts}
+	return ServiceCalendar{Dates: dates, TripCounts: counts, Windows: windows}
 }
 
 // datesForService returns the dates one service runs on, keyed by Unix second
@@ -546,35 +590,24 @@ func (v *DateTripsValidator) validateServiceGaps(container *notice.NoticeContain
 	}
 }
 
-// validateAgainstFeedPeriod compares the dates the feed actually runs trips on
-// with the validity period it declares in feed_info.txt. The two describe the
-// same thing and should agree in both directions: service outside the declared
+// validateAgainstFeedPeriod compares the dates the feed runs service on with
+// the validity period it declares in feed_info.txt. The two describe the same
+// thing and should agree in both directions: service outside the declared
 // period is dropped by consumers that honour it, and a declared period reaching
 // far past the last day of service promises coverage that is not there.
-func (v *DateTripsValidator) validateAgainstFeedPeriod(loader *parser.FeedLoader, container *notice.NoticeContainer, serviceDates []time.Time) {
-	if len(serviceDates) == 0 {
-		return
-	}
-
+func (v *DateTripsValidator) validateAgainstFeedPeriod(loader *parser.FeedLoader, container *notice.NoticeContainer, services map[string]*ServiceInfo, exceptionsByService map[string][]CalendarException, tripCounts map[string]int, serviceDates []time.Time) {
 	feedStart, feedEnd, rowNumber := v.loadFeedPeriod(loader)
 	if feedStart == nil || feedEnd == nil {
 		// A feed_info.txt without dates is reported as missing_feed_info_date.
 		return
 	}
 
-	windowStart := serviceDates[0]
-	windowEnd := serviceDates[len(serviceDates)-1]
+	v.validateServiceWindows(container, services, exceptionsByService, tripCounts, *feedStart, *feedEnd)
 
-	if windowStart.Before(*feedStart) || windowEnd.After(*feedEnd) {
-		container.AddNotice(notice.NewServiceWindowOutsideFeedPeriodNotice(
-			rowNumber,
-			v.formatGTFSDate(*feedStart),
-			v.formatGTFSDate(*feedEnd),
-			v.formatGTFSDate(windowStart),
-			v.formatGTFSDate(windowEnd),
-		))
+	if len(serviceDates) == 0 {
+		return
 	}
-
+	windowEnd := serviceDates[len(serviceDates)-1]
 	if feedEnd.After(windowEnd.AddDate(0, 0, feedValidityGraceDays)) {
 		container.AddNotice(notice.NewFeedValidBeyondTotalServiceWindowNotice(
 			rowNumber,
@@ -583,6 +616,68 @@ func (v *DateTripsValidator) validateAgainstFeedPeriod(loader *parser.FeedLoader
 			int(feedEnd.Sub(windowEnd).Hours()/24),
 		))
 	}
+}
+
+// validateServiceWindows reports each service whose own active dates reach
+// outside the declared feed period. Per service rather than once for the feed:
+// a single feed-wide span says only that something somewhere is out of period,
+// while the service id says which calendar to go and fix.
+func (v *DateTripsValidator) validateServiceWindows(container *notice.NoticeContainer, services map[string]*ServiceInfo, exceptionsByService map[string][]CalendarException, tripCounts map[string]int, feedStart time.Time, feedEnd time.Time) {
+	for _, serviceID := range serviceIDsOf(services, exceptionsByService) {
+		if tripCounts[serviceID] == 0 {
+			// A calendar no trip references puts no service anywhere, so it
+			// cannot put service outside the feed period either. Its own defect
+			// is reported as unused_service.
+			continue
+		}
+
+		windowStart, windowEnd, ok := v.serviceWindow(services[serviceID], exceptionsByService[serviceID])
+		if !ok {
+			// A service with no active date at all runs nowhere, so it cannot
+			// run outside the period either.
+			continue
+		}
+
+		daysBeforeFeedStart, daysAfterFeedEnd := 0, 0
+		if windowStart.Before(feedStart) {
+			daysBeforeFeedStart = daysBetween(windowStart, feedStart)
+		}
+		if windowEnd.After(feedEnd) {
+			daysAfterFeedEnd = daysBetween(feedEnd, windowEnd)
+		}
+		if daysBeforeFeedStart == 0 && daysAfterFeedEnd == 0 {
+			continue
+		}
+
+		container.AddNotice(notice.NewServiceWindowOutsideFeedPeriodNotice(
+			serviceID,
+			v.formatGTFSDate(windowStart),
+			v.formatGTFSDate(windowEnd),
+			daysBeforeFeedStart,
+			daysAfterFeedEnd,
+		))
+	}
+}
+
+// serviceWindow returns the first and last date one service is active on, both
+// files taken together.
+func (v *DateTripsValidator) serviceWindow(service *ServiceInfo, exceptions []CalendarException) (start time.Time, end time.Time, ok bool) {
+	for _, date := range v.datesForService(service, exceptions) {
+		if !ok || date.Before(start) {
+			start = date
+		}
+		if !ok || date.After(end) {
+			end = date
+		}
+		ok = true
+	}
+	return start, end, ok
+}
+
+// daysBetween counts whole days from the earlier date to the later one. Both
+// are midnight UTC, so no daylight-saving hour can round the division off.
+func daysBetween(from time.Time, to time.Time) int {
+	return int(to.Sub(from).Hours() / 24)
 }
 
 // loadFeedPeriod reads the validity period declared by the first row of

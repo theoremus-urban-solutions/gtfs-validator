@@ -21,18 +21,12 @@ const (
 	locationTypeBoardingArea = 4
 )
 
-// Pathway modes that carry a rule of their own.
+// Pathway modes that carry a rule of their own. stair_count is Optional in the
+// spec, so stairs and escalators have nothing to answer for here.
 const (
-	pathwayModeStairs    = 2
-	pathwayModeEscalator = 4
-	pathwayModeElevator  = 5
-	pathwayModeExitGate  = 7
+	pathwayModeElevator = 5
+	pathwayModeExitGate = 7
 )
-
-// parentChainLimit bounds the walk up parent_station. A feed with a cycle in
-// its station hierarchy is reported by circular_station_reference; here the
-// bound only needs to stop this validator spinning on one.
-const parentChainLimit = 8
 
 // PathwayValidator validates pathway definitions for accessibility
 type PathwayValidator struct{}
@@ -96,7 +90,7 @@ func (v *PathwayValidator) Validate(loader *parser.FeedLoader, container *notice
 	v.validateBidirectionalConsistency(container, pathways)
 
 	// The reachability rules need the graph rather than single rows.
-	v.validateStationGraphs(container, pathways, stops)
+	v.validatePathwayGraph(container, pathways, stops)
 }
 
 // loadPathways loads pathway information from pathways.txt
@@ -314,7 +308,6 @@ func (v *PathwayValidator) validatePathway(container *notice.NoticeContainer, pa
 
 	v.validateEndpoints(container, pathway, stops)
 	v.validateElevatorLevels(container, pathway, stops)
-	v.validatePathwaySpecificRequirements(container, pathway)
 }
 
 // validateEndpoints checks what each end of a pathway is allowed to be.
@@ -388,26 +381,6 @@ func (v *PathwayValidator) validateElevatorLevels(container *notice.NoticeContai
 	}
 }
 
-// validatePathwaySpecificRequirements validates requirements specific to pathway modes
-func (v *PathwayValidator) validatePathwaySpecificRequirements(container *notice.NoticeContainer, pathway *PathwayInfo) {
-	if pathway.PathwayMode == nil {
-		return
-	}
-
-	switch *pathway.PathwayMode {
-	case pathwayModeStairs, pathwayModeEscalator:
-		// Stairs and escalators should say how many steps they are, since that
-		// is what tells a consumer whether the pathway is usable.
-		if pathway.StairCount == nil {
-			container.AddNotice(notice.NewMissingRecommendedFieldNotice(
-				"pathways.txt",
-				"stair_count",
-				pathway.RowNumber,
-			))
-		}
-	}
-}
-
 // validateDuplicatePathways checks for duplicate pathway definitions
 func (v *PathwayValidator) validateDuplicatePathways(container *notice.NoticeContainer, pathways []*PathwayInfo) {
 	pathwayMap := make(map[string]*PathwayInfo)
@@ -467,16 +440,16 @@ func samePathwayMode(a *PathwayInfo, b *PathwayInfo) bool {
 	return *a.PathwayMode == *b.PathwayMode
 }
 
-// stationGraph is one station's pathway graph: the locations the station's
-// pathways touch, and the directed edges between them.
-type stationGraph struct {
+// pathwayGraph is the feed's pathway network: every location a pathway
+// touches, and the directed edges between them.
+type pathwayGraph struct {
 	nodes map[string]bool
 	out   map[string][]string
 	in    map[string][]string
 }
 
-func newStationGraph() *stationGraph {
-	return &stationGraph{
+func newPathwayGraph() *pathwayGraph {
+	return &pathwayGraph{
 		nodes: make(map[string]bool),
 		out:   make(map[string][]string),
 		in:    make(map[string][]string),
@@ -484,52 +457,41 @@ func newStationGraph() *stationGraph {
 }
 
 // addEdge records a directed traversal from one location to another.
-func (g *stationGraph) addEdge(from string, to string) {
+func (g *pathwayGraph) addEdge(from string, to string) {
 	g.nodes[from] = true
 	g.nodes[to] = true
 	g.out[from] = append(g.out[from], to)
 	g.in[to] = append(g.in[to], from)
 }
 
-// validateStationGraphs reports the rules that depend on how a station's
-// pathways connect rather than on any single row.
+// buildPathwayGraph reports the rules that depend on how the pathways connect
+// rather than on any single row.
 //
-// The graph is built per station and walked there, so a feed with a thousand
-// stations does a thousand small traversals rather than one over everything.
-func (v *PathwayValidator) validateStationGraphs(container *notice.NoticeContainer, pathways []*PathwayInfo, stops map[string]*pathwayStop) {
-	stationOf := make(map[string]string, len(stops))
-	graphs := make(map[string]*stationGraph)
+// One graph spans the whole feed rather than one per station. Adjacent
+// stations are routinely joined by a pathway, and a location's only way out
+// may well leave through a node belonging to its neighbour; splitting the
+// network on parent_station cut exactly those edges and left the location
+// looking like a dead end.
+//
+// An endpoint missing from stops.txt still joins the two locations either side
+// of it. The foreign key violation is reported elsewhere, and dropping the
+// edge here would make whatever lies beyond it look unreachable.
+func (v *PathwayValidator) validatePathwayGraph(container *notice.NoticeContainer, pathways []*PathwayInfo, stops map[string]*pathwayStop) {
+	graph := newPathwayGraph()
 
 	for _, pathway := range pathways {
-		from, fromExists := stops[pathway.FromStopID]
-		to, toExists := stops[pathway.ToStopID]
-		if !fromExists || !toExists {
-			continue // dangling reference, already reported
-		}
-
-		// Both ends belong to the same station in a well-formed feed; keying on
-		// the from end keeps a malformed pathway in one graph rather than two.
-		station := rootStation(stops, stationOf, from.StopID)
-		graph, exists := graphs[station]
-		if !exists {
-			graph = newStationGraph()
-			graphs[station] = graph
-		}
-
-		graph.addEdge(from.StopID, to.StopID)
+		graph.addEdge(pathway.FromStopID, pathway.ToStopID)
 		if pathway.IsBidirectional != nil && *pathway.IsBidirectional == 1 {
-			graph.addEdge(to.StopID, from.StopID)
+			graph.addEdge(pathway.ToStopID, pathway.FromStopID)
 		}
 	}
 
-	for _, graph := range graphs {
-		v.validateStationGraph(container, graph, stops)
-	}
+	v.validateGraphReachability(container, graph, stops)
 }
 
-// validateStationGraph walks one station's graph for reachability and for
-// generic nodes that lead nowhere.
-func (v *PathwayValidator) validateStationGraph(container *notice.NoticeContainer, graph *stationGraph, stops map[string]*pathwayStop) {
+// validateGraphReachability walks the graph for reachability and for generic
+// nodes that lead nowhere.
+func (v *PathwayValidator) validateGraphReachability(container *notice.NoticeContainer, graph *pathwayGraph, stops map[string]*pathwayStop) {
 	var entrances []string
 	for stopID := range graph.nodes {
 		if stop, exists := stops[stopID]; exists && stop.LocationType == locationTypeEntrance {
@@ -550,7 +512,14 @@ func (v *PathwayValidator) validateStationGraph(container *notice.NoticeContaine
 		}
 
 		switch stop.LocationType {
-		case locationTypeStop, locationTypeGenericNode, locationTypeBoardingArea:
+		case locationTypeStop:
+			// A platform subdivided into boarding areas is reached through them
+			// rather than directly, so it is the boarding areas whose
+			// reachability matters.
+			if stop.HasBoardingAreas {
+				continue
+			}
+		case locationTypeGenericNode, locationTypeBoardingArea:
 		default:
 			// An entrance is reachable by definition and a station is not a
 			// point on the graph, so neither is reported.
@@ -586,14 +555,12 @@ func (v *PathwayValidator) validateStationGraph(container *notice.NoticeContaine
 }
 
 // incidentLocations counts the distinct locations a node is joined to,
-// ignoring direction and ignoring a loop back to itself.
-func incidentLocations(graph *stationGraph, stopID string) int {
+// ignoring direction.
+func incidentLocations(graph *pathwayGraph, stopID string) int {
 	neighbours := make(map[string]bool)
 	for _, list := range [][]string{graph.out[stopID], graph.in[stopID]} {
 		for _, neighbour := range list {
-			if neighbour != stopID {
-				neighbours[neighbour] = true
-			}
+			neighbours[neighbour] = true
 		}
 	}
 	return len(neighbours)
@@ -624,24 +591,4 @@ func reachable(adjacency map[string][]string, starts []string) map[string]bool {
 	}
 
 	return seen
-}
-
-// rootStation walks parent_station up to the station a location belongs to,
-// memoising the answer since a station's every platform asks for it.
-func rootStation(stops map[string]*pathwayStop, cache map[string]string, stopID string) string {
-	if station, known := cache[stopID]; known {
-		return station
-	}
-
-	current := stopID
-	for range parentChainLimit {
-		stop, exists := stops[current]
-		if !exists || stop.ParentStation == "" {
-			break
-		}
-		current = stop.ParentStation
-	}
-
-	cache[stopID] = current
-	return current
 }

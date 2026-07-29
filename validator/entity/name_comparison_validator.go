@@ -5,6 +5,7 @@ import (
 	"log"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
@@ -236,29 +237,105 @@ func normalizeURL(url string) string {
 	return strings.TrimSuffix(strings.ToLower(trimmed), "/")
 }
 
-// needsMixedCase reports whether a customer-facing name is written in a single
-// case. The canonical rule asks these fields for Mixed Case because an
-// all-caps name is read out as an initialism by screen readers, and neither
-// case can be recovered by a consumer once it is gone.
+// needsMixedCase reports whether a customer-facing name fails the canonical
+// Mixed Case rule. The rule exists because an all-caps name is read out as an
+// initialism by screen readers, and no consumer can restore casing once the
+// producer has thrown it away.
 //
-// Only cased letters count. Chinese, Japanese, Arabic and Hebrew have no case
-// distinction to make, and a name too short to carry one — a single-letter
-// route, say — says nothing about the producer's intent, so both are left
-// alone.
+// The check works word by word rather than on the string as a whole, and a
+// name is accepted the moment any one of its words carries both cases. That is
+// the canonical validator's shape, not the published prose's, and we follow the
+// implementation because parity is what producers compare against. Two of its
+// consequences read as bugs if you only have the prose:
+//
+//   - A name of a single word is reported only when that word is entirely
+//     lower case. A lone "GALLERIA" passes; "GALLERIA MALL" does not.
+//   - A leading run of non-letters counts as a word towards the two-word
+//     threshold without ever being able to supply the mixed case. This is what
+//     makes "3427 GG 17" reportable — the rule's own bad example, which
+//     otherwise has only the one word to its name.
+//
+// Words too short to carry a case distinction are ignored, and so are words
+// written in a script that has none. Chinese, Arabic and Hebrew cannot answer
+// this question; canonical still counts them towards the threshold, which
+// reports every two-word Hebrew stop name in a feed. We skip them instead —
+// the divergence can only ever suppress a notice about text that had no case
+// to lose.
 func needsMixedCase(value string) bool {
-	upper, lower := 0, 0
-	for _, r := range value {
-		switch {
-		case unicode.IsUpper(r), unicode.IsTitle(r):
-			upper++
-		case unicode.IsLower(r):
-			lower++
-		}
-	}
-
-	if upper+lower < 2 {
+	words, leadingNonLetters := caseWords(value)
+	if len(words) == 0 {
 		return false
 	}
 
-	return upper == 0 || lower == 0
+	if len(words) == 1 && !leadingNonLetters {
+		return utf8.RuneCountInString(words[0]) > 1 && isAllLowerCase(words[0])
+	}
+
+	counted := 0
+	if leadingNonLetters {
+		counted++
+	}
+
+	mixed := false
+	for _, word := range words {
+		if utf8.RuneCountInString(word) == 1 || !hasCasedLetter(word) {
+			continue
+		}
+		counted++
+		if hasUpperCase(word) && hasLowerCase(word) {
+			mixed = true
+		}
+	}
+
+	return counted >= 2 && !mixed
+}
+
+// caseWords splits a name into its runs of letters, and reports separately
+// whether the name opens with something that is not a letter. Canonical splits
+// on non-letters and inherits a leading empty field from Java's split when it
+// does; the flag carries that field without putting an empty string in the
+// slice for every caller to step over.
+func caseWords(value string) (words []string, leadingNonLetters bool) {
+	start := -1
+	for i, r := range value {
+		if unicode.IsLetter(r) {
+			if start < 0 {
+				start = i
+			}
+			continue
+		}
+		if start >= 0 {
+			words = append(words, value[start:i])
+			start = -1
+		} else if i == 0 {
+			leadingNonLetters = true
+		}
+	}
+	if start >= 0 {
+		words = append(words, value[start:])
+	}
+	return words, leadingNonLetters
+}
+
+func isAllLowerCase(word string) bool {
+	for _, r := range word {
+		if !unicode.IsLower(r) {
+			return false
+		}
+	}
+	return true
+}
+
+func hasCasedLetter(word string) bool {
+	return hasUpperCase(word) || hasLowerCase(word)
+}
+
+func hasUpperCase(word string) bool {
+	return strings.ContainsFunc(word, func(r rune) bool {
+		return unicode.IsUpper(r) || unicode.IsTitle(r)
+	})
+}
+
+func hasLowerCase(word string) bool {
+	return strings.ContainsFunc(word, unicode.IsLower)
 }

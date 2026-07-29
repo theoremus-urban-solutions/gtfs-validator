@@ -167,11 +167,18 @@ var fieldSpecs = map[string][]fieldSpec{
 	"fare_attributes.txt": {
 		id("fare_id"),
 		id("agency_id"),
-		{Name: "price", Type: typeCurrencyAmount, CurrencyField: "currency_type"},
+		// The spec types price as a non-negative float, not as a currency
+		// amount: "0.8" EUR is a well formed price and means eighty cents. Only
+		// the Fares v2 amounts below are held to their currency's subunit.
+		nonNegativeFloat("price"),
 		{Name: "currency_type", Type: typeCurrencyCode},
 		enum("payment_method", 0, 1),
 		enum("transfers", 0, 1, 2),
 		nonNegativeInt("transfer_duration"),
+	},
+	"fare_products.txt": {
+		{Name: "amount", Type: typeCurrencyAmount, CurrencyField: "currency"},
+		{Name: "currency", Type: typeCurrencyCode},
 	},
 	"fare_rules.txt": {
 		id("fare_id"),

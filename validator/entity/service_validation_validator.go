@@ -3,6 +3,7 @@ package entity
 import (
 	"io"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -29,13 +30,18 @@ type ServiceInfo struct {
 	RowNumber int
 }
 
-// CalendarDateService represents what calendar_dates.txt says about a service.
-// LastAddedDate is the latest date the service is added on, which is what
-// decides whether the service has expired; removals do not extend a service.
+// CalendarDateService is what calendar_dates.txt says about one service: the
+// dates it puts service on and the dates it takes service away. Which of them
+// the service last runs on depends on its calendar.txt row as well, so that is
+// settled in lastActiveDate rather than here.
+//
+// RowNumber is the service's first row in the file, which is the row a notice
+// about the service as a whole points at.
 type CalendarDateService struct {
-	ServiceID     string
-	LastAddedDate *time.Time
-	RowNumber     int
+	ServiceID    string
+	AddedDates   []time.Time
+	RemovedDates map[int64]bool // keyed by Unix second, as the dates are
+	RowNumber    int
 }
 
 // Validate checks service definitions for consistency
@@ -157,24 +163,22 @@ func (v *ServiceValidationValidator) loadCalendarDateServices(loader *parser.Fee
 		service, exists := services[serviceIDTrimmed]
 		if !exists {
 			service = &CalendarDateService{
-				ServiceID: serviceIDTrimmed,
-				RowNumber: row.RowNumber,
+				ServiceID:    serviceIDTrimmed,
+				RemovedDates: make(map[int64]bool),
+				RowNumber:    row.RowNumber,
 			}
 			services[serviceIDTrimmed] = service
 		}
 
-		exceptionType, hasExceptionType := row.Values["exception_type"]
-		if !hasExceptionType || strings.TrimSpace(exceptionType) != "1" {
-			continue
-		}
-
 		date, err := v.parseGTFSDate(strings.TrimSpace(row.Values["date"]))
 		if err != nil {
-			continue
+			continue // Reported as invalid_date by the type layer
 		}
-		if service.LastAddedDate == nil || date.After(*service.LastAddedDate) {
-			service.LastAddedDate = date
-			service.RowNumber = row.RowNumber
+		switch strings.TrimSpace(row.Values["exception_type"]) {
+		case "1":
+			service.AddedDates = append(service.AddedDates, *date)
+		case "2":
+			service.RemovedDates[date.Unix()] = true
 		}
 	}
 
@@ -209,16 +213,27 @@ func (v *ServiceValidationValidator) validateActiveDays(container *notice.Notice
 // A calendar_dates.txt addition after the calendar.txt end_date keeps a service
 // alive, so both files decide the last active date together.
 func (v *ServiceValidationValidator) validateServiceDates(container *notice.NoticeContainer, calendarServices map[string]*ServiceInfo, calendarDateServices map[string]*CalendarDateService, currentDate time.Time) {
-	report := func(serviceID string, lastActive time.Time, rowNumber int) {
-		switch {
-		case lastActive.Before(currentDate):
-			container.AddNotice(notice.NewExpiredCalendarNotice(
-				rowNumber,
-				serviceID,
-				lastActive.Format("20060102"),
-				currentDate.Format("20060102"),
-			))
-		case lastActive.After(currentDate.AddDate(farFutureServiceYears, 0, 0)):
+	type expiredService struct {
+		serviceID string
+		rowNumber int
+	}
+	// Expired services with no calendar.txt row behind them. Whether they are
+	// worth reporting cannot be decided one at a time; see the flush below.
+	var expiredOutsideCalendar []expiredService
+	everyServiceExpired := true
+
+	report := func(serviceID string, lastActive time.Time, rowNumber int, inCalendar bool) {
+		if lastActive.Before(currentDate) {
+			if inCalendar {
+				container.AddNotice(notice.NewExpiredCalendarNotice(rowNumber, serviceID))
+			} else {
+				expiredOutsideCalendar = append(expiredOutsideCalendar, expiredService{serviceID, rowNumber})
+			}
+			return
+		}
+
+		everyServiceExpired = false
+		if lastActive.After(currentDate.AddDate(farFutureServiceYears, 0, 0)) {
 			container.AddNotice(notice.NewServiceExtendsFarInTheFutureNotice(
 				rowNumber,
 				serviceID,
@@ -229,32 +244,130 @@ func (v *ServiceValidationValidator) validateServiceDates(container *notice.Noti
 	}
 
 	for serviceID, service := range calendarServices {
-		lastActive, err := v.parseGTFSDate(service.EndDate)
-		if err != nil {
-			continue // Invalid or absent date - other validators handle this
+		lastActive, ok := v.lastActiveDate(service, calendarDateServices[serviceID])
+		if !ok {
+			// The service never runs at all, which is reported as
+			// service_has_no_active_day_of_the_week or, for dates that do not
+			// parse, by the type layer.
+			continue
 		}
-		rowNumber := service.RowNumber
-
-		if added, exists := calendarDateServices[serviceID]; exists && added.LastAddedDate != nil && added.LastAddedDate.After(*lastActive) {
-			lastActive = added.LastAddedDate
-			rowNumber = added.RowNumber
-		}
-
-		report(serviceID, *lastActive, rowNumber)
+		report(serviceID, lastActive, service.RowNumber, true)
 	}
 
-	// Services that exist only in calendar_dates.txt run until their last added
-	// date; ones that are only ever removed have no active date at all.
-	for serviceID, service := range calendarDateServices {
+	for serviceID, dates := range calendarDateServices {
 		if _, inCalendar := calendarServices[serviceID]; inCalendar {
 			continue
 		}
-		if service.LastAddedDate == nil {
+		lastActive, ok := v.lastActiveDate(nil, dates)
+		if !ok {
+			// A service only ever removed has no active date to expire.
 			continue
 		}
-
-		report(serviceID, *service.LastAddedDate, service.RowNumber)
+		report(serviceID, lastActive, dates.RowNumber, false)
 	}
+
+	// The rule is about date ranges that have run out, and a service defined
+	// only in calendar_dates.txt has no range — just a set of dates. Such a
+	// service is held aside and reported only when calendar.txt is empty AND
+	// every service in the feed has expired.
+	//
+	// The condition exists because a feed with no calendar.txt at all is a
+	// different situation from one whose calendars have run out, and only the
+	// second is what the rule is about. A feed that keeps its whole schedule in
+	// calendar_dates.txt leaves dates behind it as it goes, and reporting each
+	// of those would bury the case worth knowing about: a dataset where nothing
+	// runs any more. With calendar.txt present, a service it never mentions is
+	// a dangling reference, which foreign_key_violation covers.
+	//
+	// Do not restore per-service reporting here as missing coverage.
+	if len(calendarServices) > 0 || !everyServiceExpired {
+		return
+	}
+	// File order, so the notices do not shuffle between runs.
+	sort.Slice(expiredOutsideCalendar, func(i, j int) bool {
+		return expiredOutsideCalendar[i].rowNumber < expiredOutsideCalendar[j].rowNumber
+	})
+	for _, expired := range expiredOutsideCalendar {
+		container.AddNotice(notice.NewExpiredCalendarNotice(expired.rowNumber, expired.serviceID))
+	}
+}
+
+// dayFieldsByWeekday names the calendar.txt column that says whether a service
+// runs on a given date.
+var dayFieldsByWeekday = map[time.Weekday]string{
+	time.Monday:    "monday",
+	time.Tuesday:   "tuesday",
+	time.Wednesday: "wednesday",
+	time.Thursday:  "thursday",
+	time.Friday:    "friday",
+	time.Saturday:  "saturday",
+	time.Sunday:    "sunday",
+}
+
+// lastActiveDate returns the last date a service really runs on, which is what
+// decides whether it has expired.
+//
+// This is not the calendar.txt end_date. A calendar ending on a Tuesday but
+// running only on Sundays last ran the Sunday before, and calendar_dates.txt
+// has a say in both directions: an addition pushes the date out past end_date,
+// and a removal on the last day pulls it back in.
+func (v *ServiceValidationValidator) lastActiveDate(service *ServiceInfo, dates *CalendarDateService) (time.Time, bool) {
+	var candidates []time.Time
+	var removed map[int64]bool
+	if dates != nil {
+		candidates = append(candidates, dates.AddedDates...)
+		removed = dates.RemovedDates
+	}
+
+	// One calendar date per removal, plus one, is enough to outlast them all:
+	// every candidate the scan below skips costs a removal of its own.
+	candidates = append(candidates, v.lastCalendarDates(service, len(removed)+1)...)
+
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].After(candidates[j]) })
+	for _, date := range candidates {
+		if !removed[date.Unix()] {
+			return date, true
+		}
+	}
+	return time.Time{}, false
+}
+
+// lastCalendarDates returns up to limit of the dates a calendar.txt row runs
+// on, latest first. A service active on at least one day of the week reaches
+// each of them within a week of walking, so the limit bounds the work even
+// when an end_date typo like 29991231 puts the row's span in the millennia.
+func (v *ServiceValidationValidator) lastCalendarDates(service *ServiceInfo, limit int) []time.Time {
+	if service == nil {
+		return nil
+	}
+
+	runsOnSomeDay := false
+	for _, isActive := range service.Days {
+		if isActive {
+			runsOnSomeDay = true
+			break
+		}
+	}
+	if !runsOnSomeDay {
+		// Without this the walk below would cross the whole span to find
+		// nothing. validateActiveDays reports the row.
+		return nil
+	}
+
+	start, startErr := v.parseGTFSDate(service.StartDate)
+	end, endErr := v.parseGTFSDate(service.EndDate)
+	if startErr != nil || endErr != nil {
+		// Invalid or absent dates are reported by the type layer.
+		return nil
+	}
+
+	var dates []time.Time
+	for date := *end; !date.Before(*start) && len(dates) < limit; date = date.AddDate(0, 0, -1) {
+		if service.Days[dayFieldsByWeekday[date.Weekday()]] {
+			dates = append(dates, date)
+		}
+	}
+	return dates
 }
 
 // validateServiceUsage checks if services are actually used by trips

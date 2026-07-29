@@ -99,7 +99,7 @@ func TestRouteNameValidator_ValidateRoute(t *testing.T) {
 				"route_desc":       "main line",
 				"route_type":       "3",
 			},
-			expectedCodes: []string{"same_name_and_description_for_route"},
+			expectedCodes: []string{"same_name_and_description_for_route", "mixed_case_recommended_field"},
 		},
 		{
 			name: "description duplicates short name",
@@ -144,11 +144,52 @@ func TestRouteNameValidator_ValidateRoute(t *testing.T) {
 			expectedCodes: []string{"mixed_case_recommended_field"},
 		},
 		{
-			name: "short name in upper case is not judged",
+			name: "short name is a single upper case word",
 			rowData: map[string]string{
 				"route_id":         "route1",
 				"route_short_name": "AB",
 				"route_long_name":  "Main Line",
+				"route_type":       "3",
+			},
+			expectedCodes: []string{},
+		},
+		{
+			name: "short name has become prose",
+			rowData: map[string]string{
+				"route_id":         "route1",
+				"route_short_name": "AIR SHUTTLE",
+				"route_long_name":  "Main Line",
+				"route_type":       "3",
+			},
+			expectedCodes: []string{"mixed_case_recommended_field"},
+		},
+		{
+			name: "description in upper case only",
+			rowData: map[string]string{
+				"route_id":         "route1",
+				"route_short_name": "1",
+				"route_long_name":  "Main Line",
+				"route_desc":       "SERVES DOWNTOWN VIA MAIN STREET",
+				"route_type":       "3",
+			},
+			expectedCodes: []string{"mixed_case_recommended_field"},
+		},
+		{
+			name: "Cyrillic long name in upper case only",
+			rowData: map[string]string{
+				"route_id":         "route1",
+				"route_short_name": "1",
+				"route_long_name":  "ЦЕНТРАЛНА ГАРА",
+				"route_type":       "3",
+			},
+			expectedCodes: []string{"mixed_case_recommended_field"},
+		},
+		{
+			name: "Cyrillic long name in mixed case",
+			rowData: map[string]string{
+				"route_id":         "route1",
+				"route_short_name": "1",
+				"route_long_name":  "Централна гара",
 				"route_type":       "3",
 			},
 			expectedCodes: []string{},

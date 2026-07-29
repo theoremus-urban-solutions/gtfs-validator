@@ -22,9 +22,11 @@ func NewTripHeadsignValidator() *TripHeadsignValidator {
 }
 
 // headsignCandidate accumulates what one trip's stop times say about its
-// headsign: the furthest position reached, and the first position at which a
-// stop's name matched. Only these two are kept, so the pass over stop_times
-// costs a fixed amount of memory per trip rather than per stop time.
+// headsign: the furthest position reached, and every position at which a stop's
+// name matched. Whether a match counts is only decidable once the whole trip has
+// been seen, so the matches are held until then — but a headsign normally names
+// the trip's own terminus, so in practice this is about one entry per trip
+// rather than one per stop time.
 type headsignCandidate struct {
 	Headsign  string
 	RowNumber int
@@ -32,9 +34,13 @@ type headsignCandidate struct {
 	LastSequence int
 	HasLast      bool
 
-	MatchSequence int
-	MatchStopID   string
-	HasMatch      bool
+	Matches []headsignMatch
+}
+
+// headsignMatch is one stop time whose stop carries the trip's headsign.
+type headsignMatch struct {
+	Sequence int
+	StopID   string
 }
 
 // Validate reports headsigns matching an intermediate stop of their trip.
@@ -52,18 +58,25 @@ func (v *TripHeadsignValidator) Validate(loader *parser.FeedLoader, container *n
 	v.scanStopTimes(loader, candidates, stopNames)
 
 	for tripID, candidate := range candidates {
-		// A headsign naming the final stop is the normal case; only a match
-		// before the end contradicts what the sign promises.
-		if !candidate.HasMatch || !candidate.HasLast || candidate.MatchSequence >= candidate.LastSequence {
+		if !candidate.HasLast {
 			continue
 		}
-		container.AddNotice(notice.NewTripHeadsignMatchesIntermediateStopNotice(
-			tripID,
-			candidate.RowNumber,
-			candidate.Headsign,
-			candidate.MatchStopID,
-			candidate.MatchSequence,
-		))
+		for _, match := range candidate.Matches {
+			// A headsign naming the final stop is the normal case; only a match
+			// before the end contradicts what the sign promises. A trip that
+			// calls at the named stop more than once misleads a passenger at
+			// each of those calls, so each is reported.
+			if match.Sequence >= candidate.LastSequence {
+				continue
+			}
+			container.AddNotice(notice.NewTripHeadsignMatchesIntermediateStopNotice(
+				tripID,
+				candidate.RowNumber,
+				candidate.Headsign,
+				match.StopID,
+				match.Sequence,
+			))
+		}
 	}
 }
 
@@ -150,7 +163,7 @@ func (v *TripHeadsignValidator) loadStopNames(loader *parser.FeedLoader) map[str
 }
 
 // scanStopTimes makes the single pass over stop_times.txt, recording each
-// candidate trip's furthest stop and its first name match.
+// candidate trip's furthest stop and every name match along the way.
 func (v *TripHeadsignValidator) scanStopTimes(loader *parser.FeedLoader, candidates map[string]*headsignCandidate, stopNames map[string]string) {
 	reader, err := loader.GetFile("stop_times.txt")
 	if err != nil {
@@ -190,14 +203,9 @@ func (v *TripHeadsignValidator) scanStopTimes(loader *parser.FeedLoader, candida
 			candidate.HasLast = true
 		}
 
-		if candidate.HasMatch && sequence >= candidate.MatchSequence {
-			continue
-		}
 		stopID := strings.TrimSpace(row.Values["stop_id"])
 		if name, exists := stopNames[stopID]; exists && strings.EqualFold(name, candidate.Headsign) {
-			candidate.MatchSequence = sequence
-			candidate.MatchStopID = stopID
-			candidate.HasMatch = true
+			candidate.Matches = append(candidate.Matches, headsignMatch{Sequence: sequence, StopID: stopID})
 		}
 	}
 }

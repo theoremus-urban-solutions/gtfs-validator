@@ -199,20 +199,68 @@ func TestFieldTypeValidator_Validate(t *testing.T) {
 			description:         "XYZ is not ISO 4217",
 		},
 		{
-			name: "amount with too few decimals for its currency",
+			name: "fare price written to one decimal place",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method\nF1,2.5,USD,0",
+				"fare_attributes.txt": "fare_id,price,currency_type,payment_method\nF1,0.8,EUR,0",
+			},
+			expectedNoticeCodes: []string{},
+			description:         "price is a plain float; 0.8 EUR is eighty cents",
+		},
+		{
+			name: "fare price with more decimals than the euro has",
+			files: map[string]string{
+				"fare_attributes.txt": "fare_id,price,currency_type,payment_method\nF1,1.1,EUR,0\nF2,1.855,EUR,0",
+			},
+			expectedNoticeCodes: []string{},
+			description:         "Still a float: the subunit does not bound it",
+		},
+		{
+			name: "fare price that is not a number",
+			files: map[string]string{
+				"fare_attributes.txt": "fare_id,price,currency_type,payment_method\nF1,free,EUR,0",
+			},
+			expectedNoticeCodes: []string{"invalid_float"},
+			description:         "A price still has to parse",
+		},
+		{
+			name: "fare product amount with too few decimals for its currency",
+			files: map[string]string{
+				"fare_products.txt": "fare_product_id,amount,currency\nP1,2.5,USD",
 			},
 			expectedNoticeCodes: []string{"invalid_currency_amount"},
 			description:         "The dollar has two decimal places",
 		},
 		{
+			name: "fare product amount with too many decimals for its currency",
+			files: map[string]string{
+				"fare_products.txt": "fare_product_id,amount,currency\nP1,1.855,EUR",
+			},
+			expectedNoticeCodes: []string{"invalid_currency_amount"},
+			description:         "The euro has two decimal places, not three",
+		},
+		{
+			name: "fare product amount matching its currency",
+			files: map[string]string{
+				"fare_products.txt": "fare_product_id,amount,currency\nP1,2.50,USD",
+			},
+			expectedNoticeCodes: []string{},
+			description:         "Two decimal places is what the dollar asks for",
+		},
+		{
 			name: "yen amount with no decimals",
 			files: map[string]string{
-				"fare_attributes.txt": "fare_id,price,currency_type,payment_method\nF1,200,JPY,0",
+				"fare_products.txt": "fare_product_id,amount,currency\nP1,200,JPY",
 			},
 			expectedNoticeCodes: []string{},
 			description:         "The yen has no subunit",
+		},
+		{
+			name: "yen amount written with decimals",
+			files: map[string]string{
+				"fare_products.txt": "fare_product_id,amount,currency\nP1,200.00,JPY",
+			},
+			expectedNoticeCodes: []string{"invalid_currency_amount"},
+			description:         "The yen has no subunit to spend",
 		},
 
 		// Structure.
