@@ -35,8 +35,8 @@ func TestDateTripsValidator_Validate(t *testing.T) {
 				"calendar.txt": calendarHeader + "S1,0,0,0,0,0,0,0,20240101,20241231",
 				"trips.txt":    "route_id,service_id,trip_id\nR1,S1,T1",
 			},
-			wantCodes:   []string{"trip_coverage_not_active_for_next7_days"},
-			description: "A service with no active days runs no trips at all",
+			wantCodes:   nil,
+			description: "No date runs a trip, so there is no window to judge: service_has_no_active_day_of_the_week reports this feed",
 		},
 		{
 			name: "service ends mid-week",
@@ -53,8 +53,8 @@ func TestDateTripsValidator_Validate(t *testing.T) {
 				"calendar.txt": calendarHeader + "S1,1,1,1,1,1,1,1,20240101,20241231",
 				"trips.txt":    "route_id,service_id,trip_id\nR1,S2,T1",
 			},
-			wantCodes:   []string{"trip_coverage_not_active_for_next7_days"},
-			description: "An active calendar with no trips on it covers nothing",
+			wantCodes:   nil,
+			description: "An active calendar no trip references leaves the feed with no service dates at all",
 		},
 		{
 			name:        "no calendar at all",
@@ -68,8 +68,8 @@ func TestDateTripsValidator_Validate(t *testing.T) {
 				"calendar_dates.txt": "service_id,date,exception_type\nS1,20240101,1\nS1,20240201,1",
 				"trips.txt":          "route_id,service_id,trip_id\nR1,S1,T1",
 			},
-			wantCodes:   []string{"big_gap_in_service", "trip_coverage_not_active_for_next7_days"},
-			description: "Thirty-one days with nothing running is a hole in the feed",
+			wantCodes:   []string{"big_gap_in_service"},
+			description: "Thirty-one days with nothing running is a hole in the feed, but the window around it still covers the week",
 		},
 		{
 			name: "gap inside the threshold",
@@ -77,8 +77,76 @@ func TestDateTripsValidator_Validate(t *testing.T) {
 				"calendar_dates.txt": "service_id,date,exception_type\nS1,20240101,1\nS1,20240110,1",
 				"trips.txt":          "route_id,service_id,trip_id\nR1,S1,T1",
 			},
-			wantCodes:   []string{"trip_coverage_not_active_for_next7_days"},
+			wantCodes:   nil,
 			description: "Nine days apart is ordinary for an occasional service",
+		},
+		{
+			name: "weekday-only service over the coming week",
+			files: map[string]string{
+				"calendar.txt": calendarHeader + "S1,1,1,1,1,1,0,0,20240101,20241231",
+				"trips.txt":    "route_id,service_id,trip_id\nR1,S1,T1",
+			},
+			wantCodes:   nil,
+			description: "The weekend inside the window is not a coverage defect",
+		},
+		{
+			name: "the busy season starts after the coming week",
+			files: map[string]string{
+				"calendar.txt": calendarHeader +
+					"S1,1,1,1,1,1,1,1,20240601,20241231\n" +
+					"S2,1,1,1,1,1,1,1,20240101,20240531",
+				"trips.txt": "route_id,service_id,trip_id\n" +
+					"R1,S1,T1\nR1,S1,T2\nR1,S1,T3\nR1,S1,T4\nR1,S1,T5\n" +
+					"R1,S1,T6\nR1,S1,T7\nR1,S1,T8\nR1,S1,T9\nR1,S1,T10\n" +
+					"R1,S2,T11",
+			},
+			wantCodes:   []string{"trip_coverage_not_active_for_next7_days"},
+			description: "One trip a day running now does not stand in for the ten a day the feed is really about",
+		},
+		{
+			name: "the busy season is running now",
+			files: map[string]string{
+				"calendar.txt": calendarHeader +
+					"S1,1,1,1,1,1,1,1,20240101,20240731\n" +
+					"S2,1,1,1,1,1,1,1,20240801,20241231",
+				"trips.txt": "route_id,service_id,trip_id\n" +
+					"R1,S1,T1\nR1,S1,T2\nR1,S1,T3\nR1,S1,T4\nR1,S1,T5\n" +
+					"R1,S1,T6\nR1,S1,T7\nR1,S1,T8\nR1,S1,T9\nR1,S1,T10\n" +
+					"R1,S2,T11",
+			},
+			wantCodes:   nil,
+			description: "The week ahead sits inside the window the majority of trips run in",
+		},
+		{
+			name: "a long thin calendar around a short busy one",
+			files: map[string]string{
+				// Under the ratio alone the busy fifty days are lost in the
+				// thousand thin ones; the thirty-day limit is what finds them.
+				"calendar.txt": calendarHeader +
+					"S1,1,1,1,1,1,1,1,20261001,20261120\n" +
+					"S2,1,1,1,1,1,1,1,20240101,20260930",
+				"trips.txt": "route_id,service_id,trip_id\n" +
+					"R1,S1,T1\nR1,S1,T2\nR1,S1,T3\nR1,S1,T4\nR1,S1,T5\n" +
+					"R1,S1,T6\nR1,S1,T7\nR1,S1,T8\nR1,S1,T9\nR1,S1,T10\n" +
+					"R1,S2,T11",
+			},
+			wantCodes:   []string{"trip_coverage_not_active_for_next7_days"},
+			description: "The window is where the service really is, two years out",
+		},
+		{
+			name: "a frequency-based trip carries the service",
+			files: map[string]string{
+				"calendar.txt": calendarHeader +
+					"S1,1,1,1,1,1,1,1,20240701,20241231\n" +
+					"S2,1,1,1,1,1,1,1,20240101,20240630",
+				"trips.txt": "route_id,service_id,trip_id\n" +
+					"R1,S1,T1\n" +
+					"R1,S2,T2\nR1,S2,T3\nR1,S2,T4\nR1,S2,T5\nR1,S2,T6",
+				// Six hours every ten minutes: one row, thirty-seven vehicles.
+				"frequencies.txt": "trip_id,start_time,end_time,headway_secs\nT1,06:00:00,12:00:00,600",
+			},
+			wantCodes:   []string{"trip_coverage_not_active_for_next7_days"},
+			description: "A frequency-based trip counts for every vehicle it runs, not for its one row",
 		},
 		{
 			name: "feed valid well past the last day of service",
@@ -147,32 +215,45 @@ func TestDateTripsValidator_Validate(t *testing.T) {
 	}
 }
 
-// Service dates are midnight-UTC and the coverage check compares days by
-// equality, so a current date carrying a wall-clock time and a local zone used
-// to miss every comparison and report any feed as uncovered.
+// Service dates are midnight-UTC and the coverage check compares them against
+// the current date, so a current date carrying a wall-clock time and a local
+// zone used to miss every comparison and report any feed as uncovered. The
+// window ending exactly seven days out is where an untruncated time still
+// decides it by a matter of hours.
 func TestDateTripsValidator_CurrentDateWithClockTime(t *testing.T) {
-	files := map[string]string{
-		"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
-			"S1,1,1,1,1,1,1,1,20240101,20241231",
-		"trips.txt": "route_id,service_id,trip_id\nR1,S1,T1",
+	const calendarHeader = "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n"
+
+	feeds := map[string]map[string]string{
+		"service all year": {
+			"calendar.txt": calendarHeader + "S1,1,1,1,1,1,1,1,20240101,20241231",
+			"trips.txt":    "route_id,service_id,trip_id\nR1,S1,T1",
+		},
+		"service ending exactly seven days out": {
+			"calendar.txt": calendarHeader + "S1,1,1,1,1,1,1,1,20240101,20240619",
+			"trips.txt":    "route_id,service_id,trip_id\nR1,S1,T1",
+		},
 	}
 
 	// Mid-afternoon in a zone well east of UTC: the worst case for a
 	// comparison that assumes midnight.
 	sofia := time.FixedZone("EEST", 3*3600)
-	for _, currentDate := range []time.Time{
+	currentDates := []time.Time{
 		time.Date(2024, 6, 12, 14, 32, 11, 0, sofia),
 		time.Date(2024, 6, 12, 23, 59, 59, 0, sofia),
 		time.Date(2024, 6, 12, 0, 0, 0, 0, time.UTC),
-	} {
-		loader := testutil.CreateTestFeedLoader(t, files)
-		container := notice.NewNoticeContainer()
+	}
 
-		NewDateTripsValidator().Validate(loader, container, gtfsvalidator.Config{CurrentDate: currentDate})
+	for name, files := range feeds {
+		for _, currentDate := range currentDates {
+			loader := testutil.CreateTestFeedLoader(t, files)
+			container := notice.NewNoticeContainer()
 
-		for _, n := range container.GetNotices() {
-			if n.Code() == "trip_coverage_not_active_for_next7_days" {
-				t.Errorf("service runs every day all year, but %v reported it as uncovered", currentDate)
+			NewDateTripsValidator().Validate(loader, container, gtfsvalidator.Config{CurrentDate: currentDate})
+
+			for _, n := range container.GetNotices() {
+				if n.Code() == "trip_coverage_not_active_for_next7_days" {
+					t.Errorf("%s covers the coming week, but %v reported it as uncovered", name, currentDate)
+				}
 			}
 		}
 	}

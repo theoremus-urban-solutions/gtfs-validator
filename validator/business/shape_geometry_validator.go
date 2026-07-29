@@ -29,6 +29,14 @@ const (
 	// itself or the stop is in the wrong place.
 	maxMatchesPerStop = 5
 
+	// maxOrderingCandidates bounds how many passes per stop the order check will
+	// weigh against each other. The check costs the square of this per stop, so
+	// it has to be a constant: a pathological shape that grazes one stop a
+	// hundred times must not turn a pattern walk into a hundred-fold one. Set
+	// above maxMatchesPerStop, since a stop with more passes than that is
+	// already reported as ambiguous.
+	maxOrderingCandidates = 8
+
 	// tripShapeOvershootThreshold is the shape_dist_traveled overshoot below
 	// which a trip running past the end of its shape is treated as rounding.
 	// 11.1 units is 1e-4 degrees of latitude, the smallest difference four
@@ -59,6 +67,30 @@ type tripStop struct {
 	Dist         *float64
 	Location     *StopLocation
 	RowNumber    int
+}
+
+// stopPasses is a stop the shape does come near, together with the places along
+// the shape it could be served from.
+type stopPasses struct {
+	Stop   *tripStop
+	Passes []shapeMatch
+}
+
+// assignmentCost ranks one way of placing the stops along the shape. An
+// assignment that keeps the trip moving forwards beats one that does not
+// however far off the alignment it sits, because that is what the rule is
+// about; total distance from the shape only separates assignments that go
+// backwards equally often, where it picks the reading closest to the geometry.
+type assignmentCost struct {
+	breaks    int
+	deviation float64
+}
+
+func (c assignmentCost) better(other assignmentCost) bool {
+	if c.breaks != other.breaks {
+		return c.breaks < other.breaks
+	}
+	return c.deviation < other.deviation
 }
 
 // sequencedPoint keeps shape_pt_sequence alongside a point long enough to sort
@@ -133,8 +165,7 @@ func (v *ShapeGeometryValidator) validateStopsAgainstShape(container *notice.Not
 	}
 
 	matches := make([]shapeMatch, 0, 16)
-	previousAlong := math.Inf(-1)
-	var previous *tripStop
+	matched := make([]stopPasses, 0, len(pattern.Stops))
 
 	for i := range pattern.Stops {
 		stop := &pattern.Stops[i]
@@ -166,21 +197,113 @@ func (v *ShapeGeometryValidator) validateStopsAgainstShape(container *notice.Not
 			})
 		}
 
-		chosen, forwards := chooseMatch(passes, previousAlong)
-		if !forwards && previous != nil {
-			earlier := *previous
-			report(container, pattern.TripIDs, func(tripID string) notice.Notice {
-				return notice.NewStopsMatchShapeOutOfOrderNotice(
-					tripID, pattern.ShapeID,
-					earlier.StopID, earlier.StopSequence,
-					stop.StopID, stop.StopSequence,
-				)
-			})
+		matched = append(matched, stopPasses{Stop: stop, Passes: boundCandidates(passes)})
+	}
+
+	v.reportOutOfOrder(container, pattern, matched)
+}
+
+// reportOutOfOrder decides where along the shape the pattern serves each of its
+// stops, and reports the consecutive pairs left back to front.
+//
+// Deciding one stop at a time — the nearest pass at or ahead of the stop before
+// it — is what a shape that doubles back defeats. Where an out-and-back spur
+// brings the alignment past itself, a stop on the outbound leg lies within
+// tolerance of the inbound leg too, and one locally nearest choice can strand
+// every following stop apparently behind it. Whether the stops are in order is
+// a property of the sequence as a whole, so it is settled over the sequence as
+// a whole: of all the ways to place these stops along this shape, take the one
+// that goes backwards fewest times, and report only what that cannot avoid.
+func (v *ShapeGeometryValidator) reportOutOfOrder(container *notice.NoticeContainer, pattern *stopPattern, matched []stopPasses) {
+	if len(matched) < 2 {
+		return
+	}
+
+	// The first stop has nothing behind it to travel forwards from. Anchoring it
+	// at the earliest place it touches the shape can never push a later stop
+	// backwards — no other choice starts further back — so it needs no weighing
+	// against the rest and is settled first.
+	anchor := chooseMatch(matched[0].Passes)
+	matched[0].Passes = []shapeMatch{anchor}
+
+	// costs[j] is the best an assignment ending with the current stop matched at
+	// its pass j can do; parents[i][j] records which pass of the stop before it
+	// that assignment came through, so the winner can be walked back afterwards.
+	costs := []assignmentCost{{deviation: anchor.Metres}}
+	parents := make([][]int, len(matched))
+
+	for i := 1; i < len(matched); i++ {
+		previous := matched[i-1].Passes
+		current := matched[i].Passes
+
+		next := make([]assignmentCost, len(current))
+		parent := make([]int, len(current))
+
+		for j, pass := range current {
+			for k, before := range previous {
+				candidate := costs[k]
+				if pass.Along < before.Along {
+					candidate.breaks++
+				}
+				candidate.deviation += pass.Metres
+
+				if k == 0 || candidate.better(next[j]) {
+					next[j], parent[j] = candidate, k
+				}
+			}
 		}
 
-		previousAlong = chosen.Along
-		previous = stop
+		costs, parents[i] = next, parent
 	}
+
+	best := 0
+	for j := range costs {
+		if costs[j].better(costs[best]) {
+			best = j
+		}
+	}
+	if costs[best].breaks == 0 {
+		return
+	}
+
+	picks := make([]int, len(matched))
+	picks[len(matched)-1] = best
+	for i := len(matched) - 1; i > 0; i-- {
+		picks[i-1] = parents[i][picks[i]]
+	}
+
+	for i := 1; i < len(matched); i++ {
+		if matched[i].Passes[picks[i]].Along >= matched[i-1].Passes[picks[i-1]].Along {
+			continue
+		}
+		earlier, later := matched[i-1].Stop, matched[i].Stop
+		report(container, pattern.TripIDs, func(tripID string) notice.Notice {
+			return notice.NewStopsMatchShapeOutOfOrderNotice(
+				tripID, pattern.ShapeID,
+				earlier.StopID, earlier.StopSequence,
+				later.StopID, later.StopSequence,
+			)
+		})
+	}
+}
+
+// boundCandidates trims a stop's passes to the ones the order check will weigh,
+// keeping the closest and leaving them in order along the shape. A stop the
+// alignment reaches from this many places is already past the point where the
+// geometry says which one the trip means, and the passes dropped are the ones
+// furthest off the alignment.
+func boundCandidates(passes []shapeMatch) []shapeMatch {
+	if len(passes) <= maxOrderingCandidates {
+		return passes
+	}
+
+	closest := make([]shapeMatch, len(passes))
+	copy(closest, passes)
+	sort.SliceStable(closest, func(i, j int) bool { return closest[i].Metres < closest[j].Metres })
+
+	kept := closest[:maxOrderingCandidates]
+	sort.Slice(kept, func(i, j int) bool { return kept[i].Along < kept[j].Along })
+	return kept
 }
 
 // validateUserDistances checks the stop times that declare a
@@ -281,44 +404,18 @@ func clusterMatches(matches []shapeMatch) []shapeMatch {
 	return passes
 }
 
-// chooseMatch picks the pass the trip most likely means: the closest one that
-// still lies ahead of where the previous stop matched. When no pass does, the
-// stop matches the shape out of order and the closest pass overall is used to
-// carry on from.
-func chooseMatch(passes []shapeMatch, previousAlong float64) (chosen shapeMatch, forwards bool) {
-	// The first stop has nothing behind it to travel forwards from, so it
-	// anchors the traversal at the earliest place it touches the shape rather
-	// than the nearest one. On a loop the first stop sits within metres of both
-	// ends; anchoring at the near end would put the whole trip behind its own
-	// starting point and report every following stop as out of order.
-	if math.IsInf(previousAlong, -1) {
-		earliest := passes[0]
-		for _, pass := range passes[1:] {
-			if pass.Along < earliest.Along {
-				earliest = pass
-			}
-		}
-		return earliest, true
-	}
-
-	best := shapeMatch{Metres: math.Inf(1)}
-	ahead := shapeMatch{Metres: math.Inf(1)}
-	found := false
-
-	for _, pass := range passes {
-		if pass.Metres < best.Metres {
-			best = pass
-		}
-		if pass.Along >= previousAlong && pass.Metres < ahead.Metres {
-			ahead = pass
-			found = true
+// chooseMatch anchors the stop the trip starts from at the earliest place it
+// touches the shape, rather than the nearest one. On a loop the first stop sits
+// within metres of both ends; anchoring at the near end would put the whole trip
+// behind its own starting point and report every following stop as out of order.
+func chooseMatch(passes []shapeMatch) shapeMatch {
+	earliest := passes[0]
+	for _, pass := range passes[1:] {
+		if pass.Along < earliest.Along {
+			earliest = pass
 		}
 	}
-
-	if found {
-		return ahead, true
-	}
-	return best, false
+	return earliest
 }
 
 // maxStopDistance returns the furthest shape_dist_traveled the pattern's stop

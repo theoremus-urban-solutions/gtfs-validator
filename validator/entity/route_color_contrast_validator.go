@@ -3,7 +3,6 @@ package entity
 import (
 	"io"
 	"log"
-	"math"
 	"strconv"
 	"strings"
 
@@ -11,6 +10,20 @@ import (
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
 	"github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
+
+// minLumaDifference is the smallest gap in perceived brightness that still
+// leaves a route name legible against the route's own color.
+//
+// W3C AERT (http://www.w3.org/TR/2000/WD-AERT-20000426#color-contrast) asks for
+// 125, but that figure is written for body text. A route name is rendered the
+// way a logo is — large, short, and in a solid patch of color — so a smaller
+// gap still reads, and 125 would condemn pairings riders have no trouble with.
+const minLumaDifference = 72
+
+// unreadableLumaDifference is where the two colors stop being merely low
+// contrast and become the same shade to the eye, leaving the name invisible
+// rather than just hard to read.
+const unreadableLumaDifference = 10
 
 // RouteColorContrastValidator validates color contrast between route_color and route_text_color
 type RouteColorContrastValidator struct{}
@@ -22,9 +35,8 @@ func NewRouteColorContrastValidator() *RouteColorContrastValidator {
 
 // ColorInfo represents RGB color information
 type ColorInfo struct {
-	R, G, B   int
-	Hex       string
-	IsDefault bool
+	R, G, B int
+	Hex     string
 }
 
 // RouteColorInfo represents route color information
@@ -88,35 +100,26 @@ func (v *RouteColorContrastValidator) parseRouteColors(row *parser.CSVRow) *Rout
 		return nil
 	}
 
-	route := &RouteColorInfo{
-		RouteID:   strings.TrimSpace(routeID),
-		RowNumber: row.RowNumber,
-	}
-
-	// Parse route_color (defaults to white if not specified)
-	if routeColorStr, hasRouteColor := row.Values["route_color"]; hasRouteColor && strings.TrimSpace(routeColorStr) != "" {
-		route.RouteColor = v.parseColor(strings.TrimSpace(routeColorStr), false)
-	} else {
-		route.RouteColor = v.parseColor("FFFFFF", true) // Default white
-	}
-
-	// Parse route_text_color (defaults to black if not specified)
-	if routeTextColorStr, hasRouteTextColor := row.Values["route_text_color"]; hasRouteTextColor && strings.TrimSpace(routeTextColorStr) != "" {
-		route.RouteTextColor = v.parseColor(strings.TrimSpace(routeTextColorStr), false)
-	} else {
-		route.RouteTextColor = v.parseColor("000000", true) // Default black
-	}
-
-	// Only return if at least one color is valid
-	if route.RouteColor == nil && route.RouteTextColor == nil {
+	// A color the agency left out is not a contrast defect. The spec fills the
+	// gap with white behind black text, which contrasts by construction, so
+	// judging a chosen color against a default nobody picked would either say
+	// nothing or report a clash the feed does not contain.
+	routeColor := v.parseColor(strings.TrimSpace(row.Values["route_color"]))
+	routeTextColor := v.parseColor(strings.TrimSpace(row.Values["route_text_color"]))
+	if routeColor == nil || routeTextColor == nil {
 		return nil
 	}
 
-	return route
+	return &RouteColorInfo{
+		RouteID:        strings.TrimSpace(routeID),
+		RouteColor:     routeColor,
+		RouteTextColor: routeTextColor,
+		RowNumber:      row.RowNumber,
+	}
 }
 
 // parseColor parses a hex color string into ColorInfo
-func (v *RouteColorContrastValidator) parseColor(hexStr string, isDefault bool) *ColorInfo {
+func (v *RouteColorContrastValidator) parseColor(hexStr string) *ColorInfo {
 	// Remove # if present
 	hexStr = strings.TrimPrefix(hexStr, "#")
 
@@ -135,79 +138,57 @@ func (v *RouteColorContrastValidator) parseColor(hexStr string, isDefault bool) 
 	}
 
 	return &ColorInfo{
-		R:         int(r),
-		G:         int(g),
-		B:         int(b),
-		Hex:       strings.ToUpper(hexStr),
-		IsDefault: isDefault,
+		R:   int(r),
+		G:   int(g),
+		B:   int(b),
+		Hex: strings.ToUpper(hexStr),
 	}
 }
 
-// validateRouteColors validates color contrast for a route
+// validateRouteColors reports a route whose name would not stand out against
+// the route's own color.
+//
+// The measure is a gap in perceived brightness, not a WCAG contrast ratio.
+// WCAG ratios are calibrated for body text against a 4.5 threshold, which
+// condemns pairings riders read without effort: white on a dark green badge
+// scores 4.47 and fails, though nobody has trouble with it. Comparing luma
+// asks the narrower question a route badge actually poses, which is whether
+// large text separates from its background at a glance.
 func (v *RouteColorContrastValidator) validateRouteColors(container *notice.NoticeContainer, route RouteColorInfo) {
-	// Skip validation if either color is invalid
-	if route.RouteColor == nil || route.RouteTextColor == nil {
+	lumaDifference := rec601Luma(route.RouteColor) - rec601Luma(route.RouteTextColor)
+	if lumaDifference < 0 {
+		lumaDifference = -lumaDifference
+	}
+	if lumaDifference >= minLumaDifference {
 		return
 	}
 
-	// Calculate contrast ratio
-	contrastRatio := v.calculateContrastRatio(route.RouteColor, route.RouteTextColor)
-
-	// WCAG AA standard requires contrast ratio of at least 4.5:1 for normal text
-	// WCAG AAA standard requires 7:1, but for transportation we'll use 4.5:1
-	minimumContrast := 4.5
-
-	if contrastRatio < minimumContrast {
-		// Since Google accepts feeds with poor contrast, use WARNING instead of ERROR
-		// Only use ERROR for extremely poor contrast that would be completely unreadable
-		var severity notice.SeverityLevel
-		if contrastRatio < 1.5 {
-			severity = notice.ERROR // Extremely poor contrast (essentially unreadable)
-		} else {
-			severity = notice.WARNING // Poor but acceptable contrast
-		}
-
-		container.AddNotice(notice.NewRouteColorContrastNotice(
-			route.RouteID,
-			route.RouteColor.Hex,
-			route.RouteTextColor.Hex,
-			contrastRatio,
-			minimumContrast,
-			route.RowNumber,
-			severity,
-		))
+	// Low contrast is a legibility complaint, not a broken feed, so it stays a
+	// warning until the name is not merely faint but absent.
+	severity := notice.WARNING
+	if lumaDifference < unreadableLumaDifference {
+		severity = notice.ERROR
 	}
+
+	container.AddNotice(notice.NewRouteColorContrastNotice(
+		route.RouteID,
+		route.RouteColor.Hex,
+		route.RouteTextColor.Hex,
+		float64(lumaDifference),
+		float64(minLumaDifference),
+		route.RowNumber,
+		severity,
+	))
 }
 
-// calculateContrastRatio calculates WCAG contrast ratio between two colors
-func (v *RouteColorContrastValidator) calculateContrastRatio(color1, color2 *ColorInfo) float64 {
-	// Calculate relative luminance for each color
-	lum1 := v.calculateRelativeLuminance(color1)
-	lum2 := v.calculateRelativeLuminance(color2)
-
-	// Ensure lighter color is numerator
-	lighter := math.Max(lum1, lum2)
-	darker := math.Min(lum1, lum2)
-
-	// Calculate contrast ratio
-	return (lighter + 0.05) / (darker + 0.05)
-}
-
-// calculateRelativeLuminance calculates relative luminance according to WCAG formula
-func (v *RouteColorContrastValidator) calculateRelativeLuminance(color *ColorInfo) float64 {
-	// Convert RGB to linear RGB
-	r := v.linearizeColorComponent(float64(color.R) / 255.0)
-	g := v.linearizeColorComponent(float64(color.G) / 255.0)
-	b := v.linearizeColorComponent(float64(color.B) / 255.0)
-
-	// Calculate luminance using WCAG formula
-	return 0.2126*r + 0.7152*g + 0.0722*b
-}
-
-// linearizeColorComponent applies gamma correction to color component
-func (v *RouteColorContrastValidator) linearizeColorComponent(component float64) float64 {
-	if component <= 0.03928 {
-		return component / 12.92
-	}
-	return math.Pow((component+0.055)/1.055, 2.4)
+// rec601Luma returns how bright a color looks, on the same 0-255 scale as its
+// components.
+//
+// The weights are Rec. 601 luma (https://en.wikipedia.org/wiki/Luma_(video)):
+// green carries most of the apparent brightness and blue almost none, which is
+// why pure blue reads as dark and pure yellow as light. The result is truncated
+// to an integer so that the difference reported here is the one the canonical
+// validator reports.
+func rec601Luma(color *ColorInfo) int {
+	return int(0.30*float64(color.R) + 0.59*float64(color.G) + 0.11*float64(color.B))
 }

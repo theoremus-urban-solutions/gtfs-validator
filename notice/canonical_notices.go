@@ -7,17 +7,17 @@ package notice
 
 // UnsortedStopTimesNotice reports stop_times.txt entries for a trip that are
 // not in stop_sequence order, or not contiguous in the file. Consumers that
-// stream the file rely on both.
+// stream the file rely on both. One notice covers the trip's whole span in the
+// file rather than each row that breaks the order.
 type UnsortedStopTimesNotice struct {
 	*BaseNotice
 }
 
-func NewUnsortedStopTimesNotice(tripID string, rowNumber int, stopSequence int, prevStopSequence int) *UnsortedStopTimesNotice {
+func NewUnsortedStopTimesNotice(tripID string, startRowNumber int, endRowNumber int) *UnsortedStopTimesNotice {
 	context := map[string]interface{}{
-		"tripId":           tripID,
-		"csvRowNumber":     rowNumber,
-		"stopSequence":     stopSequence,
-		"prevStopSequence": prevStopSequence,
+		"tripId":            tripID,
+		"startCsvRowNumber": startRowNumber,
+		"endCsvRowNumber":   endRowNumber,
 	}
 	return &UnsortedStopTimesNotice{
 		BaseNotice: NewBaseNotice("unsorted_stop_times", INFO, context),
@@ -388,16 +388,17 @@ func NewTransferWithInvalidTripAndStopNotice(rowNumber int, tripFieldName string
 	}
 }
 
-// TripCoverageNotActiveForNext7DaysNotice reports a feed whose trips stop
-// running within the coming week.
+// TripCoverageNotActiveForNext7DaysNotice reports a feed whose window of
+// majority service does not cover the coming week.
 type TripCoverageNotActiveForNext7DaysNotice struct {
 	*BaseNotice
 }
 
-func NewTripCoverageNotActiveForNext7DaysNotice(currentDate string, lastServiceDate string) *TripCoverageNotActiveForNext7DaysNotice {
+func NewTripCoverageNotActiveForNext7DaysNotice(currentDate string, serviceWindowStartDate string, serviceWindowEndDate string) *TripCoverageNotActiveForNext7DaysNotice {
 	context := map[string]interface{}{
-		"currentDate":     currentDate,
-		"lastServiceDate": lastServiceDate,
+		"currentDate":            currentDate,
+		"serviceWindowStartDate": serviceWindowStartDate,
+		"serviceWindowEndDate":   serviceWindowEndDate,
 	}
 	return &TripCoverageNotActiveForNext7DaysNotice{
 		BaseNotice: NewBaseNotice("trip_coverage_not_active_for_next7_days", WARNING, context),

@@ -68,7 +68,7 @@ func TestRouteColorContrastValidator_Validate(t *testing.T) {
 					"route1,1,3",
 			},
 			expectedNoticeCodes: []string{},
-			description:         "Default white background with black text should have good contrast",
+			description:         "Neither color is given, so the route is not judged",
 		},
 		{
 			name: "red green color combination",
@@ -76,8 +76,8 @@ func TestRouteColorContrastValidator_Validate(t *testing.T) {
 				"routes.txt": "route_id,route_short_name,route_type,route_color,route_text_color\n" +
 					"route1,1,3,FF0000,00FF00",
 			},
-			expectedNoticeCodes: []string{"route_color_contrast"},
-			description:         "Red background with green text is problematic for colorblind users and has poor contrast",
+			expectedNoticeCodes: []string{},
+			description:         "Red and green differ in brightness by 74, just clear of the threshold; the rule measures legibility, not color blindness",
 		},
 		{
 			name: "green background red text",
@@ -85,8 +85,8 @@ func TestRouteColorContrastValidator_Validate(t *testing.T) {
 				"routes.txt": "route_id,route_short_name,route_type,route_color,route_text_color\n" +
 					"route1,1,3,00FF00,FF0000",
 			},
-			expectedNoticeCodes: []string{"route_color_contrast"},
-			description:         "Green background with red text is problematic for colorblind users and has poor contrast",
+			expectedNoticeCodes: []string{},
+			description:         "Same pair reversed, same brightness gap, same verdict",
 		},
 		{
 			name: "similar colors too close",
@@ -118,22 +118,31 @@ func TestRouteColorContrastValidator_Validate(t *testing.T) {
 			description:         "Blue text on white background should have adequate contrast",
 		},
 		{
-			name: "only route_color specified uses default text",
+			name: "only route_color specified",
 			files: map[string]string{
 				"routes.txt": "route_id,route_short_name,route_type,route_color\n" +
 					"route1,1,3,FFFFFF",
 			},
 			expectedNoticeCodes: []string{},
-			description:         "White background with default black text should be fine",
+			description:         "White is only a defect against the text color, which the agency never chose",
 		},
 		{
-			name: "only route_text_color specified uses default background",
+			name: "only route_text_color specified",
 			files: map[string]string{
 				"routes.txt": "route_id,route_short_name,route_type,route_text_color\n" +
 					"route1,1,3,000000",
 			},
 			expectedNoticeCodes: []string{},
-			description:         "Black text with default white background should be fine",
+			description:         "Half a color pair says nothing about contrast",
+		},
+		{
+			name: "black on unspecified background is not judged",
+			files: map[string]string{
+				"routes.txt": "route_id,route_short_name,route_type,route_text_color\n" +
+					"route1,1,3,010101",
+			},
+			expectedNoticeCodes: []string{},
+			description:         "Near-black text would clash with a black background, but the feed never asked for one",
 		},
 		{
 			name: "invalid hex colors ignored",
@@ -242,73 +251,125 @@ func TestRouteColorContrastValidator_Validate(t *testing.T) {
 	}
 }
 
+// TestRouteColorContrastValidator_RealFeedColorPairs pins the exact palette of
+// a Sofia bus feed, the case that showed the WCAG ratio was the wrong measure:
+// it condemned four of these five, of which only the yellow is hard to read.
+func TestRouteColorContrastValidator_RealFeedColorPairs(t *testing.T) {
+	tests := []struct {
+		name           string
+		routeColor     string
+		routeTextColor string
+		expectNotice   bool
+		description    string
+	}{
+		{
+			name:           "dark green on white",
+			routeColor:     "008b02",
+			routeTextColor: "ffffff",
+			expectNotice:   false,
+			description:    "Luma 82 against 255",
+		},
+		{
+			name:           "blue on white",
+			routeColor:     "004dcf",
+			routeTextColor: "ffffff",
+			expectNotice:   false,
+			description:    "Luma 68 against 255; blue barely contributes to brightness",
+		},
+		{
+			name:           "orange on white",
+			routeColor:     "db3e00",
+			routeTextColor: "ffffff",
+			expectNotice:   false,
+			description:    "Luma 102 against 255",
+		},
+		{
+			name:           "yellow on white",
+			routeColor:     "fccb00",
+			routeTextColor: "ffffff",
+			expectNotice:   true,
+			description:    "Luma 195 against 255, a gap of 60 - white on yellow is the one nobody can read",
+		},
+		{
+			name:           "salmon on white",
+			routeColor:     "FF6666",
+			routeTextColor: "ffffff",
+			expectNotice:   false,
+			description:    "Luma 147 against 255, a gap of 108 - light, but still legible",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			files := map[string]string{
+				"routes.txt": "route_id,route_short_name,route_type,route_color,route_text_color\n" +
+					"route1,1,3," + tt.routeColor + "," + tt.routeTextColor,
+			}
+
+			container := notice.NewNoticeContainer()
+			NewRouteColorContrastValidator().Validate(testutil.CreateTestFeedLoader(t, files), container, gtfsvalidator.Config{})
+
+			gotNotice := len(container.GetNotices()) > 0
+			if gotNotice != tt.expectNotice {
+				t.Errorf("%s on %s: got notice %v, want %v (%s)",
+					tt.routeTextColor, tt.routeColor, gotNotice, tt.expectNotice, tt.description)
+			}
+		})
+	}
+}
+
 func TestRouteColorContrastValidator_ParseColor(t *testing.T) {
 	validator := NewRouteColorContrastValidator()
 
 	tests := []struct {
 		name        string
 		hexStr      string
-		isDefault   bool
 		expectedRGB [3]int
 		shouldPass  bool
 	}{
 		{
 			name:        "valid uppercase hex",
 			hexStr:      "FF0000",
-			isDefault:   false,
 			expectedRGB: [3]int{255, 0, 0},
 			shouldPass:  true,
 		},
 		{
 			name:        "valid lowercase hex",
 			hexStr:      "00ff00",
-			isDefault:   false,
 			expectedRGB: [3]int{0, 255, 0},
 			shouldPass:  true,
 		},
 		{
 			name:        "valid hex with hash prefix",
 			hexStr:      "#0000FF",
-			isDefault:   false,
 			expectedRGB: [3]int{0, 0, 255},
-			shouldPass:  true,
-		},
-		{
-			name:        "default color",
-			hexStr:      "FFFFFF",
-			isDefault:   true,
-			expectedRGB: [3]int{255, 255, 255},
 			shouldPass:  true,
 		},
 		{
 			name:       "invalid hex too short",
 			hexStr:     "FF00",
-			isDefault:  false,
 			shouldPass: false,
 		},
 		{
 			name:       "invalid hex too long",
 			hexStr:     "FF000000",
-			isDefault:  false,
 			shouldPass: false,
 		},
 		{
 			name:       "invalid hex characters",
 			hexStr:     "GGGGGG",
-			isDefault:  false,
 			shouldPass: false,
 		},
 		{
 			name:       "empty string",
 			hexStr:     "",
-			isDefault:  false,
 			shouldPass: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := validator.parseColor(tt.hexStr, tt.isDefault)
+			result := validator.parseColor(tt.hexStr)
 
 			if tt.shouldPass {
 				if result == nil {
@@ -321,10 +382,6 @@ func TestRouteColorContrastValidator_ParseColor(t *testing.T) {
 						tt.expectedRGB[0], tt.expectedRGB[1], tt.expectedRGB[2],
 						result.R, result.G, result.B)
 				}
-
-				if result.IsDefault != tt.isDefault {
-					t.Errorf("Expected IsDefault %v, got %v", tt.isDefault, result.IsDefault)
-				}
 			} else if result != nil {
 				t.Errorf("Expected nil for invalid color, got %+v", result)
 			}
@@ -332,53 +389,23 @@ func TestRouteColorContrastValidator_ParseColor(t *testing.T) {
 	}
 }
 
-func TestRouteColorContrastValidator_CalculateContrastRatio(t *testing.T) {
-	validator := NewRouteColorContrastValidator()
-
+func TestRouteColorContrastValidator_Rec601Luma(t *testing.T) {
 	tests := []struct {
-		name          string
-		color1        *ColorInfo
-		color2        *ColorInfo
-		expectedRatio float64
-		tolerance     float64
+		name         string
+		color        *ColorInfo
+		expectedLuma int
 	}{
-		{
-			name:          "black on white maximum contrast",
-			color1:        &ColorInfo{R: 0, G: 0, B: 0},       // Black
-			color2:        &ColorInfo{R: 255, G: 255, B: 255}, // White
-			expectedRatio: 21.0,
-			tolerance:     0.1,
-		},
-		{
-			name:          "white on black maximum contrast",
-			color1:        &ColorInfo{R: 255, G: 255, B: 255}, // White
-			color2:        &ColorInfo{R: 0, G: 0, B: 0},       // Black
-			expectedRatio: 21.0,
-			tolerance:     0.1,
-		},
-		{
-			name:          "identical colors minimum contrast",
-			color1:        &ColorInfo{R: 128, G: 128, B: 128},
-			color2:        &ColorInfo{R: 128, G: 128, B: 128},
-			expectedRatio: 1.0,
-			tolerance:     0.1,
-		},
-		{
-			name:          "red on blue moderate contrast",
-			color1:        &ColorInfo{R: 255, G: 0, B: 0}, // Red
-			color2:        &ColorInfo{R: 0, G: 0, B: 255}, // Blue
-			expectedRatio: 2.14,                           // Approximate expected value
-			tolerance:     0.2,
-		},
+		{name: "black", color: &ColorInfo{R: 0, G: 0, B: 0}, expectedLuma: 0},
+		{name: "white", color: &ColorInfo{R: 255, G: 255, B: 255}, expectedLuma: 255},
+		{name: "green carries the most weight", color: &ColorInfo{R: 0, G: 255, B: 0}, expectedLuma: 150},
+		{name: "red carries less", color: &ColorInfo{R: 255, G: 0, B: 0}, expectedLuma: 76},
+		{name: "blue carries almost none", color: &ColorInfo{R: 0, G: 0, B: 255}, expectedLuma: 28},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := validator.calculateContrastRatio(tt.color1, tt.color2)
-
-			if result < tt.expectedRatio-tt.tolerance || result > tt.expectedRatio+tt.tolerance {
-				t.Errorf("Expected contrast ratio around %.2f (±%.2f), got %.2f",
-					tt.expectedRatio, tt.tolerance, result)
+			if got := rec601Luma(tt.color); got != tt.expectedLuma {
+				t.Errorf("rec601Luma(%+v) = %d, want %d", tt.color, got, tt.expectedLuma)
 			}
 		})
 	}

@@ -1343,19 +1343,25 @@ func NewDuplicateRouteNameCombinationNotice(routeID, routeLongName, routeShortNa
 
 // === ROUTE COLOR CONTRAST NOTICES ===
 
-// RouteColorContrastNotice represents insufficient color contrast
+// RouteColorContrastNotice reports a route name that is hard to read against
+// its own background.
+//
+// The measure is the Rec. 601 luma difference between the two colours, not a
+// WCAG contrast ratio: WCAG's thresholds are calibrated for body text and are
+// too harsh for a large coloured line badge, which is what these two fields
+// actually render as.
 type RouteColorContrastNotice struct {
 	*BaseNotice
 }
 
-func NewRouteColorContrastNotice(routeID, routeColor, routeTextColor string, actualContrast, minimumContrast float64, rowNumber int, severity SeverityLevel) *RouteColorContrastNotice {
+func NewRouteColorContrastNotice(routeID, routeColor, routeTextColor string, lumaDifference, minimumLumaDifference float64, rowNumber int, severity SeverityLevel) *RouteColorContrastNotice {
 	context := map[string]interface{}{
-		"routeId":         routeID,
-		"routeColor":      routeColor,
-		"routeTextColor":  routeTextColor,
-		"actualContrast":  actualContrast,
-		"minimumContrast": minimumContrast,
-		"csvRowNumber":    rowNumber,
+		"routeId":               routeID,
+		"routeColor":            routeColor,
+		"routeTextColor":        routeTextColor,
+		"lumaDifference":        lumaDifference,
+		"minimumLumaDifference": minimumLumaDifference,
+		"csvRowNumber":          rowNumber,
 	}
 	return &RouteColorContrastNotice{
 		BaseNotice: NewBaseNotice("route_color_contrast", severity, context),

@@ -34,10 +34,11 @@ type StopInfo struct {
 // Validate checks stop location consistency and hierarchy
 func (v *StopLocationValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
 	stops := v.loadStops(loader)
+	hasStation := feedHasStation(stops)
 
 	// Validate each stop
 	for _, stop := range stops {
-		v.validateStop(container, stop, stops)
+		v.validateStop(container, stop, stops, hasStation)
 	}
 
 	// Validate parent-child relationships
@@ -124,7 +125,7 @@ func (v *StopLocationValidator) loadStops(loader *parser.FeedLoader) map[string]
 }
 
 // validateStop validates a single stop
-func (v *StopLocationValidator) validateStop(container *notice.NoticeContainer, stop *StopInfo, allStops map[string]*StopInfo) {
+func (v *StopLocationValidator) validateStop(container *notice.NoticeContainer, stop *StopInfo, allStops map[string]*StopInfo, hasStation bool) {
 	// Validate coordinates requirement
 	v.validateCoordinatesRequirement(container, stop)
 
@@ -132,10 +133,20 @@ func (v *StopLocationValidator) validateStop(container *notice.NoticeContainer, 
 	v.validateParentStationReference(container, stop, allStops)
 
 	// Validate location type specific rules
-	v.validateLocationTypeRules(container, stop, allStops)
+	v.validateLocationTypeRules(container, stop, hasStation)
 
 	// Validate stop_access, which only a platform inside a station may declare
 	v.validateStopAccess(container, stop)
+}
+
+// feedHasStation reports whether the feed models station hierarchy at all.
+func feedHasStation(stops map[string]*StopInfo) bool {
+	for _, stop := range stops {
+		if stop.LocationType == 1 {
+			return true
+		}
+	}
+	return false
 }
 
 // expectedParentLocationType gives the location_type a parent must have for a
@@ -206,13 +217,18 @@ func (v *StopLocationValidator) validateParentStationReference(container *notice
 }
 
 // validateLocationTypeRules validates location type specific rules
-func (v *StopLocationValidator) validateLocationTypeRules(container *notice.NoticeContainer, stop *StopInfo, allStops map[string]*StopInfo) {
+func (v *StopLocationValidator) validateLocationTypeRules(container *notice.NoticeContainer, stop *StopInfo, hasStation bool) {
 	switch stop.LocationType {
 	case 0: // Stop/platform
 		// A platform outside a station is legal — a lone bus stop is exactly
 		// that — so this is an advisory rather than the error raised for the
 		// location types that only exist within a station.
-		if stop.ParentStation == "" {
+		//
+		// The advisory is worth making only where the feed models station
+		// hierarchy somewhere. A feed that declares no station at all gives a
+		// platform nothing to be a child of, so the notice would fire on every
+		// stop in the feed and point at no fixable omission.
+		if hasStation && stop.ParentStation == "" {
 			container.AddNotice(notice.NewPlatformWithoutParentStationNotice(
 				stop.StopID,
 				stop.RowNumber,

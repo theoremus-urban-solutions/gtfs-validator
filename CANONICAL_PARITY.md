@@ -133,6 +133,32 @@ successful `strconv.Atoi`, so a field holding a non-numeric value fell through
 and reported nothing at all. `unexpected_enum_value` compares the value as
 written.
 
+## Where the published rules and the canonical implementation disagree
+
+Running a real feed through both validators and comparing turned up two rules
+where the rules page and the reference implementation do not say the same
+thing. We follow the implementation, because parity is what consumers actually
+compare against: a feed that passes upstream and fails here is a support ticket,
+whichever reading is better on paper. Both are worth knowing about.
+
+**`route_long_name_contains_short_name`** is published as a containment rule
+with three bad examples, two of which — `"14"`/`"Route 14"` and
+`"2"`/`"Route 2: Bellows Falls In-Town"` — put the short name after a generic
+word. The implementation tests only whether the long name *begins* with the
+short name followed by a separator, so it does not report either of its own
+examples. The narrowing is deliberate; the source carries a comment and a design
+discussion for it. We match the implementation, and the cost is one-directional:
+the common `"14"`/`"Route 14"` shape goes unreported by both validators.
+`TestRouteNameValidator_LongNameLeadsWithShortName` pins all seven documented
+examples, with the two we knowingly miss recorded as such.
+
+**`route_color_contrast`** is not a WCAG contrast ratio, despite the name. The
+implementation compares Rec. 601 luma — `0.30R + 0.59G + 0.11B` — and fires
+below a difference of 72, with a source comment noting that W3C's recommended
+125 is meant for body text and is "too harsh for big colored logos like line
+names". We had used a WCAG 4.5 ratio, which failed white-on-dark-green: legible
+by eye, and passed by canonical.
+
 ## Deliberately not renamed
 
 These look equivalent by name but check something different. Renaming them would

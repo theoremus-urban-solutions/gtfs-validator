@@ -78,8 +78,8 @@ func (v *RouteNameValidator) validateRoute(container *notice.NoticeContainer, ro
 	longName := strings.TrimSpace(routeLongName)
 
 	// Applications routinely render the two names side by side, so a long name
-	// that already carries the short one shows it twice ("14 Route 14").
-	if !shortNameEmpty && !longNameEmpty && containsAsWord(longName, shortName) {
+	// that opens with the short one shows it twice ("14" + "14 Express").
+	if !shortNameEmpty && !longNameEmpty && longNameLeadsWithShortName(longName, shortName) {
 		container.AddNotice(notice.NewRouteLongNameContainsShortNameNotice(
 			strings.TrimSpace(routeID),
 			shortName,
@@ -137,40 +137,39 @@ func (v *RouteNameValidator) validateRouteDescription(container *notice.NoticeCo
 	))
 }
 
-// containsAsWord reports whether needle occurs in haystack bounded by
-// something other than a letter or a digit.
+// longNameLeadsWithShortName reports whether longName is shortName followed by
+// nothing at all, or by a separator.
 //
-// A plain substring test would flag route "1" for the long name "Route 100",
-// which is not the defect the rule describes: the complaint is that the short
-// name is repeated, and "100" is a different name that merely starts with the
-// same digit.
-func containsAsWord(haystack string, needle string) bool {
-	text := []rune(strings.ToLower(haystack))
-	word := []rune(strings.ToLower(needle))
-	if len(word) == 0 || len(word) > len(text) {
+// The published rule is worded as containment, and its own bad examples include
+// "14"/"Route 14", where the short name follows a generic word. The canonical
+// validator does not implement that: it tests only whether the long name begins
+// with the short name and the next character is a space, "-", "(" or ")". The
+// narrowing is deliberate and argued for in its source, so the prose is the
+// loose artefact here and the narrower check is the real contract.
+//
+// We match the implementation rather than the prose, because parity is what
+// consumers compare against — a feed that passes upstream and fails here is a
+// support ticket, whichever reading is more defensible on paper. The cost is
+// one-directional and worth stating plainly: the "Route 14" shape is common,
+// and neither validator reports it. See CANONICAL_PARITY.md.
+func longNameLeadsWithShortName(longName string, shortName string) bool {
+	if shortName == "" || len(longName) < len(shortName) {
+		return false
+	}
+	if !strings.EqualFold(longName[:len(shortName)], shortName) {
 		return false
 	}
 
-	for i := 0; i+len(word) <= len(text); i++ {
-		if string(text[i:i+len(word)]) != string(word) {
-			continue
-		}
-		if i > 0 && isNameWordRune(text[i-1]) {
-			continue
-		}
-		if end := i + len(word); end < len(text) && isNameWordRune(text[end]) {
-			continue
-		}
+	remainder := longName[len(shortName):]
+	if remainder == "" {
 		return true
 	}
 
-	return false
-}
-
-// isNameWordRune reports whether a rune continues a word rather than
-// delimiting one.
-func isNameWordRune(r rune) bool {
-	return unicode.IsLetter(r) || unicode.IsDigit(r)
+	// The short name has to end where it claims to: "21 Clark Rd" restates
+	// route 21, whereas "216 Clark Rd" is a different route that merely opens
+	// with the same digits.
+	next, _ := utf8.DecodeRuneInString(remainder)
+	return unicode.IsSpace(next) || strings.ContainsRune("-()", next)
 }
 
 // validateRouteTypeNaming validates naming conventions specific to route types

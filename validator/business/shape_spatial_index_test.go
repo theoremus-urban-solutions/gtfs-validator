@@ -302,18 +302,15 @@ func TestClusterMatches(t *testing.T) {
 
 func TestChooseMatch(t *testing.T) {
 	tests := []struct {
-		name             string
-		passes           []shapeMatch
-		previousAlong    float64
-		expectedAlong    float64
-		expectedForwards bool
-		description      string
+		name          string
+		passes        []shapeMatch
+		expectedAlong float64
+		description   string
 	}{
 		{
 			name:          "first stop anchors at the earliest pass, not the closest",
 			passes:        []shapeMatch{{Along: 900, Metres: 5}, {Along: 100, Metres: 60}},
-			previousAlong: math.Inf(-1),
-			expectedAlong: 100, expectedForwards: true,
+			expectedAlong: 100,
 			description: "a loop's first stop sits near both ends; anchoring at the near " +
 				"end would put the trip behind its own start and report every " +
 				"following stop as out of order",
@@ -321,33 +318,14 @@ func TestChooseMatch(t *testing.T) {
 		{
 			name:          "first stop with a single pass takes it",
 			passes:        []shapeMatch{{Along: 400, Metres: 8}},
-			previousAlong: math.Inf(-1),
-			expectedAlong: 400, expectedForwards: true,
-			description: "a trip starting mid-shape has only one place it can begin",
-		},
-		{
-			name:          "prefers a pass ahead over a closer one behind",
-			passes:        []shapeMatch{{Along: 100, Metres: 5}, {Along: 900, Metres: 60}},
-			previousAlong: 500,
-			expectedAlong: 900, expectedForwards: true,
-			description: "the trip travels the shape in one direction",
-		},
-		{
-			name:          "no pass ahead is out of order",
-			passes:        []shapeMatch{{Along: 100, Metres: 5}, {Along: 200, Metres: 60}},
-			previousAlong: 500,
-			expectedAlong: 100, expectedForwards: false,
-			description: "the stop can only be matched behind the previous one",
+			expectedAlong: 400,
+			description:   "a trip starting mid-shape has only one place it can begin",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			chosen, forwards := chooseMatch(tt.passes, tt.previousAlong)
-			if forwards != tt.expectedForwards {
-				t.Errorf("forwards = %v, want %v (%s)", forwards, tt.expectedForwards, tt.description)
-			}
-			if chosen.Along != tt.expectedAlong {
+			if chosen := chooseMatch(tt.passes); chosen.Along != tt.expectedAlong {
 				t.Errorf("chose along %.0f, want %.0f (%s)", chosen.Along, tt.expectedAlong, tt.description)
 			}
 		})

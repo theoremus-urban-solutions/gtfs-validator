@@ -15,8 +15,11 @@ func TestStopLocationValidator_PlatformAndStopAccess(t *testing.T) {
 		expected map[string]int
 	}{
 		{
-			name:     "platform outside a station",
-			stops:    "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nS1,Central,1.0,1.0,0,",
+			name: "platform outside a station in a feed that has stations",
+			stops: "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n" +
+				"ST1,Central,1.0,1.0,1,\n" +
+				"P1,Platform 1,1.0,1.0,0,ST1\n" +
+				"S1,Roadside,2.0,2.0,0,",
 			expected: map[string]int{"platform_without_parent_station": 1},
 		},
 		{
@@ -25,9 +28,36 @@ func TestStopLocationValidator_PlatformAndStopAccess(t *testing.T) {
 			expected: map[string]int{"platform_without_parent_station": 0},
 		},
 		{
-			name:     "location type defaults to platform",
-			stops:    "stop_id,stop_name,stop_lat,stop_lon\nS1,Central,1.0,1.0",
+			name: "location type defaults to platform",
+			stops: "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n" +
+				"ST1,Central,1.0,1.0,1,\n" +
+				"S1,Roadside,2.0,2.0,,",
 			expected: map[string]int{"platform_without_parent_station": 1},
+		},
+		{
+			// A flat feed has no hierarchy to be incomplete, so the advisory
+			// stays silent rather than naming every stop in the feed.
+			name: "flat feed with no stations at all",
+			stops: "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n" +
+				"S1,Central,1.0,1.0,0,\n" +
+				"S2,Midtown,2.0,2.0,0,\n" +
+				"S3,Airport,3.0,3.0,0,",
+			expected: map[string]int{"platform_without_parent_station": 0},
+		},
+		{
+			name:     "flat feed with no location_type column",
+			stops:    "stop_id,stop_name,stop_lat,stop_lon\nS1,Central,1.0,1.0\nS2,Midtown,2.0,2.0",
+			expected: map[string]int{"platform_without_parent_station": 0},
+		},
+		{
+			// An entrance is meaningless outside a station whether or not the
+			// feed declares one, so its notice is not gated the same way.
+			name:  "entrance without a parent in a feed with no stations",
+			stops: "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\nE1,North entrance,1.0,1.0,2,",
+			expected: map[string]int{
+				"location_without_parent_station": 1,
+				"platform_without_parent_station": 0,
+			},
 		},
 		{
 			name:  "stop_access on a station",

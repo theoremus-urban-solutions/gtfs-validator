@@ -10,6 +10,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
+	"github.com/theoremus-urban-solutions/gtfs-validator/types"
 	"github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
 
@@ -30,6 +31,23 @@ const maxServiceGapDays = 13
 // feedValidityGraceDays is how far feed_end_date may run past the last day of
 // service before the feed is overclaiming its validity.
 const feedValidityGraceDays = 14
+
+// The trip coverage rule is about the window over which the feed runs a
+// significant number of its trips, not every date it runs anything at all: one
+// summer-only route must not stretch the window across a year in which nothing
+// else moves. Canonical settles that with two ratios over the daily trip counts.
+//
+// The busiest day is a poor yardstick — a single event day would raise the bar
+// for every other date — so the yardstick is a high percentile instead: sort the
+// daily counts and take the one at maxServiceDateTripCountRatio of the way up.
+// On a feed whose window is short but whose calendars run for years, that
+// percentile lands in the quiet tail, so the index is pulled to at least
+// maxServiceDateTripCountLimit days from the top.
+const (
+	maxServiceDateTripCountRatio = 0.90
+	maxServiceDateTripCountLimit = 30
+	majorityTripCountRatio       = 0.75
+)
 
 // NewDateTripsValidator creates a new date trips validator
 func NewDateTripsValidator() *DateTripsValidator {
@@ -85,18 +103,26 @@ func (v *DateTripsValidator) Validate(loader *parser.FeedLoader, container *noti
 	// Counting trips per service in one pass over trips.txt, rather than
 	// re-reading the file for each service, keeps this linear in the feed size
 	// instead of quadratic.
-	serviceDates := v.activeServiceDates(services, exceptions, v.countTripsByService(loader))
+	calendar := v.buildServiceCalendar(services, exceptions, v.countTripsByService(loader))
 
-	v.validateNext7DaysService(container, serviceDates, currentDate)
-	v.validateServiceGaps(container, serviceDates)
-	v.validateAgainstFeedPeriod(loader, container, serviceDates)
+	v.validateNext7DaysService(container, calendar, currentDate)
+	v.validateServiceGaps(container, calendar.Dates)
+	v.validateAgainstFeedPeriod(loader, container, calendar.Dates)
 }
 
-// activeServiceDates returns every date the feed runs at least one trip on, in
-// order. A service no trip references contributes nothing however wide its
-// window, so those are left out and the result is the feed's real service
-// window rather than what its calendars claim.
-func (v *DateTripsValidator) activeServiceDates(services map[string]*ServiceInfo, exceptions []CalendarException, tripCounts map[string]int) []time.Time {
+// ServiceCalendar is the feed's schedule reduced to what the date rules need:
+// every date it runs at least one trip on, in order, and how many trips run on
+// each of them.
+type ServiceCalendar struct {
+	Dates      []time.Time
+	TripCounts map[int64]int // keyed by Unix second, as the dates are
+}
+
+// buildServiceCalendar spreads each service's trips over the dates that service
+// runs on. A service no trip references contributes nothing however wide its
+// window, so those are left out and the result describes the feed's real
+// service rather than what its calendars claim.
+func (v *DateTripsValidator) buildServiceCalendar(services map[string]*ServiceInfo, exceptions []CalendarException, tripCounts map[string]int) ServiceCalendar {
 	exceptionsByService := make(map[string][]CalendarException)
 	for _, exception := range exceptions {
 		exceptionsByService[exception.ServiceID] = append(exceptionsByService[exception.ServiceID], exception)
@@ -111,12 +137,15 @@ func (v *DateTripsValidator) activeServiceDates(services map[string]*ServiceInfo
 	}
 
 	active := make(map[int64]time.Time)
+	counts := make(map[int64]int)
 	for serviceID := range serviceIDs {
-		if tripCounts[serviceID] == 0 {
+		tripCount := tripCounts[serviceID]
+		if tripCount == 0 {
 			continue
 		}
 		for key, date := range v.datesForService(services[serviceID], exceptionsByService[serviceID]) {
 			active[key] = date
+			counts[key] += tripCount
 		}
 	}
 
@@ -126,7 +155,7 @@ func (v *DateTripsValidator) activeServiceDates(services map[string]*ServiceInfo
 	}
 	sort.Slice(dates, func(i, j int) bool { return dates[i].Before(dates[j]) })
 
-	return dates
+	return ServiceCalendar{Dates: dates, TripCounts: counts}
 }
 
 // datesForService returns the dates one service runs on, keyed by Unix second
@@ -302,9 +331,13 @@ func (v *DateTripsValidator) parseCalendarException(row *parser.CSVRow) *Calenda
 	}
 }
 
-// countTripsByService counts the trips of every service in one pass.
+// countTripsByService counts the trips of every service in one pass. A
+// frequency-based trip stands for as many vehicles as its headway fits into the
+// span it covers, and is counted for all of them: one row in trips.txt can be
+// most of a day's service.
 func (v *DateTripsValidator) countTripsByService(loader *parser.FeedLoader) map[string]int {
 	counts := make(map[string]int)
+	frequencyCounts := v.countTripsByFrequency(loader)
 
 	reader, err := loader.GetFile("trips.txt")
 	if err != nil {
@@ -329,9 +362,67 @@ func (v *DateTripsValidator) countTripsByService(loader *parser.FeedLoader) map[
 		if err != nil {
 			continue
 		}
-		if serviceID, hasServiceID := row.Values["service_id"]; hasServiceID {
-			counts[strings.TrimSpace(serviceID)]++
+		serviceID, hasServiceID := row.Values["service_id"]
+		if !hasServiceID {
+			continue
 		}
+		tripCount, isFrequencyBased := frequencyCounts[strings.TrimSpace(row.Values["trip_id"])]
+		if !isFrequencyBased {
+			tripCount = 1
+		}
+		counts[strings.TrimSpace(serviceID)] += tripCount
+	}
+
+	return counts
+}
+
+// countTripsByFrequency counts how many vehicles each frequency-based trip
+// stands for. Trips absent from the result run once, as written.
+func (v *DateTripsValidator) countTripsByFrequency(loader *parser.FeedLoader) map[string]int {
+	counts := make(map[string]int)
+
+	reader, err := loader.GetFile("frequencies.txt")
+	if err != nil {
+		return counts
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+
+	csvFile, err := parser.NewCSVFile(reader, "frequencies.txt")
+	if err != nil {
+		return counts
+	}
+
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			continue
+		}
+
+		tripID := strings.TrimSpace(row.Values["trip_id"])
+		if tripID == "" {
+			continue
+		}
+
+		// One vehicle runs whatever the headway says, so the row is worth at
+		// least one trip; the rest of the span is worth one per headway.
+		counts[tripID]++
+		startTime, startErr := types.ParseGTFSTime(strings.TrimSpace(row.Values["start_time"]))
+		endTime, endErr := types.ParseGTFSTime(strings.TrimSpace(row.Values["end_time"]))
+		headway, headwayErr := strconv.Atoi(strings.TrimSpace(row.Values["headway_secs"]))
+		if startErr != nil || endErr != nil || headwayErr != nil || headway <= 0 ||
+			endTime.ToSeconds() <= startTime.ToSeconds() {
+			// The field-level rules report a malformed row; here it is worth
+			// the one trip already counted.
+			continue
+		}
+		counts[tripID] += (endTime.ToSeconds() - startTime.ToSeconds() - 1) / headway
 	}
 
 	return counts
@@ -372,30 +463,70 @@ func (v *DateTripsValidator) formatGTFSDate(date time.Time) string {
 	return date.Format("20060102")
 }
 
-// validateNext7DaysService reports a feed whose trips do not cover the coming
-// week. Canonical counts the feed as covered while a significant share of its
-// trips still run, so a day only counts when trips are scheduled on it.
-func (v *DateTripsValidator) validateNext7DaysService(container *notice.NoticeContainer, serviceDates []time.Time, currentDate time.Time) {
-	covered := make(map[int64]bool, len(serviceDates))
-	for _, date := range serviceDates {
-		covered[date.Unix()] = true
+// validateNext7DaysService reports a feed whose majority service window does
+// not enclose the coming week. The window itself is the subject: individual
+// days inside it with nothing running are ordinary — a weekday-only feed has
+// two of them every week — and are left to big_gap_in_service.
+func (v *DateTripsValidator) validateNext7DaysService(container *notice.NoticeContainer, calendar ServiceCalendar, currentDate time.Time) {
+	windowStart, windowEnd, ok := v.majorityServiceWindow(calendar)
+	if !ok {
+		// No date runs a trip at all. The calendars that lead here are reported
+		// as missing_calendar_and_calendar_date_files or
+		// service_has_no_active_day_of_the_week.
+		return
 	}
 
-	lastCoveredDay := -1
-	for i := 0; i < 7; i++ {
-		if covered[currentDate.AddDate(0, 0, i).Unix()] {
-			lastCoveredDay = i
-		}
-	}
-
-	if lastCoveredDay == 6 {
-		return // Covered through the whole week.
+	if !windowStart.After(currentDate) && !windowEnd.Before(currentDate.AddDate(0, 0, 7)) {
+		return
 	}
 
 	container.AddNotice(notice.NewTripCoverageNotActiveForNext7DaysNotice(
 		v.formatGTFSDate(currentDate),
-		v.formatGTFSDate(currentDate.AddDate(0, 0, lastCoveredDay)),
+		v.formatGTFSDate(windowStart),
+		v.formatGTFSDate(windowEnd),
 	))
+}
+
+// majorityServiceWindow returns the first and last date on which the feed runs
+// a majority share of the trips it runs on a typical day. See the ratios above
+// for how "typical" and "majority" are pinned down.
+func (v *DateTripsValidator) majorityServiceWindow(calendar ServiceCalendar) (start time.Time, end time.Time, ok bool) {
+	if len(calendar.Dates) == 0 {
+		return time.Time{}, time.Time{}, false
+	}
+
+	sortedCounts := make([]int, 0, len(calendar.Dates))
+	for _, date := range calendar.Dates {
+		sortedCounts = append(sortedCounts, calendar.TripCounts[date.Unix()])
+	}
+	sort.Ints(sortedCounts)
+
+	typicalIndex := max(
+		int(float64(len(sortedCounts))*maxServiceDateTripCountRatio),
+		len(sortedCounts)-maxServiceDateTripCountLimit,
+	)
+	if typicalIndex < 0 {
+		typicalIndex = 0
+	}
+	threshold := int(majorityTripCountRatio * float64(sortedCounts[typicalIndex]))
+
+	// The whole span is the fallback, though the day the yardstick came from
+	// always clears the threshold, so both loops do find a date.
+	start, end = calendar.Dates[0], calendar.Dates[len(calendar.Dates)-1]
+	for _, date := range calendar.Dates {
+		if calendar.TripCounts[date.Unix()] >= threshold {
+			start = date
+			break
+		}
+	}
+	for i := len(calendar.Dates) - 1; i >= 0; i-- {
+		if calendar.TripCounts[calendar.Dates[i].Unix()] >= threshold {
+			end = calendar.Dates[i]
+			break
+		}
+	}
+
+	return start, end, true
 }
 
 // validateServiceGaps reports every run of more than 13 days inside the service

@@ -48,6 +48,16 @@ func (r *stopTimeRow) hasPickupDropOffWindow() bool {
 	return r.StartPickupWindow != "" || r.EndPickupWindow != ""
 }
 
+// tripBlock is what one trip's rows look like so far: the span they occupy in
+// the file, the sequence the last of them carried, and whether anything about
+// their order has already broken the rule.
+type tripBlock struct {
+	StartRow     int
+	EndRow       int
+	LastSequence int
+	Unsorted     bool
+}
+
 // Validate checks the per-row stop time rules.
 func (v *StopTimeFieldValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
 	routeContinuity := v.loadRouteContinuity(loader)
@@ -68,9 +78,12 @@ func (v *StopTimeFieldValidator) Validate(loader *parser.FeedLoader, container *
 	}
 
 	// unsorted_stop_times is about the file as written, so order is tracked as
-	// rows arrive rather than after sorting.
-	var previous *stopTimeRow
-	seenTrips := make(map[string]bool)
+	// rows arrive rather than after sorting. It is reported once per trip and
+	// names the trip's whole span in the file, which is only known once its
+	// last row has gone past — hence the per-trip state and the report at EOF.
+	blocks := make(map[string]*tripBlock)
+	var blockOrder []string
+	var previousTripID string
 
 	// A location group or GeoJSON location needs two rows on the same trip:
 	// one to enter the area and one to leave it. Count per trip and area.
@@ -95,27 +108,26 @@ func (v *StopTimeFieldValidator) Validate(loader *parser.FeedLoader, container *
 		v.validateWindows(container, stopTime, routeContinuity)
 		v.validateShapeDistTraveled(container, stopTime)
 
-		if previous != nil && previous.TripID == stopTime.TripID &&
-			stopTime.StopSequence <= previous.StopSequence {
-			container.AddNotice(notice.NewUnsortedStopTimesNotice(
-				stopTime.TripID,
-				stopTime.RowNumber,
-				stopTime.StopSequence,
-				previous.StopSequence,
-			))
+		block, seen := blocks[stopTime.TripID]
+		if !seen {
+			block = &tripBlock{
+				StartRow:     stopTime.RowNumber,
+				EndRow:       stopTime.RowNumber,
+				LastSequence: stopTime.StopSequence,
+			}
+			blocks[stopTime.TripID] = block
+			blockOrder = append(blockOrder, stopTime.TripID)
+		} else {
+			// Either the sequence went backwards, or the trip's rows resumed
+			// after another trip's — the spec requires a trip's rows to be
+			// both ordered and contiguous.
+			if stopTime.TripID != previousTripID || stopTime.StopSequence <= block.LastSequence {
+				block.Unsorted = true
+			}
+			block.EndRow = stopTime.RowNumber
+			block.LastSequence = stopTime.StopSequence
 		}
-		// A trip whose rows resume after another trip's is also unsorted: the
-		// spec requires a trip's rows to be contiguous.
-		if (previous == nil || previous.TripID != stopTime.TripID) && seenTrips[stopTime.TripID] {
-			container.AddNotice(notice.NewUnsortedStopTimesNotice(
-				stopTime.TripID,
-				stopTime.RowNumber,
-				stopTime.StopSequence,
-				stopTime.StopSequence,
-			))
-		}
-		seenTrips[stopTime.TripID] = true
-		previous = stopTime
+		previousTripID = stopTime.TripID
 
 		for field, value := range map[string]string{
 			"location_group_id": stopTime.LocationGroupID,
@@ -129,6 +141,16 @@ func (v *StopTimeFieldValidator) Validate(loader *parser.FeedLoader, container *
 			if _, seen := areaVisits[key]; !seen {
 				areaVisits[key] = stopTime
 			}
+		}
+	}
+
+	for _, tripID := range blockOrder {
+		if block := blocks[tripID]; block.Unsorted {
+			container.AddNotice(notice.NewUnsortedStopTimesNotice(
+				tripID,
+				block.StartRow,
+				block.EndRow,
+			))
 		}
 	}
 
