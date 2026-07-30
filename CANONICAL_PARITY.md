@@ -125,8 +125,17 @@ reports them:
 The whitespace and enum merges are behaviour changes: a value with whitespace on
 both sides used to produce two notices and now produces one, and a row with
 several bad enum values now produces one notice per field under a single code
-rather than one code per field. Both match upstream. Notice deduplication in
-`notice.NoticeContainer` collapses the pairs.
+rather than one code per field. Both match upstream.
+
+`leading_or_trailing_whitespaces` reports only whitespace inside double quotes.
+This is not a shortcut but the rule: a CSV parser strips the whitespace around
+an unquoted value, so ` Metro ` written bare reaches every other check as
+`Metro` and there is nothing left to report. Upstream's parser does the same and
+its rule description says so. Go's `encoding/csv` keeps both kinds, so the
+validator asks the reader where each field began and looks at the byte there —
+a double quote exactly when the field was quoted. Without that distinction a
+feed with padded unquoted values collects notices the canonical validator does
+not emit.
 
 The enum merge also closed a hole. Every per-field enum check was guarded by a
 successful `strconv.Atoi`, so a field holding a non-numeric value fell through

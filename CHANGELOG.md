@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — the field tables are derived from the spec
+
+Which fields a file has, and whether each is required, recommended or merely
+permitted, are facts about the specification rather than judgements about a
+feed. `scripts/gen_field_presence.py` now generates `schema/field_presence.go`
+from the GTFS Schedule reference — 31 files, 218 fields — and
+`required_field_validator` and `file_structure_validator` read it instead of
+keeping their own lists. A spec change is now a regeneration rather than a hunt.
+
+Conditionally Required and Conditionally Forbidden are kept as their own values
+rather than folded into Required or Optional: whether they apply depends on the
+rest of the feed, so each belongs to a rule that knows the condition.
+
+### Fixed
+
+- `missing_recommended_field` reported `stop_name` on generic nodes, `level_name`
+  and `stair_count`, all of which the spec marks Optional. The whole spec has
+  only three Recommended fields, all in `feed_info.txt`, and the code is now
+  emitted for those and nothing else. Being a canonical code, this was our own
+  opinion wearing MobilityData's name, which the severity policy cannot catch.
+- A blank in a Required field whose value list offers "empty" as a choice is a
+  value rather than an omission — `fare_attributes.transfers` empty means
+  unlimited, `transfers.transfer_type` empty means a recommended transfer point.
+  Required there means the column must exist, not that every row must fill it.
+- `leading_or_trailing_whitespaces` was never emitted. Its validator was
+  constructed nowhere — commented out of the registration with a note about
+  hanging on large feeds — so the code counted as implemented while no feed
+  could produce it. This is the same defect found in `file_structure_validator`
+  during the scope rework, and it was the last one: every validator in
+  `validator/` is now registered.
+
+  The rule was rewritten rather than simply switched on. It reads the columns
+  the spec defines, from the generated tables, instead of a hand-kept list of
+  sixteen files; it emits one notice per value rather than one per affected end;
+  and it reports only whitespace that survives parsing. A parser strips the
+  whitespace around an unquoted value, so only quoted whitespace reaches any
+  other validator — which is what the canonical rule means and what it says. On
+  a real feed this is the difference between agreeing with the canonical
+  validator and inventing two notices it does not emit.
+
+### Added
+
+- Tests for `usage_validator`, `stop_time_consistency_validator` and
+  `trip_usability_validator`, which had shipped without any. Statement coverage
+  of `validator/relationship` went from 49% to 65%.
+
+## [1.1.5]
+
 ### Changed — validation scope reworked (breaking)
 
 The emitted rule set is now reconciled against the
@@ -21,7 +69,7 @@ moved. Anything keying on specific codes needs the mapping tables below.
 | — our own | 161 | 43 |
 | Codes that are ERROR but not canonical | 86 | **0** |
 | Severities disagreeing with canonical | 8 | **0** |
-| Registered validators | 58 | 50 |
+| Registered validators | 58 | 54 |
 
 Three things drive the change:
 

@@ -4,8 +4,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Validation Rules](https://img.shields.io/badge/Validation%20Rules-176-brightgreen.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
 [![Canonical Parity](https://img.shields.io/badge/Canonical%20Parity-133%2F133-brightgreen.svg)](CANONICAL_PARITY.md)
-[![Test Coverage](https://img.shields.io/badge/Test%20Coverage-100%25-brightgreen.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
-[![Performance](https://img.shields.io/badge/Performance-5s%20for%20588k%20stops-orange.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
+[![Validators](https://img.shields.io/badge/Validators-55-brightgreen.svg)](VALIDATOR_RULES.md)
+[![Performance](https://img.shields.io/badge/Performance-685k%20stop%20times%20in%20~20s-orange.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
 
 A fast, comprehensive GTFS (General Transit Feed Specification) validator library for Go. 176 validation rules: every applicable rule from the Canonical GTFS Schedule Validator, plus business-logic checks that matter to downstream consumers such as OpenTripPlanner.
 
@@ -24,11 +24,11 @@ A fast, comprehensive GTFS (General Transit Feed Specification) validator librar
 ## Features
 
 - **🚀 Fast Validation**: Optimized for large feeds with parallel processing and memory pools
-- **📋 Comprehensive**: 176 validation rules across 50 validators, in full parity with the canonical validator
+- **📋 Comprehensive**: 176 validation rules across 55 validators, in full parity with the canonical validator
 - **🔧 Multiple Modes**: Performance, default, and comprehensive validation modes
 - **⚡ Concurrent**: Thread-safe with configurable worker pools
 - **⏰ Context Support**: Cancellation, timeouts, and progress reporting
-- **💾 Memory Efficient**: Memory pooling and streaming CSV parser for large feeds
+- **💾 Memory Aware**: Memory pooling, a streaming CSV parser, and a hard cap you can set — see the measured figures below
 - **📊 Rich Reports**: JSON, console, and summary output formats with comprehensive error descriptions
 - **🎯 Streaming Processing**: Process massive CSV files without loading into memory
 - **📦 Dual Purpose**: Use as Go library or standalone CLI tool
@@ -82,11 +82,20 @@ gtfs-validator validate feed.zip --mode performance --progress -o report.json
 
 ## Validation Modes
 
-| Mode | Speed | Use Case | Validators |
-|------|-------|----------|------------|
-| **Performance** | 10-15s | Production, CI/CD | Essential validations |
-| **Default** | 30-120s | Development, testing | Standard validators |
-| **Comprehensive** | 2+ minutes | Deep analysis | All validators + geospatial |
+A mode chooses how much of the feed is examined, not how carefully. Every rule
+a mode runs is the same rule at the same severity.
+
+| Mode | Validators | What it runs | Use case |
+|------|-----------|--------------|----------|
+| **Performance** | 25 of 55 | Structure, field types, references and feed metadata | CI gates, where a broken reference should fail the build and an opinion should not |
+| **Default** | 52 of 55 | The above plus entity, business, accessibility and fare rules | Day-to-day validation |
+| **Comprehensive** | 55 of 55 | Everything, adding the three whole-feed passes: shape geometry, geospatial checks and per-date trip coverage | Deep analysis before publishing a feed |
+
+The three validators held back from the default are the ones whose cost grows
+with the whole feed rather than with one file: shape geometry, geospatial
+proximity and per-date trip coverage. Comprehensive mode is how you ask for
+them, and their codes — `stop_too_far_from_shape`, `big_gap_in_service` and the
+rest of those sets — cannot appear in a default run.
 
 ## Advanced Usage
 
@@ -201,43 +210,56 @@ gtfs-validator validate --help
 
 ## Validation Coverage
 
-### **🏆 Most Comprehensive GTFS Validator Available**
+| | count |
+|---|---|
+| Codes emitted | **176** |
+| — canonical | **133**, every rule in scope |
+| — ours | 43 |
+| Our codes that are ERROR | **0** |
+| Severities disagreeing with canonical | **0** |
 
-This implementation provides **more validation rules than the official MobilityData validator**:
+Scope is the 181 rules the canonical validator publishes, less 4 deprecated
+upstream, 27 GTFS-Flex, 11 GTFS-Fares v2 and 6 that describe the canonical
+validator's own execution model rather than anything about a feed. That leaves
+133, all implemented, each at the severity MobilityData gives it.
 
-| Validator | Our Implementation | Official MobilityData |
-|-----------|-------------------|----------------------|
-| **Total Rules** | 201 validation rules | 177 canonical rules |
-| **Validators** | **61 specialized validators** | ~30 validators |
-| **Test Coverage** | **100% - all validators tested** | Partial |
-| **Categories** | **6 comprehensive categories** | 3 basic categories |
+`python3 scripts/scope_audit.py` scrapes the published rule set, scans the codes
+this repo emits and reproduces every number above.
+[CANONICAL_PARITY.md](CANONICAL_PARITY.md) explains what was declined and why.
 
-### **Validation Categories**
+### Validators
 
-- **Core** (14 validators): File structure, required fields, data formats, CSV parsing
-- **Entity** (19 validators): Route/stop consistency, calendar validation, primary keys
-- **Relationship** (7 validators): Foreign keys, stop sequences, cross-file integrity  
-- **Business** (13 validators): Travel speeds, transfers, frequency overlaps, operational logic
-- **Accessibility** (2 validators): Pathways, wheelchair access, level definitions
-- **Fare** (1 validator): Fare rules, payment methods, pricing validation
-- **Meta** (1 validator): Feed metadata, information validation
+| Group | Count | What it looks at |
+|---|---|---|
+| **Core** | 13 | File presence, CSV structure, column names, field types, required fields |
+| **Entity** | 16 | One record at a time: routes, stops, shapes, calendars, agencies |
+| **Relationship** | 11 | References between files: foreign keys, stop times, translations, attributions |
+| **Business** | 11 | Operational sense across the feed: speeds, transfers, frequencies, blocks, geometry |
+| **Accessibility** | 2 | Pathways and levels |
+| **Fare** | 1 | Fare attributes and rules |
+| **Meta** | 1 | feed_info.txt |
 
-### **Advanced Features Beyond Official Spec**
+[VALIDATOR_RULES.md](VALIDATOR_RULES.md) lists every validator with the codes it
+emits and their severities. It is generated from the source, so it cannot drift
+from what the code does.
 
-- **Analytics & Reporting**: Network topology analysis, service pattern insights
-- **Enhanced Error Descriptions**: Upstream MobilityData wording for every code in the canonical rule registry
-- **Enhanced Business Logic**: Block overlapping, attribution scope conflicts
-- **Geospatial Intelligence**: Coordinate clustering, geographic analysis  
-- **Operational Insights**: Route pattern variations, service optimization suggestions
-- **Quality Metrics**: Color contrast validation, accessibility compliance
+### The 43 rules that are ours
+
+They cover failure modes the canonical set does not model — several of them
+break OpenTripPlanner graph builds, such as a trip whose stops repeat mid-route
+or a station no stop is a child of. None of them is ERROR. A code MobilityData
+does not define is our opinion, and an opinion should not fail someone's feed.
 
 ## Notice Types
 
-| Severity | Description | Example |
-|----------|-------------|---------|
-| **ERROR** | Spec violations | Missing required file |
-| **WARNING** | Potential issues | Route without trips |
-| **INFO** | Informational | Feed statistics |
+| Severity | Meaning | Example |
+|----------|---------|---------|
+| **ERROR** | A canonical rule is broken; the feed is invalid | `missing_required_file` |
+| **WARNING** | Worth fixing, but the feed still loads | `route_without_trips` |
+| **INFO** | Observation, no action implied | `unused_station` |
+
+Only canonical rules may be ERROR, so a feed that fails here is failing a rule
+MobilityData enforces as well — never one we invented.
 
 ## Enhanced Error Descriptions
 
@@ -278,6 +300,51 @@ python3 scripts/gen_notice_descriptions.py
 
 Codes we emit that MobilityData does not define fall back to the code name.
 
+## What changed in 1.1.5 and 1.1.6
+
+[CHANGELOG.md](CHANGELOG.md) has the full mapping of every code added, removed,
+renamed and re-graded. In short:
+
+### 1.1.5 — the emitted rule set was reconciled against the canonical validator (breaking)
+
+- **176 codes, down from 201.** All 133 in-scope canonical rules are now
+  implemented, up from 40. Most of the removals are not lost coverage: the same
+  check is reported under the canonical code.
+- **No non-canonical code is ERROR any more**, down from 86. A feed could
+  previously fail on checks nobody else recognises.
+- **The per-field enum codes collapsed onto `unexpected_enum_value`.** That also
+  closed a hole: the old checks ran only after a successful integer parse, so an
+  enum holding a non-numeric value reported nothing at all.
+- **Anything keying on specific codes needs the mapping tables in the
+  changelog.** Codes were added, removed and renamed, and severities moved.
+- **The expensive geometry checks moved behind comprehensive mode**, and the
+  whole-feed graph build in the network topology validator — the costliest
+  validator in the suite — was removed along with several duplicated passes over
+  `stop_times.txt` and `shapes.txt`.
+- Fixes worth naming: `route_short_name_too_long` counted bytes rather than
+  runes, so a Cyrillic name tripped the 12-character limit at six characters;
+  `file_structure_validator` was never constructed, so two canonical codes
+  counted as implemented while never being emitted; `stop_sequence_gap` and
+  `stop_name_missing_but_inherited` were pure false positives and are gone.
+
+### 1.1.6 — the field tables are derived from the spec
+
+- **Which fields a file has, and whether each is required, is now generated**
+  from the GTFS Schedule reference into `schema/field_presence.go`: 31 files, 218
+  fields. Kept by hand these lists drift, and they had — three fields the spec
+  calls Optional were being reported as missing recommended fields.
+- **`missing_recommended_field` now fires for the three Recommended fields the
+  spec actually has**, all of them in `feed_info.txt`, and for nothing else.
+- **A blank in a Required field whose value list offers "empty" is a value, not
+  an omission** — `fare_attributes.transfers` empty means unlimited, and
+  `transfers.transfer_type` empty means a recommended transfer point.
+- **`leading_or_trailing_whitespaces` is emitted at last.** Its validator had
+  never been registered, so the code counted as implemented while no feed could
+  produce it. It now covers every column the spec defines, in every file it
+  defines, and reports only the whitespace that survives parsing — the
+  whitespace inside double quotes, which is what the canonical rule means and
+  the only kind any other validator ever sees.
+
 ## Examples
 
 See the [examples/](examples/) directory:
@@ -303,31 +370,39 @@ See the [examples/](examples/) directory:
 ├── logging/              # Structured logging system
 ├── report/               # Report generation
 ├── validator/            # Individual validators
-├── schema/               # GTFS data types
+├── schema/               # GTFS data types, and the spec tables generated from the reference
+├── scripts/              # Generators and the scope audit
+├── docs/validation-scope/ # The scope proposal and the scraped canonical rule set
 └── types/                # Custom types
 ```
 
 ## Performance & Reliability
 
-### **Real-World Performance**
-Tested on Sofia GTFS feed (180 routes, 588k stop times, 607k shapes):
-- **Performance mode**: 5-6 seconds ⚡
-- **Comprehensive mode**: 2+ minutes for deep analysis
-- **Memory usage**: ~200MB peak (efficient with memory pooling)
-- **Streaming CSV**: 2-4M rows/sec sustained throughput
-- **Parallel processing**: Scales with CPU cores
-- **Context cancellation**: Sub-second response time
+### **Real-world performance**
 
-### **Production Ready**
-- ✅ **Zero false positives** - Fixed GTFS time validation for late-night service (25:30:00+)
-- ✅ **Sofia GTFS validation**: 0 errors, 257 warnings (Google-validated feed)
-- ✅ **Comprehensive test suite**: All 57 validators have complete test coverage
-- ✅ **Thread-safe**: Concurrent validation with configurable worker pools
-- ✅ **Memory optimized**: Memory pools reduce garbage collection overhead
-- ✅ **Streaming processing**: Handle feeds with millions of records without OOM
-- ✅ **Enterprise features**: Timeouts, cancellation, progress reporting, memory limits
+Measured on the Sofia feed — 198 routes, 30,069 trips, 4,447 stops, 684,740 stop
+times — on a 10-core laptop:
+
+| Mode | Wall clock | Peak memory | Notices |
+|---|---|---|---|
+| Performance | ~14 s | ~1.0 GB | 0 errors, 1,191 warnings, 5,110 infos |
+| Default | ~19 s | ~1.0 GB | 104 errors, 29,169 warnings, 5,110 infos |
+| Comprehensive | ~22 s | ~0.9 GB | 104 errors, 29,169 warnings, 6,729 infos |
+
+Memory is spent on holding the feed, not on running the checks, which is why
+performance mode is no lighter than comprehensive. Budget roughly a gigabyte for
+a feed of this size and cap it with `WithMaxMemory` if that matters.
+
+Every one of those 104 errors is a canonical rule being broken, since no rule of
+ours may be ERROR.
+
+### **Production ready**
+- ✅ **Every validator has tests** — 55 of 55, with package statement coverage between 65% and 90%
+- ✅ **Thread-safe**: concurrent validation with configurable worker pools
+- ✅ **Streaming processing**: handles feeds with millions of records without loading a file whole
+- ✅ **Enterprise features**: timeouts, cancellation, progress reporting, memory limits
 - ✅ **Structured logging**: JSON/text logging with configurable levels
-- ✅ **Performance monitoring**: Built-in benchmarking and statistics tracking
+- ✅ **Performance monitoring**: built-in benchmarking and statistics tracking
 
 ## License
 

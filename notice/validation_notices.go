@@ -1144,36 +1144,21 @@ func NewWrongNumberOfFieldsNotice(filename string, rowNumber, expectedFields, ac
 	}
 }
 
-// LeadingWhitespaceNotice represents a field with leading whitespace
-type LeadingWhitespaceNotice struct {
+// LeadingOrTrailingWhitespacesNotice represents a value that begins or ends in
+// whitespace. One notice covers the value however many of its ends are
+// affected, because the canonical code names the value and not the end.
+type LeadingOrTrailingWhitespacesNotice struct {
 	*BaseNotice
 }
 
-func NewLeadingWhitespaceNotice(filename, fieldName, fieldValue string, rowNumber int) *LeadingWhitespaceNotice {
+func NewLeadingOrTrailingWhitespacesNotice(filename, fieldName, fieldValue string, rowNumber int) *LeadingOrTrailingWhitespacesNotice {
 	context := map[string]interface{}{
 		"filename":   filename,
 		"fieldName":  fieldName,
 		"fieldValue": fieldValue,
 		"rowNumber":  rowNumber,
 	}
-	return &LeadingWhitespaceNotice{
-		BaseNotice: NewBaseNotice("leading_or_trailing_whitespaces", WARNING, context),
-	}
-}
-
-// TrailingWhitespaceNotice represents a field with trailing whitespace
-type TrailingWhitespaceNotice struct {
-	*BaseNotice
-}
-
-func NewTrailingWhitespaceNotice(filename, fieldName, fieldValue string, rowNumber int) *TrailingWhitespaceNotice {
-	context := map[string]interface{}{
-		"filename":   filename,
-		"fieldName":  fieldName,
-		"fieldValue": fieldValue,
-		"rowNumber":  rowNumber,
-	}
-	return &TrailingWhitespaceNotice{
+	return &LeadingOrTrailingWhitespacesNotice{
 		BaseNotice: NewBaseNotice("leading_or_trailing_whitespaces", WARNING, context),
 	}
 }

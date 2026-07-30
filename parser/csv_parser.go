@@ -99,6 +99,15 @@ func (f *CSVFile) ReadRow() (*CSVRow, error) {
 	return row, nil
 }
 
+// FieldPos returns the line and byte column where the field at index i of the
+// row last read begins, counting from 1. For a quoted field the position is
+// that of the opening quote, which is the only way back from a parsed value to
+// how it was written: encoding/csv hands over the value and keeps the quoting
+// to itself.
+func (f *CSVFile) FieldPos(i int) (line int, column int) {
+	return f.reader.FieldPos(i)
+}
+
 // ReadAll reads all remaining rows from the CSV file
 func (f *CSVFile) ReadAll() error {
 	for {
