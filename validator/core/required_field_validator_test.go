@@ -52,17 +52,17 @@ func TestRequiredFieldValidator_Validate(t *testing.T) {
 		{
 			name: "stops.txt missing stop_name for regular stop",
 			files: map[string]string{
-				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon,location_type\n1,,34.05,-118.25,0", // Missing stop_name for location_type 0
+				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon,location_type\n1,,34.05,-118.25,0",
 			},
-			expectedNoticeCodes: []string{"missing_required_field"},
-			description:         "stop_name is required for regular stops (location_type 0)",
+			expectedNoticeCodes: []string{},
+			description:         "stop_name is conditionally required, and reported as missing_stop_name elsewhere",
 		},
 		{
 			name: "stops.txt missing stop_name for generic node (location_type 3)",
 			files: map[string]string{
 				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon,location_type\n1,,34.05,-118.25,3", // Missing stop_name for location_type 3
 			},
-			expectedNoticeCodes: []string{"missing_recommended_field"},
+			expectedNoticeCodes: []string{},
 			description:         "stop_name is optional for generic nodes (location_type 3) - generates warning",
 		},
 		{
@@ -70,16 +70,16 @@ func TestRequiredFieldValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n1,,34.05,-118.25,4,STATION1", // Missing stop_name but has parent
 			},
-			expectedNoticeCodes: []string{"missing_recommended_field"},
+			expectedNoticeCodes: []string{},
 			description:         "stop_name is optional for boarding areas with parent station",
 		},
 		{
 			name: "stops.txt missing stop_name for boarding area without parent",
 			files: map[string]string{
-				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n1,,34.05,-118.25,4,", // Missing stop_name and no parent
+				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n1,,34.05,-118.25,4,",
 			},
-			expectedNoticeCodes: []string{"missing_required_field"},
-			description:         "stop_name is required for boarding areas without parent station",
+			expectedNoticeCodes: []string{},
+			description:         "stop_name is conditionally required, and reported as missing_stop_name elsewhere",
 		},
 		{
 			name: "routes.txt missing required fields",
@@ -188,9 +188,11 @@ func TestRequiredFieldValidator_Validate(t *testing.T) {
 		{
 			name: "multiple rows with missing fields",
 			files: map[string]string{
-				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,34.05,-118.25\n,Second St,34.06,-118.26\n3,,34.07,-118.27", // Row 2 missing stop_id, Row 3 missing stop_name
+				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,34.05,-118.25\n,Second St,34.06,-118.26\n3,,34.07,-118.27",
 			},
-			expectedNoticeCodes: []string{"missing_required_field", "missing_required_field"},
+			// Only the missing stop_id is this validator's: an absent stop_name
+			// is conditionally required and belongs to missing_stop_name.
+			expectedNoticeCodes: []string{"missing_required_field"},
 			description:         "Multiple rows with different missing required fields",
 		},
 		{
@@ -381,93 +383,6 @@ func TestRequiredFieldValidator_GetRequiredFields(t *testing.T) {
 	}
 }
 
-func TestRequiredFieldValidator_IsStopNameOptionalForLocationType(t *testing.T) {
-	validator := NewRequiredFieldValidator()
-
-	tests := []struct {
-		name        string
-		rowValues   map[string]string
-		expected    bool
-		description string
-	}{
-		{
-			name:        "regular stop (location_type 0)",
-			rowValues:   map[string]string{"location_type": "0"},
-			expected:    false,
-			description: "Regular stops require stop_name",
-		},
-		{
-			name:        "station (location_type 1)",
-			rowValues:   map[string]string{"location_type": "1"},
-			expected:    false,
-			description: "Stations require stop_name",
-		},
-		{
-			name:        "entrance/exit (location_type 2)",
-			rowValues:   map[string]string{"location_type": "2"},
-			expected:    false,
-			description: "Entrances/exits require stop_name",
-		},
-		{
-			name:        "generic node (location_type 3)",
-			rowValues:   map[string]string{"location_type": "3"},
-			expected:    true,
-			description: "Generic nodes don't require stop_name",
-		},
-		{
-			name:        "boarding area with parent (location_type 4)",
-			rowValues:   map[string]string{"location_type": "4", "parent_station": "STATION1"},
-			expected:    true,
-			description: "Boarding areas with parent stations don't require stop_name",
-		},
-		{
-			name:        "boarding area without parent (location_type 4)",
-			rowValues:   map[string]string{"location_type": "4", "parent_station": ""},
-			expected:    false,
-			description: "Boarding areas without parent stations require stop_name",
-		},
-		{
-			name:        "boarding area no parent field (location_type 4)",
-			rowValues:   map[string]string{"location_type": "4"},
-			expected:    false,
-			description: "Boarding areas without parent_station field require stop_name",
-		},
-		{
-			name:        "no location_type field",
-			rowValues:   map[string]string{},
-			expected:    false,
-			description: "Missing location_type defaults to 0, which requires stop_name",
-		},
-		{
-			name:        "invalid location_type",
-			rowValues:   map[string]string{"location_type": "invalid"},
-			expected:    false,
-			description: "Invalid location_type should require stop_name",
-		},
-		{
-			name:        "boarding area with whitespace-only parent",
-			rowValues:   map[string]string{"location_type": "4", "parent_station": "   "},
-			expected:    false,
-			description: "Boarding areas with whitespace-only parent require stop_name",
-		},
-		{
-			name:        "future location type",
-			rowValues:   map[string]string{"location_type": "5"},
-			expected:    false,
-			description: "Unknown location types should require stop_name",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := validator.isStopNameOptionalForLocationType(tt.rowValues)
-			if result != tt.expected {
-				t.Errorf("Expected %v for %s, got %v", tt.expected, tt.description, result)
-			}
-		})
-	}
-}
-
 func TestRequiredFieldValidator_ValidateFile(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -494,14 +409,14 @@ func TestRequiredFieldValidator_ValidateFile(t *testing.T) {
 			name:            "stops file with generic node",
 			filename:        "stops.txt",
 			content:         "stop_id,stop_name,stop_lat,stop_lon,location_type\n1,,34.05,-118.25,3", // Generic node without name
-			expectedNotices: []string{"missing_recommended_field"},
+			expectedNotices: []string{},
 			description:     "Generic node generates warning for missing stop_name",
 		},
 		{
 			name:            "stops file with boarding area and parent",
 			filename:        "stops.txt",
 			content:         "stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station\n1,,34.05,-118.25,4,STATION1", // Boarding area with parent
-			expectedNotices: []string{"missing_recommended_field"},
+			expectedNotices: []string{},
 			description:     "Boarding area with parent generates warning",
 		},
 		{

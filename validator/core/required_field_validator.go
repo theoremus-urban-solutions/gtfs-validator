@@ -3,7 +3,6 @@ package core
 import (
 	"io"
 	"log"
-	"strconv"
 	"strings"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -78,18 +77,16 @@ func (v *RequiredFieldValidator) validateFile(loader *parser.FeedLoader, contain
 		for _, field := range requiredFields {
 			value, exists := row.Values[field]
 			if !exists || strings.TrimSpace(value) == "" {
-				// Handle special cases for stops.txt
+				// stop_name is conditionally required: a stop, station or
+				// entrance must be named, and a generic node or boarding area
+				// need not be. For the types that must have one, the omission
+				// is reported as missing_stop_name by
+				// entity/stop_name_validator.go; for the rest the spec calls
+				// the field optional, not recommended, so there is nothing to
+				// say. A station's nodes are unnamed by design and a large
+				// station complex has dozens of them.
 				if filename == StopsFile && field == "stop_name" {
-					// Check location type - some stop types don't require names
-					if v.isStopNameOptionalForLocationType(row.Values) {
-						// Create a warning instead of error
-						container.AddNotice(notice.NewMissingRecommendedFieldNotice(
-							filename,
-							field,
-							row.RowNumber,
-						))
-						continue
-					}
+					continue
 				}
 
 				container.AddNotice(notice.NewMissingRequiredFieldNotice(
@@ -135,29 +132,5 @@ func (v *RequiredFieldValidator) getRequiredFields(filename string) []string {
 		return []string{"feed_publisher_name", "feed_publisher_url", "feed_lang"}
 	default:
 		return []string{}
-	}
-}
-
-// isStopNameOptionalForLocationType checks if stop_name is optional for certain location types
-func (v *RequiredFieldValidator) isStopNameOptionalForLocationType(rowValues map[string]string) bool {
-	locationTypeStr, exists := rowValues["location_type"]
-	if !exists {
-		return false // Default location type 0 requires stop_name
-	}
-
-	locationType, err := strconv.Atoi(locationTypeStr)
-	if err != nil {
-		return false
-	}
-
-	switch locationType {
-	case 3: // Generic node - stop_name is optional per GTFS spec
-		return true
-	case 4: // Boarding area - stop_name is conditional (can inherit from parent)
-		// If it has a parent station, name is optional
-		parentStation, hasParent := rowValues["parent_station"]
-		return hasParent && strings.TrimSpace(parentStation) != ""
-	default:
-		return false
 	}
 }

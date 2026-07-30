@@ -92,17 +92,12 @@ func (v *ForeignKeyValidator) buildLookupMapsFromCache(cache *parser.ParsedFeedC
 	routes, err := cache.GetRoutes()
 	if err == nil {
 		routeMap := make(map[string]bool, len(routes))
-		agencyMap := make(map[string]bool, len(routes)/50) // Typical: 1-10 agencies for 200 routes
 		for _, route := range routes {
 			if route.RouteID != "" {
 				routeMap[route.RouteID] = true
 			}
-			if route.AgencyID != "" {
-				agencyMap[route.AgencyID] = true
-			}
 		}
 		lookupMaps["route_id"] = routeMap
-		lookupMaps["agency_id"] = agencyMap
 	}
 
 	// Build zone_id lookup from cached stops
@@ -118,7 +113,12 @@ func (v *ForeignKeyValidator) buildLookupMapsFromCache(cache *parser.ParsedFeedC
 
 	// For files not in cache, fall back to sequential loading
 	// (these are typically small files)
+	//
+	// agency_id has to come from agency.txt: building it from the cached routes
+	// would populate the lookup with the very values being checked against it,
+	// so no route could ever fail.
 	loader := cache.GetLoader()
+	lookupMaps["agency_id"] = v.buildLookupMap(loader, "agency.txt", "agency_id")
 	lookupMaps["fare_id"] = v.buildLookupMap(loader, "fare_attributes.txt", "fare_id")
 	lookupMaps["pathway_id"] = v.buildLookupMap(loader, "pathways.txt", "pathway_id")
 	lookupMaps["level_id"] = v.buildLookupMap(loader, "levels.txt", "level_id")

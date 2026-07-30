@@ -146,18 +146,6 @@ func (v *ZoneValidator) loadUsedZones(loader *parser.FeedLoader) map[string]bool
 
 // validateZones validates zone consistency
 func (v *ZoneValidator) validateZones(container *notice.NoticeContainer, zones map[string][]*ZoneInfo, usedZones map[string]bool) {
-	// Check for single stop zones (regardless of usage)
-	for zoneID, zoneInfos := range zones {
-		if len(zoneInfos) == 1 {
-			// Single stop in zone - might be a data quality issue
-			container.AddNotice(notice.NewSingleStopZoneNotice(
-				zoneID,
-				zoneInfos[0].StopID,
-				zoneInfos[0].RowNumber,
-			))
-		}
-	}
-
 	// Check for unused zones
 	for zoneID, zoneInfos := range zones {
 		if !usedZones[zoneID] {
@@ -169,38 +157,8 @@ func (v *ZoneValidator) validateZones(container *notice.NoticeContainer, zones m
 		}
 	}
 
-	// Check for referenced but undefined zones
-	for zoneID := range usedZones {
-		if _, exists := zones[zoneID]; !exists {
-			container.AddNotice(notice.NewUndefinedZoneNotice(zoneID))
-		}
-	}
-
-	// Check for zone naming conventions
-	v.validateZoneNaming(container, zones)
-}
-
-// validateZoneNaming checks zone naming patterns
-func (v *ZoneValidator) validateZoneNaming(container *notice.NoticeContainer, zones map[string][]*ZoneInfo) {
-	// Check for very long zone IDs
-	for zoneID, zoneInfos := range zones {
-		if len(zoneID) > 50 {
-			container.AddNotice(notice.NewLongZoneIDNotice(
-				zoneID,
-				len(zoneID),
-				zoneInfos[0].RowNumber,
-			))
-		}
-
-		// Check for zones that look like stop IDs
-		if strings.Contains(zoneID, "_") || strings.Contains(zoneID, "-") {
-			// This might indicate using stop_id as zone_id
-			if len(zoneInfos) == 1 && zoneID == zoneInfos[0].StopID {
-				container.AddNotice(notice.NewZoneIDSameAsStopIDNotice(
-					zoneID,
-					zoneInfos[0].RowNumber,
-				))
-			}
-		}
-	}
+	// A fare rule naming a zone no stop defines is reported by
+	// relationship/foreign_key_validator.go as foreign_key_violation, which
+	// resolves origin_id, destination_id and contains_id against the zone_id
+	// column of stops.txt.
 }

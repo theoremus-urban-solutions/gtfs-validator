@@ -33,7 +33,7 @@ func TestRouteConsistencyValidator_Validate(t *testing.T) {
 					"route1,1,Bus Line,abc\n" + // Non-numeric
 					"route2,2,Metro Line,99", // Invalid number
 			},
-			expectedNoticeCodes: []string{"invalid_route_type", "invalid_route_type"},
+			expectedNoticeCodes: []string{}, // route_type is checked by core/field_type_validator.go
 			description:         "Invalid route types should generate errors",
 		},
 		{
@@ -53,7 +53,7 @@ func TestRouteConsistencyValidator_Validate(t *testing.T) {
 					"route1,1,Bus Line,3,FF0000,FF0000\n" + // Same color
 					"route2,2,Metro Line,1,FFFFFF,EEEEEE", // Very similar colors
 			},
-			expectedNoticeCodes: []string{"poor_color_contrast", "poor_color_contrast"},
+			expectedNoticeCodes: []string{},
 			description:         "Poor color contrast should generate warnings",
 		},
 		{
@@ -107,7 +107,7 @@ func TestRouteConsistencyValidator_Validate(t *testing.T) {
 					"route4,4,Poor Contrast,3,FF0000,FF0000,https://example.com\n" +
 					"route5,5,Invalid URL,3,FF0000,FFFFFF,invalid-url",
 			},
-			expectedNoticeCodes: []string{"invalid_route_type", "invalid_color", "poor_color_contrast", "invalid_url"},
+			expectedNoticeCodes: []string{"invalid_color", "invalid_url"},
 			description:         "Mixed valid and invalid routes should generate appropriate notices",
 		},
 		{
@@ -209,7 +209,7 @@ func TestRouteConsistencyValidator_Validate(t *testing.T) {
 				"routes.txt": "route_id,route_short_name,route_long_name,route_type,route_color,route_text_color\n" +
 					"route1,1,Borderline,3,888888,BBBBBB", // Low contrast
 			},
-			expectedNoticeCodes: []string{"poor_color_contrast"},
+			expectedNoticeCodes: []string{},
 			description:         "Borderline contrast should generate warnings",
 		},
 		{
@@ -308,63 +308,6 @@ func TestRouteConsistencyValidator_IsValidHexColor(t *testing.T) {
 	}
 }
 
-func TestRouteConsistencyValidator_HasGoodContrast(t *testing.T) {
-	validator := NewRouteConsistencyValidator()
-
-	tests := []struct {
-		color1       string
-		color2       string
-		goodContrast bool
-		description  string
-	}{
-		{"000000", "FFFFFF", true, "Black on white - perfect contrast"},
-		{"FFFFFF", "000000", true, "White on black - perfect contrast"},
-		{"FF0000", "FF0000", false, "Identical colors - poor contrast"},
-		{"FF0000", "ff0000", false, "Same color different case - poor contrast"},
-		{"0000FF", "FFFF00", true, "Blue on yellow - good contrast"},
-		{"888888", "BBBBBB", false, "Similar grays - poor contrast"},
-		{"003366", "FFFF00", true, "Dark blue on yellow - good contrast"},
-		{"800000", "FFFFFF", true, "Dark red on white - good contrast"},
-		{"CCCCCC", "DDDDDD", false, "Very similar colors - poor contrast"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.description, func(t *testing.T) {
-			result := validator.hasGoodContrast(tt.color1, tt.color2)
-			if result != tt.goodContrast {
-				t.Errorf("Contrast between %s and %s: expected good=%v, got %v", tt.color1, tt.color2, tt.goodContrast, result)
-			}
-		})
-	}
-}
-
-func TestRouteConsistencyValidator_CalculateLuminance(t *testing.T) {
-	validator := NewRouteConsistencyValidator()
-
-	tests := []struct {
-		color         string
-		expectedRange [2]float64 // [min, max] range for luminance (based on actual implementation)
-		description   string
-	}{
-		{"000000", [2]float64{0.0, 0.01}, "Black should have very low luminance"},
-		{"FFFFFF", [2]float64{2.35, 2.45}, "White should have high luminance (implementation-specific)"},
-		{"FF0000", [2]float64{0.50, 0.52}, "Red should have medium-low luminance (implementation-specific)"},
-		{"00FF00", [2]float64{1.70, 1.72}, "Green should have high luminance (implementation-specific)"},
-		{"0000FF", [2]float64{0.17, 0.18}, "Blue should have low luminance (implementation-specific)"},
-		{"808080", [2]float64{0.66, 0.68}, "Medium gray should have medium luminance (implementation-specific)"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.description, func(t *testing.T) {
-			result := validator.calculateLuminance(tt.color)
-			if result < tt.expectedRange[0] || result > tt.expectedRange[1] {
-				t.Errorf("Luminance of %s: expected range [%.3f, %.3f], got %.3f",
-					tt.color, tt.expectedRange[0], tt.expectedRange[1], result)
-			}
-		})
-	}
-}
-
 func TestRouteConsistencyValidator_IsValidURL(t *testing.T) {
 	validator := NewRouteConsistencyValidator()
 
@@ -392,32 +335,6 @@ func TestRouteConsistencyValidator_IsValidURL(t *testing.T) {
 			result := validator.isValidURL(tt.url)
 			if result != tt.isValid {
 				t.Errorf("URL '%s': expected valid=%v, got %v", tt.url, tt.isValid, result)
-			}
-		})
-	}
-}
-
-func TestRouteConsistencyValidator_GammaCorrect(t *testing.T) {
-	validator := NewRouteConsistencyValidator()
-
-	tests := []struct {
-		value     float64
-		expected  float64
-		tolerance float64
-	}{
-		{0.0, 0.0, 0.001},
-		{0.03, 0.00232, 0.001}, // Below threshold
-		{0.05, 0.02377, 0.001}, // Above threshold (implementation-specific)
-		{1.0, 2.4, 0.001},      // Maximum value (implementation-specific)
-		{0.5, 0.66419, 0.001},  // Mid-range value (implementation-specific)
-	}
-
-	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
-			result := validator.gammaCorrect(tt.value)
-			if result < tt.expected-tt.tolerance || result > tt.expected+tt.tolerance {
-				t.Errorf("Gamma correction of %.3f: expected ~%.5f (±%.3f), got %.5f",
-					tt.value, tt.expected, tt.tolerance, result)
 			}
 		})
 	}

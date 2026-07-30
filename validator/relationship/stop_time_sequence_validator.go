@@ -113,34 +113,12 @@ func (v *StopTimeSequenceValidator) validateTripStopTimes(container *notice.Noti
 		return stopTimes[i].StopSequence < stopTimes[j].StopSequence
 	})
 
-	// Check for duplicate stop sequences
-	v.validateDuplicateStopSequences(container, stopTimes)
+	// A stop_sequence repeated within a trip is reported by
+	// core/duplicate_key_validator.go, which keys stop_times.txt on
+	// trip_id + stop_sequence.
 
 	// Check for decreasing shape distances
 	v.validateShapeDistanceOrder(container, stopTimes)
-}
-
-// validateDuplicateStopSequences checks for duplicate stop_sequence values
-func (v *StopTimeSequenceValidator) validateDuplicateStopSequences(container *notice.NoticeContainer, stopTimes []StopTime) {
-	sequenceMap := make(map[int][]StopTime)
-
-	for _, stopTime := range stopTimes {
-		sequenceMap[stopTime.StopSequence] = append(sequenceMap[stopTime.StopSequence], stopTime)
-	}
-
-	for sequence, stops := range sequenceMap {
-		if len(stops) > 1 {
-			for i := 1; i < len(stops); i++ {
-				container.AddNotice(notice.NewDuplicateStopSequenceNotice(
-					stops[i].TripID,
-					sequence,
-					stops[i].StopID,
-					stops[i].RowNumber,
-					stops[0].RowNumber,
-				))
-			}
-		}
-	}
 }
 
 // validateShapeDistanceOrder checks that shape_dist_traveled values are increasing

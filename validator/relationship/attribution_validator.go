@@ -165,17 +165,8 @@ func (v *AttributionValidator) validateAttribution(container *notice.NoticeConta
 		))
 	}
 
-	// Check that at least one role is specified
-	hasRole := (attribution.IsProducer != nil && *attribution.IsProducer) ||
-		(attribution.IsOperator != nil && *attribution.IsOperator) ||
-		(attribution.IsAuthority != nil && *attribution.IsAuthority)
-
-	if !hasRole {
-		container.AddNotice(notice.NewMissingAttributionRoleNotice(
-			attribution.AttributionID,
-			attribution.RowNumber,
-		))
-	}
+	// An attribution claiming none of is_producer, is_operator and is_authority
+	// is reported by entity/attribution_without_role_validator.go.
 
 	// Validate foreign key references
 	if attribution.AgencyID != "" && !agencies[attribution.AgencyID] {

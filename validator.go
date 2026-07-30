@@ -76,7 +76,11 @@ type Config struct {
 	// ValidationMode configures which validators to run.
 	ValidationMode ValidationMode
 
-	// MaxNoticesPerType limits notices per type (0 = no limit).
+	// MaxNoticesPerType limits notices per type (0 = no limit, the default).
+	//
+	// A cap silently discards notices once reached, and since notices arrive
+	// in file order rather than severity order, the discarded ones can be the
+	// errors. Only set this if you knowingly want a truncated report.
 	MaxNoticesPerType int
 
 	// EnableCaching enables shared data caching across validators.
@@ -191,13 +195,25 @@ type NoticeCounts struct {
 	Total int `json:"total"`
 }
 
+// Severity levels as they appear in reports.
+const (
+	SeverityLevelError   = "ERROR"
+	SeverityLevelWarning = "WARNING"
+	SeverityLevelInfo    = "INFO"
+)
+
 // NoticeGroup represents a group of notices with the same type.
+//
+// A group has no single severity. One code can produce notices of different
+// severities, so a single label would hide all but one of them. Use
+// SeverityCounts for the breakdown, HighestSeverity for sorting and display,
+// and the "severity" key on each sample notice for the individual instance.
 type NoticeGroup struct {
 	// Code is the notice type code (e.g., "missing_required_field").
 	Code string `json:"code"`
 
-	// Severity is the notice severity (ERROR, WARNING, INFO).
-	Severity string `json:"severity"`
+	// SeverityCounts breaks the group down by severity level.
+	SeverityCounts NoticeCounts `json:"severityCounts"`
 
 	// Description is a comprehensive, user-friendly description of the notice type.
 	// This helps feed producers understand and fix validation issues.
@@ -215,14 +231,26 @@ type NoticeGroup struct {
 	// ExampleFix provides a concrete example of how to fix this issue.
 	ExampleFix string `json:"exampleFix,omitempty"`
 
-	// Impact describes the business impact of this validation issue.
-	Impact string `json:"impact,omitempty"`
-
 	// TotalNotices is the total count of this notice type.
 	TotalNotices int `json:"totalNotices"`
 
-	// SampleNotices contains sample instances of this notice.
+	// SampleNotices contains sample instances of this notice. Each sample
+	// carries its own "severity", plus "file" and "line" where they could be
+	// determined. Samples are ordered most severe first.
 	SampleNotices []map[string]interface{} `json:"sampleNotices"`
+}
+
+// HighestSeverity returns the most severe level present in the group. Use it
+// for sorting and colouring, never as a label for the group as a whole.
+func (g *NoticeGroup) HighestSeverity() string {
+	switch {
+	case g.SeverityCounts.Errors > 0:
+		return SeverityLevelError
+	case g.SeverityCounts.Warnings > 0:
+		return SeverityLevelWarning
+	default:
+		return SeverityLevelInfo
+	}
 }
 
 // HasErrors returns true if the report contains any errors.
@@ -323,7 +351,7 @@ func New(opts ...Option) Validator {
 		ParallelWorkers:   4,
 		ValidatorVersion:  "1.0.0",
 		ValidationMode:    ValidationModeDefault,
-		MaxNoticesPerType: 100,
+		MaxNoticesPerType: 0,     // No limit: capping per type silently drops findings
 		EnableCaching:     false, // Default false for backward compatibility
 	}
 

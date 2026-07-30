@@ -104,7 +104,7 @@ func TestDuplicateKeyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				FeedInfoFile: "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,en\nBus,http://bus.example,en", // Multiple records
 			},
-			expectedNoticeCodes: []string{"multiple_records_in_single_record_file"},
+			expectedNoticeCodes: []string{"more_than_one_entity"},
 			description:         "FeedInfoFile should contain only one record",
 		},
 		{
@@ -472,7 +472,7 @@ func TestDuplicateKeyValidator_ValidateSingleRecordFile(t *testing.T) {
 
 			if tt.expectedNotices > 0 && len(notices) > 0 {
 				notice := notices[0]
-				if notice.Code() != "multiple_records_in_single_record_file" {
+				if notice.Code() != "more_than_one_entity" {
 					t.Errorf("Expected notice code 'multiple_records_in_single_record_file', got '%s'", notice.Code())
 				}
 			}

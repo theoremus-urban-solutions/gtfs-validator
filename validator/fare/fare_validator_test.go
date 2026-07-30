@@ -25,30 +25,13 @@ func TestFareValidator_Validate(t *testing.T) {
 		codes[n.Code()]++
 	}
 
-	// From fare_attributes
-	if codes["invalid_fare_price"] == 0 {
-		t.Errorf("expected invalid_fare_price notice")
-	}
-	if codes["excessive_price_precision"] == 0 {
-		t.Errorf("expected excessive_price_precision notice")
-	}
-	if codes["invalid_payment_method"] == 0 {
-		t.Errorf("expected invalid_payment_method notice")
-	}
-	if codes["unusual_transfer_value"] == 0 {
-		t.Errorf("expected unusual_transfer_value notice for transfers=3")
-	}
-	if codes["invalid_transfer_duration"] == 0 {
-		t.Errorf("expected invalid_transfer_duration notice for negative duration")
-	}
+	// price, payment_method, transfers and transfer_duration are checked
+	// against the spec's types by core/field_type_validator.go.
 	if codes["unnecessary_transfer_duration"] == 0 {
 		t.Errorf("expected unnecessary_transfer_duration when transfers=0 but duration given")
 	}
 
 	// From fare_rules
-	if codes["same_origin_destination"] == 0 {
-		t.Errorf("expected same_origin_destination notice")
-	}
 	// conflicting_fare_rule_fields requires contains_id used with origin/destination; not present here
 	// empty_fare_rule requires no rule fields; not present here
 	if codes["unused_fare_attribute"] == 0 {

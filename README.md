@@ -2,18 +2,29 @@
 
 [![Go Version](https://img.shields.io/badge/go-1.21+-blue.svg)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Validation Rules](https://img.shields.io/badge/Validation%20Rules-294-brightgreen.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
+[![Validation Rules](https://img.shields.io/badge/Validation%20Rules-176-brightgreen.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
+[![Canonical Parity](https://img.shields.io/badge/Canonical%20Parity-133%2F133-brightgreen.svg)](CANONICAL_PARITY.md)
 [![Test Coverage](https://img.shields.io/badge/Test%20Coverage-100%25-brightgreen.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
 [![Performance](https://img.shields.io/badge/Performance-5s%20for%20588k%20stops-orange.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
 
-A fast, comprehensive GTFS (General Transit Feed Specification) validator library for Go. **More comprehensive than the official MobilityData validator** with 294 validation rules, covering all GTFS specification requirements plus advanced business logic and analytics.
+A fast, comprehensive GTFS (General Transit Feed Specification) validator library for Go. 176 validation rules: every applicable rule from the Canonical GTFS Schedule Validator, plus business-logic checks that matter to downstream consumers such as OpenTripPlanner.
 
-> **📊 Quick Comparison**: Our validator provides **294 validation rules** vs MobilityData's ~60 rules, with **100% test coverage** and **enterprise-grade performance** (5-6 second validation of 588k+ stop times).
+> **📊 Scope**: 176 rules. **All 133 applicable rules from the
+> [Canonical GTFS Schedule Validator](https://gtfs-validator.mobilitydata.org/rules.html)
+> are implemented**, at the severity it gives them. The 48 canonical rules not
+> implemented are GTFS-Flex, GTFS-Fares v2, deprecated upstream, or artefacts of
+> that validator's own execution model rather than feed defects.
+>
+> The other 43 rules are ours, covering failure modes the canonical set does not
+> model — several of which break OpenTripPlanner graph builds. None of them is
+> ERROR: a code MobilityData does not define is our opinion, and an opinion
+> should not fail your feed. See [CANONICAL_PARITY.md](CANONICAL_PARITY.md) and
+> [VALIDATOR_RULES.md](VALIDATOR_RULES.md).
 
 ## Features
 
 - **🚀 Fast Validation**: Optimized for large feeds with parallel processing and memory pools
-- **📋 Comprehensive**: 294+ validation rules across 61 validators - more than official MobilityData validator  
+- **📋 Comprehensive**: 176 validation rules across 50 validators, in full parity with the canonical validator
 - **🔧 Multiple Modes**: Performance, default, and comprehensive validation modes
 - **⚡ Concurrent**: Thread-safe with configurable worker pools
 - **⏰ Context Support**: Cancellation, timeouts, and progress reporting
@@ -164,7 +175,7 @@ gtfs-validator help                        # Show help
 | `--output` | `-o` | Output file path | `stdout` |
 | `--country` | `-c` | Country code for validation | `US` |
 | `--workers` | `-w` | Number of parallel workers | `4` |
-| `--max-notices` | | Maximum notices per type (0 = no limit) | `100` |
+| `--max-notices` | | Maximum notices per type (0 = no limit) | `0` |
 | `--progress` | `-p` | Show progress bar | `false` |
 | `--timeout` | `-t` | Validation timeout | `5m` |
 | `--memory` | | Maximum memory usage in MB (0 = no limit) | `0` |
@@ -196,7 +207,7 @@ This implementation provides **more validation rules than the official MobilityD
 
 | Validator | Our Implementation | Official MobilityData |
 |-----------|-------------------|----------------------|
-| **Total Rules** | **294 validation rules** | ~60 core rules |
+| **Total Rules** | 201 validation rules | 177 canonical rules |
 | **Validators** | **61 specialized validators** | ~30 validators |
 | **Test Coverage** | **100% - all validators tested** | Partial |
 | **Categories** | **6 comprehensive categories** | 3 basic categories |
@@ -214,7 +225,7 @@ This implementation provides **more validation rules than the official MobilityD
 ### **Advanced Features Beyond Official Spec**
 
 - **Analytics & Reporting**: Network topology analysis, service pattern insights
-- **Enhanced Error Descriptions**: 180+ comprehensive, user-friendly error descriptions with impact analysis and fix suggestions
+- **Enhanced Error Descriptions**: Upstream MobilityData wording for every code in the canonical rule registry
 - **Enhanced Business Logic**: Block overlapping, attribution scope conflicts
 - **Geospatial Intelligence**: Coordinate clustering, geographic analysis  
 - **Operational Insights**: Route pattern variations, service optimization suggestions
@@ -232,22 +243,40 @@ This implementation provides **more validation rules than the official MobilityD
 
 The validator provides comprehensive, user-friendly descriptions for all validation issues:
 
+Notices are grouped by code, but severity belongs to the individual notice, not
+to the group. One code can produce notices of different severities — a route
+colour contrast below the WCAG threshold is a WARNING, while unreadable text is
+an ERROR — so a group reports a breakdown and each sample carries its own
+severity, file and line.
+
 ```json
 {
-  "code": "missing_required_field",
-  "severity": "ERROR",
-  "description": "A required field is missing from a GTFS file. This field is mandatory according to the GTFS specification.",
-  "totalNotices": 2,
-  "sampleNotices": [...]
+  "code": "route_color_contrast",
+  "severityCounts": { "errors": 1, "warnings": 3, "infos": 0, "total": 4 },
+  "description": "Route colors have insufficient contrast for accessibility compliance.",
+  "affectedFiles": ["routes.txt"],
+  "totalNotices": 4,
+  "sampleNotices": [
+    { "severity": "ERROR", "file": "routes.txt", "line": 5, "routeId": "6", "actualContrast": 1.0 },
+    { "severity": "WARNING", "file": "routes.txt", "line": 2, "routeId": "2", "actualContrast": 4.47 }
+  ]
 }
 ```
 
+Samples are ordered most severe first, so the sample cap never hides the errors
+in a group that is mostly warnings. `affectedFiles` lists the GTFS files a code
+concerns, the file its rows belong to first; feed-wide summary notices have
+neither a file nor a line.
+
 **Features:**
-- **180+ Detailed Descriptions**: Comprehensive coverage of all validation categories
-- **Impact Analysis**: Explains how each issue affects the feed
-- **Fix Suggestions**: Provides actionable guidance for resolving issues
-- **User-Friendly Language**: Clear, non-technical explanations
-- **Consistent Format**: Same descriptions in JSON and HTML outputs
+Descriptions come from the Canonical GTFS Schedule Validator rule registry, so
+the wording matches what MobilityData publishes. Regenerate them with:
+
+```bash
+python3 scripts/gen_notice_descriptions.py
+```
+
+Codes we emit that MobilityData does not define fall back to the code name.
 
 ## Examples
 

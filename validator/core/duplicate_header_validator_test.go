@@ -9,7 +9,7 @@ import (
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
 
-const duplicateHeaderCode = "duplicate_header"
+const duplicateHeaderCode = "duplicated_column"
 
 func TestDuplicateHeaderValidator_Validate(t *testing.T) {
 	tests := []struct {

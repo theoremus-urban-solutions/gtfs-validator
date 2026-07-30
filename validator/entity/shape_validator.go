@@ -49,8 +49,71 @@ func (v *ShapeValidator) Validate(loader *parser.FeedLoader, container *notice.N
 		v.validateShape(container, shape)
 	}
 
-	// Validate shape usage
-	v.validateShapeUsage(loader, container, shapes)
+	v.validateShapesAreUsed(container, shapes, loader)
+}
+
+// validateShapesAreUsed reports shapes no trip draws. A feed that cannot be
+// read for trips at all is left alone: with no references to compare against,
+// every shape would look unused, and the missing-file check owns that failure.
+func (v *ShapeValidator) validateShapesAreUsed(container *notice.NoticeContainer, shapes map[string]*ShapeInfo, loader *parser.FeedLoader) {
+	referenced, ok := v.loadReferencedShapeIDs(loader)
+	if !ok {
+		return
+	}
+
+	// Sorted so the report does not reshuffle between runs.
+	shapeIDs := make([]string, 0, len(shapes))
+	for shapeID := range shapes {
+		shapeIDs = append(shapeIDs, shapeID)
+	}
+	sort.Strings(shapeIDs)
+
+	for _, shapeID := range shapeIDs {
+		if referenced[shapeID] {
+			continue
+		}
+		container.AddNotice(notice.NewUnusedShapeNotice(
+			shapeID,
+			shapes[shapeID].Points[0].RowNumber,
+		))
+	}
+}
+
+// loadReferencedShapeIDs collects every shape_id trips.txt names, reporting
+// whether the file could be read at all.
+func (v *ShapeValidator) loadReferencedShapeIDs(loader *parser.FeedLoader) (map[string]bool, bool) {
+	referenced := make(map[string]bool)
+
+	reader, err := loader.GetFile("trips.txt")
+	if err != nil {
+		return nil, false
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+
+	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
+	if err != nil {
+		return nil, false
+	}
+
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			break
+		}
+
+		if shapeID := strings.TrimSpace(row.Values["shape_id"]); shapeID != "" {
+			referenced[shapeID] = true
+		}
+	}
+
+	return referenced, true
 }
 
 // loadShapes loads shape information from shapes.txt
@@ -157,193 +220,66 @@ func (v *ShapeValidator) validateShape(container *notice.NoticeContainer, shape 
 		return
 	}
 
-	// Validate sequence numbers
-	v.validateShapeSequence(container, shape)
-
-	// Validate shape distances
 	v.validateShapeDistances(container, shape)
-
-	// Validate shape geometry
-	v.validateShapeGeometry(container, shape)
 }
 
-// validateShapeSequence validates shape point sequence numbers
-func (v *ShapeValidator) validateShapeSequence(container *notice.NoticeContainer, shape *ShapeInfo) {
-	sequenceMap := make(map[int]*ShapePointDetailed)
+// equalDistanceThresholdMetres is the distance below which two shape points
+// sharing a shape_dist_traveled are treated as a rounding artefact rather than
+// a real gap. 1.11 m is 1e-5 degrees of latitude — the smallest difference a
+// five-decimal coordinate can express.
+const equalDistanceThresholdMetres = 1.11
 
-	for _, point := range shape.Points {
-		if existingPoint, exists := sequenceMap[point.ShapePtSequence]; exists {
-			container.AddNotice(notice.NewDuplicateShapeSequenceNotice(
-				shape.ShapeID,
-				point.ShapePtSequence,
-				point.RowNumber,
-				existingPoint.RowNumber,
-			))
-		} else {
-			sequenceMap[point.ShapePtSequence] = point
-		}
-	}
-
-	// Check for non-increasing sequences
-	for i := 1; i < len(shape.Points); i++ {
-		if shape.Points[i].ShapePtSequence <= shape.Points[i-1].ShapePtSequence {
-			container.AddNotice(notice.NewNonIncreasingShapeSequenceNotice(
-				shape.ShapeID,
-				shape.Points[i].ShapePtSequence,
-				shape.Points[i-1].ShapePtSequence,
-				shape.Points[i].RowNumber,
-			))
-		}
-	}
-}
-
-// validateShapeDistances validates shape distance values
+// validateShapeDistances validates the shape_dist_traveled progression along a
+// shape. Sorted by shape_pt_sequence, the values must increase: a decrease is
+// an error, and equal values mean the shape covers ground the distance does
+// not account for.
 func (v *ShapeValidator) validateShapeDistances(container *notice.NoticeContainer, shape *ShapeInfo) {
-	hasAnyDistance := false
-	for _, point := range shape.Points {
-		if point.ShapeDistTraveled != nil {
-			hasAnyDistance = true
-			break
-		}
-	}
-
-	if !hasAnyDistance {
-		return // No distances to validate
-	}
-
-	// Check that all points have distances if any do
-	for _, point := range shape.Points {
-		if point.ShapeDistTraveled == nil {
-			container.AddNotice(notice.NewInconsistentShapeDistanceNotice(
-				shape.ShapeID,
-				point.ShapePtSequence,
-				point.RowNumber,
-			))
-		}
-	}
-
-	// Validate distance progression
 	for i := 1; i < len(shape.Points); i++ {
 		curr := shape.Points[i]
 		prev := shape.Points[i-1]
 
-		if curr.ShapeDistTraveled != nil && prev.ShapeDistTraveled != nil {
-			if *curr.ShapeDistTraveled < *prev.ShapeDistTraveled {
-				container.AddNotice(notice.NewDecreasingShapeDistanceNotice(
-					shape.ShapeID,
-					curr.ShapePtSequence,
-					*curr.ShapeDistTraveled,
-					*prev.ShapeDistTraveled,
-					curr.RowNumber,
-				))
-			}
+		if curr.ShapeDistTraveled == nil || prev.ShapeDistTraveled == nil {
+			continue
+		}
 
-			if *curr.ShapeDistTraveled == *prev.ShapeDistTraveled {
-				container.AddNotice(notice.NewEqualShapeDistanceNotice(
-					shape.ShapeID,
-					curr.ShapePtSequence,
-					prev.ShapePtSequence,
-					*curr.ShapeDistTraveled,
-					curr.RowNumber,
+		switch {
+		case *curr.ShapeDistTraveled < *prev.ShapeDistTraveled:
+			container.AddNotice(notice.NewDecreasingShapeDistanceNotice(
+				shape.ShapeID,
+				curr.ShapePtSequence,
+				*curr.ShapeDistTraveled,
+				*prev.ShapeDistTraveled,
+				curr.RowNumber,
+			))
+
+		case *curr.ShapeDistTraveled == *prev.ShapeDistTraveled:
+			distance := v.haversineDistance(
+				prev.ShapePtLat, prev.ShapePtLon,
+				curr.ShapePtLat, curr.ShapePtLon,
+			)
+
+			switch {
+			case distance == 0:
+				container.AddNotice(notice.NewEqualShapeDistanceSameCoordinatesNotice(
+					shape.ShapeID, *curr.ShapeDistTraveled,
+					prev.ShapePtSequence, curr.ShapePtSequence,
+					prev.RowNumber, curr.RowNumber,
+				))
+			case distance < equalDistanceThresholdMetres:
+				container.AddNotice(notice.NewEqualShapeDistanceDiffCoordinatesBelowThresholdNotice(
+					shape.ShapeID, *curr.ShapeDistTraveled,
+					prev.ShapePtSequence, curr.ShapePtSequence,
+					prev.RowNumber, curr.RowNumber, distance,
+				))
+			default:
+				container.AddNotice(notice.NewEqualShapeDistanceDiffCoordinatesNotice(
+					shape.ShapeID, *curr.ShapeDistTraveled,
+					prev.ShapePtSequence, curr.ShapePtSequence,
+					prev.RowNumber, curr.RowNumber, distance,
 				))
 			}
 		}
 	}
-}
-
-// validateShapeGeometry validates shape geometric properties
-func (v *ShapeValidator) validateShapeGeometry(container *notice.NoticeContainer, shape *ShapeInfo) {
-	// Check for duplicate consecutive points
-	for i := 1; i < len(shape.Points); i++ {
-		curr := shape.Points[i]
-		prev := shape.Points[i-1]
-
-		if v.approximatelyEqual(curr.ShapePtLat, prev.ShapePtLat, 1e-7) &&
-			v.approximatelyEqual(curr.ShapePtLon, prev.ShapePtLon, 1e-7) {
-			container.AddNotice(notice.NewDuplicateShapePointNotice(
-				shape.ShapeID,
-				curr.ShapePtSequence,
-				prev.ShapePtSequence,
-				curr.RowNumber,
-			))
-		}
-	}
-
-	// Check for unreasonably long segments
-	for i := 1; i < len(shape.Points); i++ {
-		curr := shape.Points[i]
-		prev := shape.Points[i-1]
-
-		distance := v.haversineDistance(
-			prev.ShapePtLat, prev.ShapePtLon,
-			curr.ShapePtLat, curr.ShapePtLon,
-		)
-
-		// Flag segments longer than 100km as potentially problematic
-		if distance > 100000 {
-			container.AddNotice(notice.NewUnreasonablyLongShapeSegmentNotice(
-				shape.ShapeID,
-				prev.ShapePtSequence,
-				curr.ShapePtSequence,
-				distance,
-				curr.RowNumber,
-			))
-		}
-	}
-}
-
-// validateShapeUsage checks if shapes are actually used by trips
-func (v *ShapeValidator) validateShapeUsage(loader *parser.FeedLoader, container *notice.NoticeContainer, shapes map[string]*ShapeInfo) {
-	// Load used shape IDs from trips.txt
-	usedShapes := v.loadUsedShapes(loader)
-
-	// Check for unused shapes
-	for shapeID := range shapes {
-		if !usedShapes[shapeID] {
-			container.AddNotice(notice.NewUnusedShapeNotice(shapeID))
-		}
-	}
-}
-
-// loadUsedShapes loads shape IDs used in trips.txt
-func (v *ShapeValidator) loadUsedShapes(loader *parser.FeedLoader) map[string]bool {
-	usedShapes := make(map[string]bool)
-
-	reader, err := loader.GetFile("trips.txt")
-	if err != nil {
-		return usedShapes
-	}
-	defer func() {
-		if closeErr := reader.Close(); closeErr != nil {
-			log.Printf("Warning: failed to close reader %v", closeErr)
-		}
-	}()
-
-	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
-	if err != nil {
-		return usedShapes
-	}
-
-	for {
-		row, err := csvFile.ReadRow()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			break
-		}
-
-		if shapeID, hasShapeID := row.Values["shape_id"]; hasShapeID && strings.TrimSpace(shapeID) != "" {
-			usedShapes[strings.TrimSpace(shapeID)] = true
-		}
-	}
-
-	return usedShapes
-}
-
-// approximatelyEqual checks if two float64 values are approximately equal
-func (v *ShapeValidator) approximatelyEqual(a, b, epsilon float64) bool {
-	return math.Abs(a-b) < epsilon
 }
 
 // haversineDistance calculates the distance between two lat/lon points in meters

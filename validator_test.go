@@ -20,7 +20,7 @@ func TestNew(t *testing.T) {
 				ParallelWorkers:   4,
 				ValidatorVersion:  "1.0.0",
 				ValidationMode:    ValidationModeDefault,
-				MaxNoticesPerType: 100,
+				MaxNoticesPerType: 0, // no limit by default
 			},
 		},
 		{
@@ -31,7 +31,7 @@ func TestNew(t *testing.T) {
 				ParallelWorkers:   4,
 				ValidatorVersion:  "1.0.0",
 				ValidationMode:    ValidationModeDefault,
-				MaxNoticesPerType: 100,
+				MaxNoticesPerType: 0, // no limit by default
 			},
 		},
 		{
@@ -42,7 +42,7 @@ func TestNew(t *testing.T) {
 				ParallelWorkers:   4,
 				ValidatorVersion:  "1.0.0",
 				ValidationMode:    ValidationModePerformance,
-				MaxNoticesPerType: 100,
+				MaxNoticesPerType: 0, // no limit by default
 			},
 		},
 		{
@@ -53,7 +53,7 @@ func TestNew(t *testing.T) {
 				ParallelWorkers:   8,
 				ValidatorVersion:  "1.0.0",
 				ValidationMode:    ValidationModeDefault,
-				MaxNoticesPerType: 100,
+				MaxNoticesPerType: 0, // no limit by default
 			},
 		},
 	}
@@ -299,9 +299,9 @@ func TestNoticeCallback(t *testing.T) {
 	}
 
 	testNotice := NoticeGroup{
-		Code:         "test_code",
-		Severity:     "ERROR",
-		TotalNotices: 1,
+		Code:           "test_code",
+		SeverityCounts: NoticeCounts{Errors: 1, Total: 1},
+		TotalNotices:   1,
 	}
 
 	callback(testNotice)
@@ -309,7 +309,7 @@ func TestNoticeCallback(t *testing.T) {
 	if receivedNotice.Code != "test_code" {
 		t.Errorf("Expected notice code test_code, got %s", receivedNotice.Code)
 	}
-	if receivedNotice.Severity != "ERROR" {
-		t.Errorf("Expected notice severity ERROR, got %s", receivedNotice.Severity)
+	if receivedNotice.HighestSeverity() != SeverityLevelError {
+		t.Errorf("Expected notice severity ERROR, got %s", receivedNotice.HighestSeverity())
 	}
 }

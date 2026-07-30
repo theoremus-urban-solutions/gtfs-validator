@@ -292,11 +292,8 @@ func (v *StopTimeConsistencyValidator) validateTripStopTimes(container *notice.N
 	// Check for duplicate stops
 	v.validateDuplicateStops(container, tripID, stopTimes)
 
-	// Check for arrival/departure consistency
-	v.validateArrivalDepartureConsistency(container, stopTimes)
-
-	// Check for timepoint consistency
-	v.validateTimepointConsistency(container, stopTimes)
+	// A row giving only one of arrival_time and departure_time is reported by
+	// stop_time_field_validator.go, which sees the raw row.
 
 	// Check for pickup/drop-off consistency
 	v.validatePickupDropoffConsistency(container, stopTimes)
@@ -351,84 +348,22 @@ func (v *StopTimeConsistencyValidator) validateDuplicateStops(container *notice.
 				}
 			}
 
-			// Check if it's a loop route (same stop at beginning and end)
+			// A stop visited exactly twice, first and last, is a loop trip.
+			// That is a normal service pattern, not a repeated stop.
 			if count == 2 && occurrences[0].StopSequence == stopTimes[0].StopSequence &&
 				occurrences[1].StopSequence == stopTimes[len(stopTimes)-1].StopSequence {
-				// This is likely a loop route - less severe
-				container.AddNotice(notice.NewLoopRouteNotice(
+				continue
+			}
+
+			// The same stop appears mid-trip, which breaks routing.
+			for i := 1; i < len(occurrences); i++ {
+				container.AddNotice(notice.NewDuplicateStopInTripNotice(
 					tripID,
 					stopID,
-					occurrences[0].RowNumber,
-					occurrences[1].RowNumber,
+					occurrences[i].StopSequence,
+					occurrences[i].RowNumber,
 				))
-			} else {
-				// Multiple stops in the middle of the trip
-				for i := 1; i < len(occurrences); i++ {
-					container.AddNotice(notice.NewDuplicateStopInTripNotice(
-						tripID,
-						stopID,
-						occurrences[i].StopSequence,
-						occurrences[i].RowNumber,
-					))
-				}
 			}
-		}
-	}
-}
-
-// validateArrivalDepartureConsistency checks arrival/departure time consistency
-func (v *StopTimeConsistencyValidator) validateArrivalDepartureConsistency(container *notice.NoticeContainer, stopTimes []*StopTimeInfo) {
-	for _, stopTime := range stopTimes {
-		// Skip if both times are empty
-		if stopTime.ArrivalTime == "" && stopTime.DepartureTime == "" {
-			continue
-		}
-
-		// Check if only one time is provided
-		if stopTime.ArrivalTime == "" && stopTime.DepartureTime != "" {
-			container.AddNotice(notice.NewMissingArrivalTimeNotice(
-				stopTime.TripID,
-				stopTime.StopID,
-				stopTime.StopSequence,
-				stopTime.RowNumber,
-			))
-		} else if stopTime.ArrivalTime != "" && stopTime.DepartureTime == "" {
-			container.AddNotice(notice.NewMissingDepartureTimeNotice(
-				stopTime.TripID,
-				stopTime.StopID,
-				stopTime.StopSequence,
-				stopTime.RowNumber,
-			))
-		}
-	}
-}
-
-// validateTimepointConsistency checks timepoint field consistency
-func (v *StopTimeConsistencyValidator) validateTimepointConsistency(container *notice.NoticeContainer, stopTimes []*StopTimeInfo) {
-	for _, stopTime := range stopTimes {
-		if stopTime.Timepoint == nil {
-			continue
-		}
-
-		// Validate timepoint value
-		if *stopTime.Timepoint != 0 && *stopTime.Timepoint != 1 {
-			container.AddNotice(notice.NewInvalidTimepointNotice(
-				stopTime.TripID,
-				stopTime.StopID,
-				*stopTime.Timepoint,
-				stopTime.RowNumber,
-			))
-		}
-
-		// Check if timepoint=0 but times are provided
-		if *stopTime.Timepoint == 0 && (stopTime.ArrivalTime != "" || stopTime.DepartureTime != "") {
-			// This is allowed but might be confusing
-			container.AddNotice(notice.NewTimepointWithoutTimesNotice(
-				stopTime.TripID,
-				stopTime.StopID,
-				stopTime.StopSequence,
-				stopTime.RowNumber,
-			))
 		}
 	}
 }
@@ -463,11 +398,25 @@ func (v *StopTimeConsistencyValidator) validatePickupDropoffConsistency(containe
 	allNoPickup := true
 	allNoDropOff := true
 	for _, stopTime := range stopTimes {
-		if stopTime.PickupType == nil || *stopTime.PickupType != 1 {
+		noPickup := stopTime.PickupType != nil && *stopTime.PickupType == 1
+		noDropOff := stopTime.DropOffType != nil && *stopTime.DropOffType == 1
+
+		if !noPickup {
 			allNoPickup = false
 		}
-		if stopTime.DropOffType == nil || *stopTime.DropOffType != 1 {
+		if !noDropOff {
 			allNoDropOff = false
+		}
+
+		// Neither boarding nor alighting is allowed here, so the vehicle
+		// passes through without serving the stop at all.
+		if noPickup && noDropOff {
+			container.AddNotice(notice.NewStopWithoutServiceNotice(
+				stopTime.TripID,
+				stopTime.StopID,
+				stopTime.StopSequence,
+				stopTime.RowNumber,
+			))
 		}
 	}
 

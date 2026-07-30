@@ -26,7 +26,14 @@ func TestStopTimeSequenceValidator_Validate(t *testing.T) {
 		codes[n.Code()]++
 	}
 
-	if codes["duplicate_stop_sequence"] == 0 {
-		t.Errorf("expected duplicate_stop_sequence notice for duplicate sequence")
+	// The repeated stop_sequence in this feed is reported by
+	// core/duplicate_key_validator.go, which keys stop_times.txt on
+	// trip_id + stop_sequence. What is left here is the distance ordering.
+	if codes["decreasing_or_equal_stop_time_distance"] == 0 {
+		t.Errorf("expected decreasing_or_equal_stop_time_distance for stops sharing a distance, got %+v", codes)
+	}
+
+	if codes["duplicate_stop_sequence"] != 0 {
+		t.Errorf("duplicate_stop_sequence is retired, got %+v", codes)
 	}
 }

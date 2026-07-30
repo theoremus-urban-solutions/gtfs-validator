@@ -207,9 +207,18 @@ func (a *AssertValidationReport) FeedInfoEquals(expected FeedInfo) *AssertValida
 func (a *AssertValidationReport) logFirstFewNotices(severity string) {
 	a.t.Helper()
 	count := 0
-	for _, notice := range a.report.Notices {
-		if notice.Severity == severity && count < 5 {
-			a.t.Logf("  %s: %s (%d instances)", severity, notice.Code, notice.TotalNotices)
+	for _, group := range a.report.Notices {
+		instances := 0
+		switch severity {
+		case "ERROR":
+			instances = group.SeverityCounts.Errors
+		case "WARNING":
+			instances = group.SeverityCounts.Warnings
+		case "INFO":
+			instances = group.SeverityCounts.Infos
+		}
+		if instances > 0 && count < 5 {
+			a.t.Logf("  %s: %s (%d instances)", severity, group.Code, instances)
 			count++
 		}
 	}
@@ -221,8 +230,9 @@ func (a *AssertValidationReport) logFirstFewNotices(severity string) {
 func (a *AssertValidationReport) logAllNoticeCodes() {
 	a.t.Helper()
 	a.t.Log("Available notice codes:")
-	for _, notice := range a.report.Notices {
-		a.t.Logf("  - %s (%s)", notice.Code, notice.Severity)
+	for _, group := range a.report.Notices {
+		a.t.Logf("  - %s (%d errors, %d warnings, %d infos)", group.Code,
+			group.SeverityCounts.Errors, group.SeverityCounts.Warnings, group.SeverityCounts.Infos)
 	}
 }
 

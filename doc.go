@@ -100,11 +100,13 @@ and operational errors (file access, memory issues, etc.):
 
 	if report.HasErrors() {
 		// Validation errors - issues found in the GTFS data
-		for _, notice := range report.Notices {
-			if notice.Severity == "ERROR" {
+		// A group can hold more than one severity, so check the breakdown
+		// rather than a single label.
+		for _, group := range report.Notices {
+			if group.SeverityCounts.Errors > 0 {
 				fmt.Printf("Error: %s (%d instances)\n",
-					notice.Code,
-					notice.TotalNotices)
+					group.Code,
+					group.SeverityCounts.Errors)
 			}
 		}
 	}

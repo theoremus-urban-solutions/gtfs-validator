@@ -26,28 +26,28 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 			description:         "Unique route names should not generate notices",
 		},
 		{
-			name: "duplicate long names same agency and route type",
+			name: "shared long name with distinct short names",
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Metro Line,3\nR2,A1,Blue,Metro Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_long_name"},
-			description:         "Duplicate long names in same agency/type should generate notice",
+			expectedNoticeCodes: []string{},
+			description:         "The short name still tells the two branches apart",
 		},
 		{
-			name: "duplicate short names same agency and route type",
+			name: "shared short name with distinct long names",
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\nR2,A1,Red,Blue Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name"},
-			description:         "Duplicate short names in same agency/type should generate notice",
+			expectedNoticeCodes: []string{},
+			description:         "The long name still tells the two routes apart",
 		},
 		{
 			name: "duplicate name combination",
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\nR2,A1,Red,Red Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name", "duplicate_route_long_name", "duplicate_route_name_combination"},
-			description:         "Identical name combinations should generate multiple notices",
+			expectedNoticeCodes: []string{"duplicate_route_name"},
+			description:         "Identical name combinations should generate one notice for the second route",
 		},
 		{
 			name: "same names different agencies - valid",
@@ -66,41 +66,50 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 			description:         "Same names with different route types should be valid",
 		},
 		{
-			name: "case insensitive duplicate detection",
+			name: "names differing only in case",
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,red,Red Line,3\nR2,A1,RED,red line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name", "duplicate_route_long_name", "duplicate_route_name_combination"},
-			description:         "Case differences should still be detected as duplicates",
+			expectedNoticeCodes: []string{},
+			description:         "Casing is visible on a timetable, so it distinguishes the routes",
 		},
 		{
-			name: "empty names ignored",
+			name: "one name empty on both routes",
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,,Red Line,3\nR2,A1,,Blue Line,3",
 			},
 			expectedNoticeCodes: []string{},
-			description:         "Empty names should not generate duplicate notices",
+			description:         "The name that is present still distinguishes them",
+		},
+		{
+			// Nothing at all is left to tell these two apart.
+			name: "both names empty on both routes",
+			files: map[string]string{
+				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,,,3\nR2,A1,,,3",
+			},
+			expectedNoticeCodes: []string{"duplicate_route_name"},
+			description:         "Two nameless routes of one agency and type are indistinguishable",
 		},
 		{
 			name: "whitespace trimmed in comparison",
 			files: map[string]string{
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1, Red , Red Line ,3\nR2,A1,Red,Red Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name", "duplicate_route_long_name", "duplicate_route_name_combination"},
+			expectedNoticeCodes: []string{"duplicate_route_name"},
 			description:         "Whitespace should be trimmed for comparison",
 		},
 		{
 			name: "missing agency_id defaults to empty",
 			files: map[string]string{
-				"routes.txt": "route_id,route_short_name,route_long_name,route_type\nR1,Red,Red Line,3\nR2,Red,Blue Line,3",
+				"routes.txt": "route_id,route_short_name,route_long_name,route_type\nR1,Red,Red Line,3\nR2,Red,Red Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name"},
+			expectedNoticeCodes: []string{"duplicate_route_name"},
 			description:         "Missing agency_id should group routes together",
 		},
 		{
 			name: "invalid route_type ignored",
 			files: map[string]string{
-				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\nR2,A1,Red,Blue Line,invalid",
+				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\nR2,A1,Red,Red Line,invalid",
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Routes with invalid route_type should be ignored",
@@ -108,7 +117,7 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 		{
 			name: "missing route_type ignored",
 			files: map[string]string{
-				"routes.txt": "route_id,agency_id,route_short_name,route_long_name\nR1,A1,Red,Red Line\nR2,A1,Red,Blue Line",
+				"routes.txt": "route_id,agency_id,route_short_name,route_long_name\nR1,A1,Red,Red Line\nR2,A1,Red,Red Line",
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Routes without route_type should be ignored",
@@ -116,17 +125,18 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 		{
 			name: "missing route_id ignored",
 			files: map[string]string{
-				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\n,A1,Red,Blue Line,3",
+				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\n,A1,Red,Red Line,3",
 			},
 			expectedNoticeCodes: []string{},
 			description:         "Routes without route_id should be ignored",
 		},
 		{
-			name: "multiple duplicates same group",
+			// Every route after the first is reported against that first one.
+			name: "three routes sharing one name pair",
 			files: map[string]string{
-				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\nR2,A1,Red,Blue Line,3\nR3,A1,Red,Green Line,3",
+				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\nR2,A1,Red,Red Line,3\nR3,A1,Red,Red Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name", "duplicate_route_short_name"},
+			expectedNoticeCodes: []string{"duplicate_route_name", "duplicate_route_name"},
 			description:         "Multiple duplicates should generate multiple notices",
 		},
 		{
@@ -156,9 +166,9 @@ func TestDuplicateRouteNameValidator_Validate(t *testing.T) {
 		{
 			name: "mixed valid and invalid routes",
 			files: map[string]string{
-				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\n,A1,Blue,Blue Line,3\nR3,A1,Red,Green Line,invalid\nR4,A1,Red,Purple Line,3",
+				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\nR1,A1,Red,Red Line,3\n,A1,Blue,Blue Line,3\nR3,A1,Red,Red Line,invalid\nR4,A1,Red,Red Line,3",
 			},
-			expectedNoticeCodes: []string{"duplicate_route_short_name"},
+			expectedNoticeCodes: []string{"duplicate_route_name"},
 			description:         "Only valid routes should be checked for duplicates",
 		},
 	}

@@ -125,55 +125,34 @@ func (v *StopNameValidator) validateStopName(container *notice.NoticeContainer, 
 	// Check if stop_name is required for this location type
 	nameRequired := v.isStopNameRequired(stop.LocationType)
 
+	// A required stop_name is required whether or not a parent station has
+	// one; nothing in GTFS inherits it.
 	if nameRequired && stop.StopName == "" {
-		// Check if this is a child stop that might inherit name from parent
-		if stop.ParentStation != "" {
-			if parent, exists := parentStations[stop.ParentStation]; exists && parent.StopName != "" {
-				// Child can inherit parent name, but should be noted as INFO
-				container.AddNotice(notice.NewStopNameMissingButInheritedNotice(
-					stop.StopID,
-					stop.ParentStation,
-					parent.StopName,
-					stop.LocationType,
-					stop.RowNumber,
-				))
-			} else {
-				// Parent doesn't have a name either
-				container.AddNotice(notice.NewMissingRequiredStopNameNotice(
-					stop.StopID,
-					stop.LocationType,
-					stop.RowNumber,
-				))
-			}
-		} else {
-			// No parent station, name is definitely required
-			container.AddNotice(notice.NewMissingRequiredStopNameNotice(
-				stop.StopID,
-				stop.LocationType,
-				stop.RowNumber,
-			))
-		}
+		container.AddNotice(notice.NewMissingRequiredStopNameNotice(
+			stop.StopID,
+			stop.LocationType,
+			stop.RowNumber,
+		))
 	}
 
 	// Additional validations only if name exists
 	if stop.StopName != "" {
-		// Check for generic/placeholder names
-		v.checkGenericStopName(container, stop)
-
-		// Check for excessive length
-		v.checkStopNameLength(container, stop)
-
 		// Check for problematic characters
 		v.checkProblematicCharacters(container, stop)
 
 		// Check if name and description are identical
 		v.checkNameDescriptionDuplicate(container, stop)
 
-		// Check for all caps names (poor readability)
-		v.checkAllCapsName(container, stop)
-
-		// Check for repeated words
-		v.checkRepeatedWords(container, stop)
+		// stop_name is announced and displayed to riders, so a single-case
+		// name reaches them degraded.
+		if needsMixedCase(stop.StopName) {
+			container.AddNotice(notice.NewMixedCaseRecommendedFieldNotice(
+				"stops.txt",
+				"stop_name",
+				stop.StopName,
+				stop.RowNumber,
+			))
+		}
 	}
 }
 
@@ -187,68 +166,6 @@ func (v *StopNameValidator) isStopNameRequired(locationType int) bool {
 	// 3 = Generic Node
 	// 4 = Boarding Area
 	return locationType <= 2
-}
-
-// checkGenericStopName checks for generic or placeholder stop names
-func (v *StopNameValidator) checkGenericStopName(container *notice.NoticeContainer, stop *StopNameInfo) {
-	genericNames := []string{
-		"stop",
-		"station",
-		"platform",
-		"entrance",
-		"exit",
-		"node",
-		"boarding",
-		"test",
-		"temp",
-		"placeholder",
-		"unnamed",
-		"unknown",
-		"tbd",
-		"todo",
-		"xxx",
-		"???",
-	}
-
-	lowerName := strings.ToLower(stop.StopName)
-	for _, generic := range genericNames {
-		if lowerName == generic || lowerName == generic+" "+generic {
-			container.AddNotice(notice.NewGenericStopNameNotice(
-				stop.StopID,
-				stop.StopName,
-				stop.RowNumber,
-			))
-			break
-		}
-	}
-}
-
-// checkStopNameLength checks for excessively long stop names
-func (v *StopNameValidator) checkStopNameLength(container *notice.NoticeContainer, stop *StopNameInfo) {
-	const maxRecommendedLength = 100
-	const maxAllowedLength = 255
-
-	nameLength := len(stop.StopName)
-
-	if nameLength > maxAllowedLength {
-		container.AddNotice(notice.NewStopNameTooLongNotice(
-			stop.StopID,
-			stop.StopName,
-			nameLength,
-			maxAllowedLength,
-			stop.RowNumber,
-			notice.ERROR,
-		))
-	} else if nameLength > maxRecommendedLength {
-		container.AddNotice(notice.NewStopNameTooLongNotice(
-			stop.StopID,
-			stop.StopName,
-			nameLength,
-			maxRecommendedLength,
-			stop.RowNumber,
-			notice.WARNING,
-		))
-	}
 }
 
 // checkProblematicCharacters checks for problematic characters in stop names
@@ -266,83 +183,22 @@ func (v *StopNameValidator) checkProblematicCharacters(container *notice.NoticeC
 		}
 	}
 
-	// Check for HTML/XML tags
-	if strings.Contains(stop.StopName, "<") && strings.Contains(stop.StopName, ">") {
-		container.AddNotice(notice.NewStopNameContainsHTMLNotice(
-			stop.StopID,
-			stop.StopName,
-			stop.RowNumber,
-		))
-	}
-
-	// Check for URL-like content
-	if strings.Contains(stop.StopName, "http://") || strings.Contains(stop.StopName, "https://") || strings.Contains(stop.StopName, "www.") {
-		container.AddNotice(notice.NewStopNameContainsURLNotice(
-			stop.StopID,
-			stop.StopName,
-			stop.RowNumber,
-		))
-	}
 }
 
-// checkNameDescriptionDuplicate checks if stop_name and stop_desc are identical
+// checkNameDescriptionDuplicate checks if stop_name and stop_desc are identical.
+//
+// stop_desc is asked for information the name does not already give — where in
+// the station the stop is, which entrance to use. A copy of the name adds a
+// line to the rider's screen and nothing to what they know. Casing does not
+// make it informative, so "MAIN ST" describing "Main St" is still a duplicate.
 func (v *StopNameValidator) checkNameDescriptionDuplicate(container *notice.NoticeContainer, stop *StopNameInfo) {
-	if stop.StopDesc != "" && stop.StopName == stop.StopDesc {
-		container.AddNotice(notice.NewStopNameDescriptionDuplicateNotice(
-			stop.StopID,
-			stop.StopName,
-			stop.RowNumber,
-		))
-	}
-}
-
-// checkAllCapsName checks for all-caps stop names
-func (v *StopNameValidator) checkAllCapsName(container *notice.NoticeContainer, stop *StopNameInfo) {
-	// Skip if name is very short (like abbreviations)
-	if len(stop.StopName) <= 3 {
+	if stop.StopDesc == "" || !strings.EqualFold(stop.StopDesc, stop.StopName) {
 		return
 	}
 
-	// Check if all letters are uppercase
-	hasLowerCase := false
-	letterCount := 0
-	for _, ch := range stop.StopName {
-		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') {
-			letterCount++
-			if ch >= 'a' && ch <= 'z' {
-				hasLowerCase = true
-			}
-		}
-	}
-
-	// If there are letters and none are lowercase, it's all caps
-	if letterCount > 0 && !hasLowerCase {
-		container.AddNotice(notice.NewStopNameAllCapsNotice(
-			stop.StopID,
-			stop.StopName,
-			stop.RowNumber,
-		))
-	}
-}
-
-// checkRepeatedWords checks for repeated words in stop names
-func (v *StopNameValidator) checkRepeatedWords(container *notice.NoticeContainer, stop *StopNameInfo) {
-	// Split name into words
-	words := strings.Fields(stop.StopName)
-	if len(words) < 2 {
-		return
-	}
-
-	// Check for consecutive repeated words
-	for i := 1; i < len(words); i++ {
-		if strings.EqualFold(words[i], words[i-1]) && len(words[i]) > 2 {
-			container.AddNotice(notice.NewStopNameRepeatedWordNotice(
-				stop.StopID,
-				stop.StopName,
-				words[i],
-				stop.RowNumber,
-			))
-			break
-		}
-	}
+	container.AddNotice(notice.NewSameNameAndDescriptionForStopNotice(
+		stop.StopID,
+		stop.StopDesc,
+		stop.RowNumber,
+	))
 }

@@ -48,7 +48,7 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles\n,Bus,http://bus.example,America/Los_Angeles", // Missing agency_id
 			},
-			expectedNoticeCodes: []string{"missing_agency_id"},
+			expectedNoticeCodes: []string{"missing_required_agency_id"},
 			description:         "Multiple agencies require agency_id for all",
 		},
 		{
@@ -57,8 +57,8 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"routes.txt": "route_id,agency_id,route_short_name,route_type\nR1,999,Red,3", // Invalid agency reference
 			},
-			expectedNoticeCodes: []string{"invalid_agency_reference"},
-			description:         "Route referencing non-existent agency should generate notice",
+			expectedNoticeCodes: []string{},
+			description:         "Route referencing non-existent agency is the foreign key validator's to report",
 		},
 		{
 			name: "route missing agency_id with multiple agencies",
@@ -66,7 +66,7 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles\n2,Bus,http://bus.example,America/Los_Angeles",
 				"routes.txt": "route_id,route_short_name,route_type\nR1,Red,3", // Missing agency_id
 			},
-			expectedNoticeCodes: []string{"missing_route_agency_id"},
+			expectedNoticeCodes: []string{"missing_required_agency_id"},
 			description:         "Route without agency_id when multiple agencies exist should generate notice",
 		},
 		{
@@ -83,7 +83,7 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n,Metro,http://metro.example,America/Los_Angeles\n2,Bus,http://bus.example,America/Los_Angeles",
 			},
-			expectedNoticeCodes: []string{"missing_agency_id"},
+			expectedNoticeCodes: []string{"missing_required_agency_id"},
 			description:         "Empty agency_id should be treated as missing",
 		},
 		{
@@ -91,7 +91,7 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n   ,Metro,http://metro.example,America/Los_Angeles\n2,Bus,http://bus.example,America/Los_Angeles",
 			},
-			expectedNoticeCodes: []string{"missing_agency_id"},
+			expectedNoticeCodes: []string{"missing_required_agency_id"},
 			description:         "Whitespace-only agency_id should be treated as missing",
 		},
 		{
@@ -118,8 +118,8 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"routes.txt": "route_id,agency_id,route_short_name,route_type\nR1,999,Red,3\nR2,888,Blue,3", // Multiple invalid references
 			},
-			expectedNoticeCodes: []string{"invalid_agency_reference", "invalid_agency_reference"},
-			description:         "Multiple invalid agency references should generate multiple notices",
+			expectedNoticeCodes: []string{},
+			description:         "Multiple dangling references are likewise the foreign key validator's",
 		},
 		{
 			name: "mixed valid and invalid route references",
@@ -127,8 +127,8 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles\n2,Bus,http://bus.example,America/Los_Angeles",
 				"routes.txt": "route_id,agency_id,route_short_name,route_type\nR1,1,Red,3\nR2,999,Blue,3\nR3,2,Green,3", // Mixed valid/invalid
 			},
-			expectedNoticeCodes: []string{"invalid_agency_reference"},
-			description:         "Mix of valid and invalid references should only generate notices for invalid ones",
+			expectedNoticeCodes: []string{},
+			description:         "A mix of valid and dangling references is resolved by the foreign key validator",
 		},
 		{
 			name: "no agency.txt file",
@@ -178,7 +178,7 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles\n,Bus,http://bus.example,America/Los_Angeles\n3,Rail,http://rail.example,America/Los_Angeles\n,Subway,http://subway.example,America/Los_Angeles", // Two missing agency_ids
 			},
-			expectedNoticeCodes: []string{"missing_agency_id", "missing_agency_id"},
+			expectedNoticeCodes: []string{"missing_required_agency_id", "missing_required_agency_id"},
 			description:         "Multiple agencies with missing agency_ids should generate multiple notices",
 		},
 		{
@@ -187,8 +187,8 @@ func TestAgencyConsistencyValidator_Validate(t *testing.T) {
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\nAgency1,Metro,http://metro.example,America/Los_Angeles",
 				"routes.txt": "route_id,agency_id,route_short_name,route_type\nR1,agency1,Red,3", // Different case
 			},
-			expectedNoticeCodes: []string{"invalid_agency_reference"},
-			description:         "Agency_id matching should be case-sensitive",
+			expectedNoticeCodes: []string{},
+			description:         "Case-sensitive matching is the foreign key validator's, which compares the same way",
 		},
 		{
 			name: "numeric agency_ids",
@@ -474,9 +474,9 @@ func TestAgencyConsistencyValidator_ValidateRouteAgencyReferences(t *testing.T) 
 			agencies: []*AgencyInfo{
 				{AgencyID: "1", AgencyName: "Metro", RowNumber: 2},
 			},
-			expectedNoticeCount: 1,
-			expectedCodes:       []string{"invalid_agency_reference"},
-			description:         "Invalid route agency reference should generate notice",
+			expectedNoticeCount: 0,
+			expectedCodes:       []string{},
+			description:         "A dangling route agency reference is reported as foreign_key_violation instead",
 		},
 		{
 			name:          "route without agency_id with single agency",
@@ -496,7 +496,7 @@ func TestAgencyConsistencyValidator_ValidateRouteAgencyReferences(t *testing.T) 
 				{AgencyID: "2", AgencyName: "Bus", RowNumber: 3},
 			},
 			expectedNoticeCount: 1,
-			expectedCodes:       []string{"missing_route_agency_id"},
+			expectedCodes:       []string{"missing_required_agency_id"},
 			description:         "Route without agency_id should generate notice with multiple agencies",
 		},
 		{
@@ -548,6 +548,120 @@ func TestAgencyConsistencyValidator_ValidateRouteAgencyReferences(t *testing.T) 
 			for i, expectedCode := range tt.expectedCodes {
 				if i >= len(actualCodes) || actualCodes[i] != expectedCode {
 					t.Errorf("Expected notice code '%s' at index %d, got '%v'", expectedCode, i, actualCodes)
+				}
+			}
+		})
+	}
+}
+
+func TestAgencyConsistencyValidator_ValidateAgencyLanguages(t *testing.T) {
+	tests := []struct {
+		name                string
+		files               map[string]string
+		expectedNoticeCodes []string
+		description         string
+	}{
+		{
+			name: "agencies agree and match feed_lang",
+			files: map[string]string{
+				"agency.txt":    "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Metro,http://metro.example,America/Los_Angeles,en\n2,Bus,http://bus.example,America/Los_Angeles,en",
+				"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,en",
+			},
+			expectedNoticeCodes: []string{},
+			description:         "Matching languages should not generate notices",
+		},
+		{
+			name: "agencies disagree",
+			files: map[string]string{
+				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Metro,http://metro.example,America/Los_Angeles,en\n2,Bus,http://bus.example,America/Los_Angeles,fr",
+			},
+			expectedNoticeCodes: []string{"inconsistent_agency_lang"},
+			description:         "Agencies declaring different languages should generate a notice",
+		},
+		{
+			name: "agency_lang differs from feed_lang",
+			files: map[string]string{
+				"agency.txt":    "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Metro,http://metro.example,America/Los_Angeles,fr",
+				"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,en",
+			},
+			expectedNoticeCodes: []string{"feed_info_lang_and_agency_lang_mismatch"},
+			description:         "agency_lang disagreeing with feed_lang should generate a notice",
+		},
+		{
+			name: "multilingual feed_lang",
+			files: map[string]string{
+				"agency.txt":    "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Metro,http://metro.example,America/Los_Angeles,en\n2,Bus,http://bus.example,America/Los_Angeles,en",
+				"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,mul",
+			},
+			expectedNoticeCodes: []string{},
+			description:         "feed_lang of mul declares a multilingual feed and matches no single agency_lang",
+		},
+		{
+			name: "region subtag does not contradict the language",
+			files: map[string]string{
+				"agency.txt":    "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Metro,http://metro.example,America/Los_Angeles,en-US\n2,Bus,http://bus.example,America/Los_Angeles,EN",
+				"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,en",
+			},
+			expectedNoticeCodes: []string{},
+			description:         "Language tags should compare case-insensitively and ignore the region subtag",
+		},
+		{
+			name: "agency without agency_lang ignored",
+			files: map[string]string{
+				"agency.txt":    "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Metro,http://metro.example,America/Los_Angeles,\n2,Bus,http://bus.example,America/Los_Angeles,en",
+				"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,en",
+			},
+			expectedNoticeCodes: []string{},
+			description:         "An agency leaving agency_lang empty is not a mismatch",
+		},
+		{
+			name: "no feed_info.txt",
+			files: map[string]string{
+				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Metro,http://metro.example,America/Los_Angeles,fr",
+			},
+			expectedNoticeCodes: []string{},
+			description:         "Without feed_info.txt there is no feed_lang to disagree with",
+		},
+		{
+			name: "both defects at once",
+			files: map[string]string{
+				"agency.txt":    "agency_id,agency_name,agency_url,agency_timezone,agency_lang\n1,Metro,http://metro.example,America/Los_Angeles,fr\n2,Bus,http://bus.example,America/Los_Angeles,de",
+				"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,http://metro.example,en",
+			},
+			expectedNoticeCodes: []string{
+				"inconsistent_agency_lang",
+				"feed_info_lang_and_agency_lang_mismatch",
+				"feed_info_lang_and_agency_lang_mismatch",
+			},
+			description: "Disagreeing agencies that also disagree with feed_lang generate both notices",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			loader := testutil.CreateTestFeedLoader(t, tt.files)
+			container := notice.NewNoticeContainer()
+			v := NewAgencyConsistencyValidator()
+
+			v.validateAgencyLanguages(loader, container, v.loadAgencies(loader))
+
+			expectedCounts := make(map[string]int)
+			for _, code := range tt.expectedNoticeCodes {
+				expectedCounts[code]++
+			}
+			actualCounts := make(map[string]int)
+			for _, n := range container.GetNotices() {
+				actualCounts[n.Code()]++
+			}
+
+			for code, expected := range expectedCounts {
+				if actualCounts[code] != expected {
+					t.Errorf("Expected %d notices with code '%s', got %d for %s", expected, code, actualCounts[code], tt.description)
+				}
+			}
+			for code := range actualCounts {
+				if expectedCounts[code] == 0 {
+					t.Errorf("Unexpected notice code: %s for %s", code, tt.description)
 				}
 			}
 		})

@@ -19,33 +19,52 @@ func NewTransferValidator() *TransferValidator {
 	return &TransferValidator{}
 }
 
-// validTransferTypes contains valid GTFS transfer types
-var validTransferTypes = map[int]bool{
-	0: true, // Recommended transfer point
-	1: true, // Timed transfer point
-	2: true, // Minimum time required to transfer
-	3: true, // Transfers not possible
-}
-
 // TransferInfo represents transfer information
 type TransferInfo struct {
 	FromStopID      string
 	ToStopID        string
+	FromRouteID     string
+	ToRouteID       string
+	FromTripID      string
+	ToTripID        string
 	TransferType    int
 	MinTransferTime *int
 	RowNumber       int
+}
+
+// stopReference is what the transfer checks need to know about a stop: whether
+// a transfer may name it at all, which only stops/platforms and stations may
+// be, and where it is, so the walk between the two ends can be measured.
+// Location is nil for a stop with unusable coordinates, which the coordinate
+// checks report.
+type stopReference struct {
+	LocationType int
+	Location     *StopLocation
+}
+
+// tripReference is the route a trip belongs to, and the stops it calls at, so
+// a transfer naming both can be checked for agreement.
+type tripReference struct {
+	RouteID string
+	Stops   map[string]bool
 }
 
 // Validate checks transfer definitions
 func (v *TransferValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
 	transfers := v.loadTransfers(loader)
 
+	if len(transfers) == 0 {
+		return
+	}
+
 	// Load stop information for validation
-	stops := v.loadStopIDs(loader)
+	stops := v.loadStops(loader)
+	trips := v.loadTrips(loader, transfers)
 
 	// Validate each transfer
 	for _, transfer := range transfers {
 		v.validateTransfer(container, transfer, stops)
+		v.validateTransferTripReferences(container, transfer, trips)
 	}
 
 	// Check for duplicate transfers
@@ -107,6 +126,10 @@ func (v *TransferValidator) parseTransfer(row *parser.CSVRow) *TransferInfo {
 	transfer := &TransferInfo{
 		FromStopID:   strings.TrimSpace(fromStopID),
 		ToStopID:     strings.TrimSpace(toStopID),
+		FromRouteID:  strings.TrimSpace(row.Values["from_route_id"]),
+		ToRouteID:    strings.TrimSpace(row.Values["to_route_id"]),
+		FromTripID:   strings.TrimSpace(row.Values["from_trip_id"]),
+		ToTripID:     strings.TrimSpace(row.Values["to_trip_id"]),
 		TransferType: transferType,
 		RowNumber:    row.RowNumber,
 	}
@@ -121,13 +144,13 @@ func (v *TransferValidator) parseTransfer(row *parser.CSVRow) *TransferInfo {
 	return transfer
 }
 
-// loadStopIDs loads all stop IDs from stops.txt
-func (v *TransferValidator) loadStopIDs(loader *parser.FeedLoader) map[string]bool {
-	stopIDs := make(map[string]bool)
+// loadStops loads every stop with its location type.
+func (v *TransferValidator) loadStops(loader *parser.FeedLoader) map[string]*stopReference {
+	stops := make(map[string]*stopReference)
 
 	reader, err := loader.GetFile("stops.txt")
 	if err != nil {
-		return stopIDs
+		return stops
 	}
 	defer func() {
 		if closeErr := reader.Close(); closeErr != nil {
@@ -137,7 +160,7 @@ func (v *TransferValidator) loadStopIDs(loader *parser.FeedLoader) map[string]bo
 
 	csvFile, err := parser.NewCSVFile(reader, "stops.txt")
 	if err != nil {
-		return stopIDs
+		return stops
 	}
 
 	for {
@@ -149,47 +172,179 @@ func (v *TransferValidator) loadStopIDs(loader *parser.FeedLoader) map[string]bo
 			break
 		}
 
-		if stopID, hasStopID := row.Values["stop_id"]; hasStopID {
-			stopIDs[strings.TrimSpace(stopID)] = true
+		stopID, hasStopID := row.Values["stop_id"]
+		if !hasStopID {
+			continue
+		}
+		stop := &stopReference{}
+		if locationType, err := strconv.Atoi(strings.TrimSpace(row.Values["location_type"])); err == nil {
+			stop.LocationType = locationType
+		}
+		lat, latErr := strconv.ParseFloat(strings.TrimSpace(row.Values["stop_lat"]), 64)
+		lon, lonErr := strconv.ParseFloat(strings.TrimSpace(row.Values["stop_lon"]), 64)
+		if latErr == nil && lonErr == nil {
+			stop.Location = &StopLocation{Latitude: lat, Longitude: lon}
+		}
+		stops[strings.TrimSpace(stopID)] = stop
+	}
+
+	return stops
+}
+
+// loadTrips loads the route and stop set of only the trips transfers.txt
+// names, so a feed without trip transfers pays nothing.
+func (v *TransferValidator) loadTrips(loader *parser.FeedLoader, transfers []*TransferInfo) map[string]*tripReference {
+	wanted := make(map[string]bool)
+	for _, transfer := range transfers {
+		for _, tripID := range []string{transfer.FromTripID, transfer.ToTripID} {
+			if tripID != "" {
+				wanted[tripID] = true
+			}
+		}
+	}
+	trips := make(map[string]*tripReference, len(wanted))
+	if len(wanted) == 0 {
+		return trips
+	}
+
+	if reader, err := loader.GetFile("trips.txt"); err == nil {
+		defer func() {
+			if closeErr := reader.Close(); closeErr != nil {
+				log.Printf("Warning: failed to close reader %v", closeErr)
+			}
+		}()
+		if csvFile, err := parser.NewCSVFile(reader, "trips.txt"); err == nil {
+			for {
+				row, err := csvFile.ReadRow()
+				if err == io.EOF {
+					break
+				}
+				if err != nil {
+					break
+				}
+				tripID := strings.TrimSpace(row.Values["trip_id"])
+				if !wanted[tripID] {
+					continue
+				}
+				trips[tripID] = &tripReference{
+					RouteID: strings.TrimSpace(row.Values["route_id"]),
+					Stops:   make(map[string]bool),
+				}
+			}
 		}
 	}
 
-	return stopIDs
+	reader, err := loader.GetFile("stop_times.txt")
+	if err != nil {
+		return trips
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+	csvFile, err := parser.NewCSVFile(reader, "stop_times.txt")
+	if err != nil {
+		return trips
+	}
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			break
+		}
+		trip, exists := trips[strings.TrimSpace(row.Values["trip_id"])]
+		if !exists {
+			continue
+		}
+		if stopID := strings.TrimSpace(row.Values["stop_id"]); stopID != "" {
+			trip.Stops[stopID] = true
+		}
+	}
+
+	return trips
+}
+
+// validateTransferTripReferences checks a transfer's trip references against
+// the routes and stops those trips actually have.
+func (v *TransferValidator) validateTransferTripReferences(container *notice.NoticeContainer, transfer *TransferInfo, trips map[string]*tripReference) {
+	ends := []struct {
+		tripField, tripID   string
+		routeField, routeID string
+		stopField, stopID   string
+	}{
+		{"from_trip_id", transfer.FromTripID, "from_route_id", transfer.FromRouteID, "from_stop_id", transfer.FromStopID},
+		{"to_trip_id", transfer.ToTripID, "to_route_id", transfer.ToRouteID, "to_stop_id", transfer.ToStopID},
+	}
+
+	for _, end := range ends {
+		if end.tripID == "" {
+			continue
+		}
+		trip, exists := trips[end.tripID]
+		if !exists {
+			container.AddNotice(notice.NewForeignKeyViolationNotice(
+				"transfers.txt",
+				end.tripField,
+				end.tripID,
+				transfer.RowNumber,
+				"trips.txt",
+				"trip_id",
+			))
+			continue
+		}
+
+		if end.routeID != "" && trip.RouteID != end.routeID {
+			container.AddNotice(notice.NewTransferWithInvalidTripAndRouteNotice(
+				transfer.RowNumber,
+				end.tripField, end.tripID,
+				end.routeField, end.routeID,
+				trip.RouteID,
+			))
+		}
+
+		if end.stopID != "" && len(trip.Stops) > 0 && !trip.Stops[end.stopID] {
+			container.AddNotice(notice.NewTransferWithInvalidTripAndStopNotice(
+				transfer.RowNumber,
+				end.tripField, end.tripID,
+				end.stopField, end.stopID,
+			))
+		}
+	}
 }
 
 // validateTransfer validates a single transfer record
-func (v *TransferValidator) validateTransfer(container *notice.NoticeContainer, transfer *TransferInfo, stops map[string]bool) {
-	// Validate transfer type
-	if !validTransferTypes[transfer.TransferType] {
-		container.AddNotice(notice.NewInvalidTransferTypeNotice(
-			transfer.FromStopID,
-			transfer.ToStopID,
-			transfer.TransferType,
-			transfer.RowNumber,
-		))
-	}
+func (v *TransferValidator) validateTransfer(container *notice.NoticeContainer, transfer *TransferInfo, stops map[string]*stopReference) {
+	// transfer_type's own value is checked by core/field_type_validator.go.
 
-	// Validate stop references
-	if !stops[transfer.FromStopID] {
-		container.AddNotice(notice.NewForeignKeyViolationNotice(
-			"transfers.txt",
-			"from_stop_id",
-			transfer.FromStopID,
-			transfer.RowNumber,
-			"stops.txt",
-			"stop_id",
-		))
-	}
-
-	if !stops[transfer.ToStopID] {
-		container.AddNotice(notice.NewForeignKeyViolationNotice(
-			"transfers.txt",
-			"to_stop_id",
-			transfer.ToStopID,
-			transfer.RowNumber,
-			"stops.txt",
-			"stop_id",
-		))
+	// Validate stop references. A transfer happens between places a passenger
+	// can stand, so only stops/platforms and stations may be named.
+	for _, end := range []struct{ field, stopID string }{
+		{"from_stop_id", transfer.FromStopID},
+		{"to_stop_id", transfer.ToStopID},
+	} {
+		stop, exists := stops[end.stopID]
+		if !exists {
+			container.AddNotice(notice.NewForeignKeyViolationNotice(
+				"transfers.txt",
+				end.field,
+				end.stopID,
+				transfer.RowNumber,
+				"stops.txt",
+				"stop_id",
+			))
+			continue
+		}
+		if stop.LocationType != 0 && stop.LocationType != 1 {
+			container.AddNotice(notice.NewTransferWithInvalidStopLocationTypeNotice(
+				transfer.RowNumber,
+				end.field,
+				end.stopID,
+				stop.LocationType,
+			))
+		}
 	}
 
 	// Validate transfer from/to same stop
@@ -202,6 +357,47 @@ func (v *TransferValidator) validateTransfer(container *notice.NoticeContainer, 
 
 	// Validate min_transfer_time requirements
 	v.validateMinTransferTime(container, transfer)
+
+	v.validateTransferDistance(container, transfer, stops)
+}
+
+const (
+	// maxTransferDistanceMetres is the distance beyond which a transfer stops
+	// describing a connection anyone can make and starts describing a typo in
+	// one of the two stop_ids.
+	maxTransferDistanceMetres = 10000.0
+
+	// noteworthyTransferDistanceMetres is long enough to be worth a look — a
+	// sprawling station complex or a deliberate timed connection can reach it
+	// — without being wrong on its face.
+	noteworthyTransferDistanceMetres = 2000.0
+)
+
+// validateTransferDistance measures the walk a transfer asks a passenger to
+// make. The two thresholds report the same measurement at different
+// confidences, so only the worse of the two fires on any one row.
+func (v *TransferValidator) validateTransferDistance(container *notice.NoticeContainer, transfer *TransferInfo, stops map[string]*stopReference) {
+	from, hasFrom := stops[transfer.FromStopID]
+	to, hasTo := stops[transfer.ToStopID]
+	if !hasFrom || !hasTo || from.Location == nil || to.Location == nil {
+		return
+	}
+
+	metres := haversineMetres(
+		from.Location.Latitude, from.Location.Longitude,
+		to.Location.Latitude, to.Location.Longitude,
+	)
+
+	switch {
+	case metres > maxTransferDistanceMetres:
+		container.AddNotice(notice.NewTransferDistanceTooLargeNotice(
+			transfer.FromStopID, transfer.ToStopID, metres, transfer.RowNumber,
+		))
+	case metres > noteworthyTransferDistanceMetres:
+		container.AddNotice(notice.NewTransferDistanceAbove2KmNotice(
+			transfer.FromStopID, transfer.ToStopID, metres, transfer.RowNumber,
+		))
+	}
 }
 
 // validateMinTransferTime validates min_transfer_time field

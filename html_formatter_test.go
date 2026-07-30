@@ -48,10 +48,10 @@ func TestHTMLFormatter_GenerateHTML(t *testing.T) {
 		},
 		Notices: []NoticeGroup{
 			{
-				Code:         "missing_required_field",
-				Severity:     "ERROR",
-				Description:  "A required field is missing from a GTFS file. This field is mandatory according to the GTFS specification.",
-				TotalNotices: 2,
+				Code:           "missing_required_field",
+				SeverityCounts: NoticeCounts{Errors: 2, Total: 2},
+				Description:    "A required field is missing. The given field has no value in some input row, even though values are required.",
+				TotalNotices:   2,
 				SampleNotices: []map[string]interface{}{
 					{
 						"filename":     "stops.txt",
@@ -61,10 +61,10 @@ func TestHTMLFormatter_GenerateHTML(t *testing.T) {
 				},
 			},
 			{
-				Code:         "invalid_date",
-				Severity:     "WARNING",
-				Description:  "A date field contains an invalid date format. Dates must be in YYYYMMDD format.",
-				TotalNotices: 3,
+				Code:           "invalid_date",
+				SeverityCounts: NoticeCounts{Warnings: 3, Total: 3},
+				Description:    "A field cannot be parsed as date. Dates must have the YYYYMMDD format.",
+				TotalNotices:   3,
 				SampleNotices: []map[string]interface{}{
 					{
 						"filename":     "calendar.txt",
@@ -75,9 +75,9 @@ func TestHTMLFormatter_GenerateHTML(t *testing.T) {
 				},
 			},
 			{
-				Code:         "unused_shape",
-				Severity:     "INFO",
-				TotalNotices: 1,
+				Code:           "unused_shape",
+				SeverityCounts: NoticeCounts{Infos: 1, Total: 1},
+				TotalNotices:   1,
 				SampleNotices: []map[string]interface{}{
 					{
 						"filename": "shapes.txt",
@@ -142,10 +142,10 @@ func TestHTMLFormatter_GenerateHTML(t *testing.T) {
 	}
 
 	// Test notice descriptions
-	if !strings.Contains(html, "A required field is missing from a GTFS file. This field is mandatory according to the GTFS specification.") {
+	if !strings.Contains(html, "A required field is missing. The given field has no value in some input row, even though values are required.") {
 		t.Error("HTML output missing error notice description")
 	}
-	if !strings.Contains(html, "A date field contains an invalid date format. Dates must be in YYYYMMDD format.") {
+	if !strings.Contains(html, "A field cannot be parsed as date. Dates must have the YYYYMMDD format.") {
 		t.Error("HTML output missing warning notice description")
 	}
 
@@ -231,22 +231,22 @@ func TestGetNoticeDescription(t *testing.T) {
 	}{
 		{
 			code:        "missing_required_field",
-			expected:    "A required field is missing from a GTFS file. This field is mandatory according to the GTFS specification.",
-			description: "Should return predefined description for known notice codes",
+			expected:    "A required field is missing. The given field has no value in some input row, even though values are required.",
+			description: "Should return the upstream MobilityData description for codes it defines",
 		},
 		{
 			code:        "invalid_date",
-			expected:    "A date field contains an invalid date format. Dates must be in YYYYMMDD format.",
-			description: "Should return predefined description for date validation errors",
+			expected:    "A field cannot be parsed as date. Dates must have the YYYYMMDD format.",
+			description: "Should prefer upstream wording over the hand-written description",
 		},
 		{
 			code:        "unknown_notice_code",
-			expected:    "Unknown Notice Code. This validation check identified an issue that should be reviewed and corrected.",
-			description: "Should generate title-case description for unknown codes",
+			expected:    "Unknown Notice Code",
+			description: "Should fall back to the code name alone for unknown codes",
 		},
 		{
 			code:        "some_custom_validation_error",
-			expected:    "Some Custom Validation Error. This validation check identified an issue that should be reviewed and corrected.",
+			expected:    "Some Custom Validation Error",
 			description: "Should convert underscores to spaces and title case",
 		},
 	}
@@ -338,13 +338,13 @@ func TestHTMLFormatter_SeverityCounts(t *testing.T) {
 			ValidationTime:   1.0,
 			Date:             time.Now().Format(time.RFC3339),
 			FeedInfo:         FeedInfo{FeedPath: "test.zip"},
-			Counts:           NoticeCounts{Total: 6},
+			Counts:           NoticeCounts{Errors: 3, Warnings: 2, Infos: 1, Total: 6},
 		},
 		Notices: []NoticeGroup{
-			{Code: "error1", Severity: "ERROR", TotalNotices: 1},
-			{Code: "error2", Severity: "ERROR", TotalNotices: 2},
-			{Code: "warning1", Severity: "WARNING", TotalNotices: 2},
-			{Code: "info1", Severity: "INFO", TotalNotices: 1},
+			{Code: "error1", SeverityCounts: NoticeCounts{Errors: 1, Total: 1}, TotalNotices: 1},
+			{Code: "error2", SeverityCounts: NoticeCounts{Errors: 2, Total: 2}, TotalNotices: 2},
+			{Code: "warning1", SeverityCounts: NoticeCounts{Warnings: 2, Total: 2}, TotalNotices: 2},
+			{Code: "info1", SeverityCounts: NoticeCounts{Infos: 1, Total: 1}, TotalNotices: 1},
 		},
 	}
 
@@ -353,17 +353,66 @@ func TestHTMLFormatter_SeverityCounts(t *testing.T) {
 		t.Fatalf("GenerateHTMLString() failed: %v", err)
 	}
 
-	// Test filter button counts
-	if !strings.Contains(html, "Errors (2)") {
+	// Filter buttons count notice instances, not groups, so that they agree
+	// with the summary counts even when a group holds several severities.
+	if !strings.Contains(html, "Errors (3)") {
 		t.Error("HTML should show correct error count in filter buttons")
 	}
-	if !strings.Contains(html, "Warnings (1)") {
+	if !strings.Contains(html, "Warnings (2)") {
 		t.Error("HTML should show correct warning count in filter buttons")
 	}
 	if !strings.Contains(html, "Infos (1)") {
 		t.Error("HTML should show correct info count in filter buttons")
 	}
-	if !strings.Contains(html, "All (4)") {
-		t.Error("HTML should show correct total notice group count in filter buttons")
+	if !strings.Contains(html, "All (6)") {
+		t.Error("HTML should show correct total notice count in filter buttons")
+	}
+}
+
+// TestHTMLFormatter_MixedSeverityGroup checks that a group holding more than
+// one severity shows the breakdown rather than a single label, and that it
+// matches every severity filter it contains.
+func TestHTMLFormatter_MixedSeverityGroup(t *testing.T) {
+	formatter, err := NewHTMLFormatter()
+	if err != nil {
+		t.Fatalf("Failed to create formatter: %v", err)
+	}
+
+	report := &ValidationReport{
+		Summary: Summary{
+			ValidatorVersion: "1.0.0",
+			FeedInfo:         FeedInfo{FeedPath: "test.zip"},
+			Counts:           NoticeCounts{Errors: 1, Warnings: 3, Total: 4},
+		},
+		Notices: []NoticeGroup{
+			{
+				Code:           "route_color_contrast",
+				SeverityCounts: NoticeCounts{Errors: 1, Warnings: 3, Total: 4},
+				TotalNotices:   4,
+				SampleNotices: []map[string]interface{}{
+					{"severity": "ERROR", "file": "routes.txt", "line": 6, "routeId": "6"},
+					{"severity": "WARNING", "file": "routes.txt", "line": 2, "routeId": "2"},
+				},
+			},
+		},
+	}
+
+	html, err := formatter.GenerateHTMLString(report)
+	if err != nil {
+		t.Fatalf("GenerateHTMLString() failed: %v", err)
+	}
+
+	// The group must match both the error and the warning filter.
+	if !strings.Contains(html, `data-severity="error warning"`) {
+		t.Error("mixed group should carry every severity it contains")
+	}
+	// Both counts must be badged, so the error is not hidden behind a
+	// WARNING label.
+	if !strings.Contains(html, "1 Error") || !strings.Contains(html, "3 Warnings") {
+		t.Error("mixed group should show the severity breakdown")
+	}
+	// Samples must name the file and line to go fix.
+	if !strings.Contains(html, "routes.txt") || !strings.Contains(html, ":6") {
+		t.Error("samples should show file and line")
 	}
 }

@@ -3,6 +3,7 @@ package core
 import (
 	"io"
 	"log"
+	"math"
 	"strconv"
 	"strings"
 
@@ -11,7 +12,11 @@ import (
 	"github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
 
-// CoordinateValidator validates latitude and longitude values
+// CoordinateValidator reports points that parse and are in range but cannot be
+// real: the two positions a missing coordinate tends to become.
+//
+// Whether the values are numbers at all, and whether they are within the
+// range of the globe, is checked by field_type_validator.go.
 type CoordinateValidator struct{}
 
 // NewCoordinateValidator creates a new coordinate validator
@@ -19,21 +24,30 @@ func NewCoordinateValidator() *CoordinateValidator {
 	return &CoordinateValidator{}
 }
 
-// coordinateFields defines which fields contain coordinate values in each file
-var coordinateFields = map[string][]string{
-	"stops.txt":  {"stop_lat", "stop_lon"},
+// coordinatePairs names the latitude and longitude fields of each file that
+// carries a point.
+var coordinatePairs = map[string][2]string{
+	StopsFile:    {"stop_lat", "stop_lon"},
 	"shapes.txt": {"shape_pt_lat", "shape_pt_lon"},
 }
 
-// Validate checks coordinate values in GTFS files
+// nearOriginDegrees is how close to (0, 0) counts as the origin. A tenth of a
+// degree is roughly 11 km, comfortably inside the Gulf of Guinea and nowhere
+// near any land a transit feed would describe.
+const nearOriginDegrees = 0.1
+
+// nearPoleDegrees is how close to ±90 counts as the pole.
+const nearPoleDegrees = 0.1
+
+// Validate checks the points in every file that carries them.
 func (v *CoordinateValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
-	for filename, fields := range coordinateFields {
+	for filename, fields := range coordinatePairs {
 		v.validateFileCoordinates(loader, container, filename, fields)
 	}
 }
 
-// validateFileCoordinates validates coordinate fields in a specific file
-func (v *CoordinateValidator) validateFileCoordinates(loader *parser.FeedLoader, container *notice.NoticeContainer, filename string, coordFieldNames []string) {
+// validateFileCoordinates walks one file's points.
+func (v *CoordinateValidator) validateFileCoordinates(loader *parser.FeedLoader, container *notice.NoticeContainer, filename string, fields [2]string) {
 	reader, err := loader.GetFile(filename)
 	if err != nil {
 		return // File doesn't exist, skip validation
@@ -49,6 +63,8 @@ func (v *CoordinateValidator) validateFileCoordinates(loader *parser.FeedLoader,
 		return
 	}
 
+	latField, lonField := fields[0], fields[1]
+
 	for {
 		row, err := csvFile.ReadRow()
 		if err == io.EOF {
@@ -58,146 +74,39 @@ func (v *CoordinateValidator) validateFileCoordinates(loader *parser.FeedLoader,
 			break
 		}
 
-		for _, fieldName := range coordFieldNames {
-			if value, exists := row.Values[fieldName]; exists && strings.TrimSpace(value) != "" {
-				v.validateCoordinate(container, filename, fieldName, strings.TrimSpace(value), row.RowNumber)
-			}
+		lat, latOK := inRangeFloat(row.Values[latField], 90)
+		lon, lonOK := inRangeFloat(row.Values[lonField], 180)
+		if !latOK || !lonOK {
+			continue // Reported as invalid_float or number_out_of_range.
+		}
+
+		// (0, 0) is in the Gulf of Guinea. A point there is almost always two
+		// fields left empty and defaulted to zero.
+		if math.Abs(lat) < nearOriginDegrees && math.Abs(lon) < nearOriginDegrees {
+			container.AddNotice(notice.NewPointNearOriginNotice(
+				filename, latField, row.Values[latField], row.RowNumber,
+			))
+			continue
+		}
+
+		if math.Abs(lat) > 90-nearPoleDegrees {
+			container.AddNotice(notice.NewPointNearPoleNotice(
+				filename, latField, row.Values[latField], row.RowNumber,
+			))
 		}
 	}
 }
 
-// validateCoordinate validates a single coordinate value
-func (v *CoordinateValidator) validateCoordinate(container *notice.NoticeContainer, filename string, fieldName string, coordValue string, rowNumber int) {
-	trimmed := strings.TrimSpace(coordValue)
-
-	coord, err := strconv.ParseFloat(trimmed, 64)
-	if err != nil {
-		container.AddNotice(notice.NewInvalidCoordinateNotice(
-			filename,
-			fieldName,
-			coordValue,
-			rowNumber,
-			"Invalid number format",
-		))
-		return
+// inRangeFloat parses a coordinate and reports whether it is usable: present,
+// numeric and within ±limit.
+func inRangeFloat(raw string, limit float64) (float64, bool) {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return 0, false
 	}
-
-	// Validate latitude range
-	if strings.Contains(fieldName, "lat") {
-		if coord < -90.0 || coord > 90.0 {
-			container.AddNotice(notice.NewInvalidCoordinateNotice(
-				filename,
-				fieldName,
-				coordValue,
-				rowNumber,
-				"Latitude must be between -90 and 90",
-			))
-			// Also report insufficient precision for out-of-range values
-			container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-				filename,
-				fieldName,
-				coordValue,
-				rowNumber,
-				0,
-			))
-		}
-		// Check for suspicious latitude values (likely errors)
-		if coord == 0.0 {
-			container.AddNotice(notice.NewSuspiciousCoordinateNotice(
-				filename,
-				fieldName,
-				coordValue,
-				rowNumber,
-				"Latitude is exactly 0 (may indicate missing data)",
-			))
-		}
+	parsed, err := strconv.ParseFloat(value, 64)
+	if err != nil || math.Abs(parsed) > limit {
+		return 0, false
 	}
-
-	// Validate longitude range
-	if strings.Contains(fieldName, "lon") {
-		if coord < -180.0 || coord > 180.0 {
-			container.AddNotice(notice.NewInvalidCoordinateNotice(
-				filename,
-				fieldName,
-				coordValue,
-				rowNumber,
-				"Longitude must be between -180 and 180",
-			))
-			// Also report insufficient precision for out-of-range values
-			container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-				filename,
-				fieldName,
-				coordValue,
-				rowNumber,
-				0,
-			))
-		}
-		// Check for suspicious longitude values (likely errors)
-		if coord == 0.0 {
-			container.AddNotice(notice.NewSuspiciousCoordinateNotice(
-				filename,
-				fieldName,
-				coordValue,
-				rowNumber,
-				"Longitude is exactly 0 (may indicate missing data)",
-			))
-		}
-	}
-
-	// Check for insufficient precision (less than 4 decimal places) only for standard decimal notation
-	coordStr := trimmed
-	if strings.ContainsAny(coordStr, "eE") {
-		// scientific notation: treat as insufficient precision
-		container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-			filename,
-			fieldName,
-			coordValue,
-			rowNumber,
-			0,
-		))
-		return
-	}
-	if coord == 0.0 {
-		// Zero coordinates are considered insufficiently precise regardless of formatting
-		container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-			filename,
-			fieldName,
-			coordValue,
-			rowNumber,
-			0,
-		))
-		return
-	}
-	if dotIndex := strings.Index(coordStr, "."); dotIndex != -1 {
-		// Count decimals as written (including trailing zeros)
-		decimals := len(coordStr) - dotIndex - 1
-		if decimals < 4 {
-			container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-				filename,
-				fieldName,
-				coordValue,
-				rowNumber,
-				decimals,
-			))
-		}
-		// Special case: boundary coordinates with exactly 4 decimal places are considered insufficient precision
-		if decimals == 4 && (coord == 90.0 || coord == -90.0 || coord == 180.0 || coord == -180.0) {
-			container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-				filename,
-				fieldName,
-				coordValue,
-				rowNumber,
-				decimals,
-			))
-		}
-	} else {
-		// No decimal point - very low precision
-		container.AddNotice(notice.NewInsufficientCoordinatePrecisionNotice(
-			filename,
-			fieldName,
-			coordValue,
-			rowNumber,
-			0,
-		))
-	}
+	return parsed, true
 }

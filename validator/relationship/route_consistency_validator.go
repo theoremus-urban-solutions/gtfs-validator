@@ -3,7 +3,6 @@ package relationship
 import (
 	"io"
 	"log"
-	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -579,64 +578,13 @@ func (v *RouteConsistencyValidator) parseStopTimeForRoute(row *parser.CSVRow) *S
 	return stopTime
 }
 
-// validateRoute validates an individual route
+// validateRoute validates an individual route.
+//
+// Route naming is checked by entity/route_name_validator.go, which reads
+// routes.txt directly. This validator only reports what needs the trip index
+// it builds.
 func (v *RouteConsistencyValidator) validateRoute(container *notice.NoticeContainer, route *RouteAnalysis) {
-	// Check route naming
-	v.validateRouteNaming(container, route)
-
-	// Check route trip patterns
 	v.validateRouteTripPatterns(container, route)
-
-	// Check route service coverage
-	v.validateRouteServiceCoverage(container, route)
-
-	// Check route operational efficiency
-	v.validateRouteEfficiency(container, route)
-}
-
-// validateRouteNaming validates route naming consistency
-func (v *RouteConsistencyValidator) validateRouteNaming(container *notice.NoticeContainer, route *RouteAnalysis) {
-	// Check for routes without names
-	if route.RouteShortName == "" && route.RouteLongName == "" {
-		container.AddNotice(notice.NewMissingRouteNameNotice(
-			route.RouteID,
-			route.RowNumber,
-		))
-	}
-
-	// Check for very long route names
-	if len(route.RouteShortName) > 12 {
-		container.AddNotice(notice.NewRouteShortNameTooLongNotice(
-			route.RouteID,
-			route.RouteShortName,
-			len(route.RouteShortName),
-			12,
-			route.RowNumber,
-		))
-	}
-
-	if len(route.RouteLongName) > 120 {
-		container.AddNotice(notice.NewRouteLongNameTooLongNotice(
-			route.RouteID,
-			route.RouteLongName,
-			len(route.RouteLongName),
-			120,
-			route.RowNumber,
-		))
-	}
-
-	// Check for identical short and long names
-	if route.RouteShortName != "" && route.RouteLongName != "" {
-		if route.RouteShortName == route.RouteLongName {
-			container.AddNotice(notice.NewSameNameAndDescriptionNotice(
-				route.RouteID,
-				"route_short_name",
-				"route_long_name",
-				route.RouteShortName,
-				route.RowNumber,
-			))
-		}
-	}
 }
 
 // validateRouteTripPatterns validates trip patterns for the route
@@ -668,7 +616,7 @@ func (v *RouteConsistencyValidator) validateRouteTripPatterns(container *notice.
 	}
 
 	// Validate direction patterns
-	for directionID, pattern := range directionPatterns {
+	for _, pattern := range directionPatterns {
 		// Find most common pattern
 		maxCount := 0
 		for patternHash, count := range pattern.StopPatterns {
@@ -679,160 +627,17 @@ func (v *RouteConsistencyValidator) validateRouteTripPatterns(container *notice.
 		}
 
 		pattern.PatternVariations = len(pattern.StopPatterns)
-
-		// Check for excessive pattern variations
-		if pattern.PatternVariations > 5 && pattern.TripCount > 10 {
-			container.AddNotice(notice.NewExcessiveRoutePatternVariationsNotice(
-				route.RouteID,
-				directionID,
-				pattern.PatternVariations,
-				pattern.TripCount,
-			))
-		}
-
-		// Check for single trip patterns
-		for patternHash, count := range pattern.StopPatterns {
-			if count == 1 && pattern.TripCount > 5 {
-				container.AddNotice(notice.NewSingleTripPatternNotice(
-					"route_"+route.RouteID+"_dir_"+strconv.Itoa(directionID),
-					"", // No specific trip ID available here
-					len(strings.Split(patternHash, "|")),
-				))
-				break // Only report once per direction
-			}
-		}
 	}
 
-	// Check direction balance
-	if len(directionPatterns) == 2 {
-		directions := make([]*DirectionPattern, 0, 2)
-		for _, pattern := range directionPatterns {
-			directions = append(directions, pattern)
-		}
-
-		ratio := float64(directions[0].TripCount) / float64(directions[1].TripCount)
-		if ratio > 3.0 || ratio < 0.33 {
-			container.AddNotice(notice.NewUnbalancedDirectionTripsNotice(
-				route.RouteID,
-				directions[0].DirectionID,
-				directions[0].TripCount,
-				directions[1].DirectionID,
-				directions[1].TripCount,
-			))
-		}
-	}
-}
-
-// validateRouteServiceCoverage validates service coverage for the route
-func (v *RouteConsistencyValidator) validateRouteServiceCoverage(container *notice.NoticeContainer, route *RouteAnalysis) {
-	// Check for routes with too many services
-	if route.ServiceCount > 15 {
-		container.AddNotice(notice.NewExcessiveServiceVarietyNotice(
-			route.RouteID,
-			route.ServiceCount,
-		))
-	}
-
-	// Check for routes with very few services
-	if route.ServiceCount == 1 && route.TripCount > 20 {
-		container.AddNotice(notice.NewLimitedServiceVarietyNotice(
-			route.RouteID,
-			route.ServiceCount,
-			route.TripCount,
-		))
-	}
-}
-
-// validateRouteEfficiency validates operational efficiency
-func (v *RouteConsistencyValidator) validateRouteEfficiency(container *notice.NoticeContainer, route *RouteAnalysis) {
-	// Check for routes with very few trips
-	if route.TripCount < 3 {
-		container.AddNotice(notice.NewLowRouteUsageNotice(
-			route.RouteID,
-			route.TripCount,
-			route.ServiceCount,
-		))
-	}
-
-	// Check for routes with too many stops
-	if route.StopCount > 100 {
-		container.AddNotice(notice.NewVeryLongRouteNotice(
-			route.RouteID,
-			route.StopCount,
-			route.TripCount,
-		))
-	}
-
-	// Check for routes with very few stops
-	if route.StopCount < 2 {
-		container.AddNotice(notice.NewVeryShortRouteNotice(
-			route.RouteID,
-			route.StopCount,
-			route.TripCount,
-		))
-	}
-
-	// Check timepoint coverage
-	tripsWithTimepoints := 0
-	for _, trip := range route.Trips {
-		if trip.HasTimePoints {
-			tripsWithTimepoints++
-		}
-	}
-
-	if route.TripCount > 0 {
-		timepointCoverage := float64(tripsWithTimepoints) / float64(route.TripCount)
-		if timepointCoverage < 0.5 {
-			container.AddNotice(notice.NewLowTimepointCoverageNotice(
-				route.RouteID,
-				tripsWithTimepoints,
-				route.TripCount,
-				timepointCoverage,
-			))
-		}
-	}
 }
 
 // validateRouteNetwork validates route network consistency
 func (v *RouteConsistencyValidator) validateRouteNetwork(container *notice.NoticeContainer, routes map[string]*RouteAnalysis) {
-	// Collect network statistics
-	totalRoutes := len(routes)
-	totalTrips := 0
-	routesByType := make(map[int]int)
 	routesByAgency := make(map[string]int)
-
 	for _, route := range routes {
-		totalTrips += route.TripCount
-		routesByType[route.RouteType]++
 		if route.AgencyID != "" {
 			routesByAgency[route.AgencyID]++
 		}
-	}
-
-	// Generate network summary
-	if totalRoutes > 0 {
-		avgTripsPerRoute := float64(totalTrips) / float64(totalRoutes)
-
-		// Sort route types by frequency
-		type routeTypeCount struct {
-			routeType int
-			count     int
-		}
-		var sortedTypes []routeTypeCount
-		for routeType, count := range routesByType {
-			sortedTypes = append(sortedTypes, routeTypeCount{routeType, count})
-		}
-		sort.Slice(sortedTypes, func(i, j int) bool {
-			return sortedTypes[i].count > sortedTypes[j].count
-		})
-
-		container.AddNotice(notice.NewRouteNetworkSummaryNotice(
-			totalRoutes,
-			totalTrips,
-			avgTripsPerRoute,
-			len(routesByType),
-			len(routesByAgency),
-		))
 	}
 
 	// Check for route type consistency within agencies
@@ -846,13 +651,6 @@ func (v *RouteConsistencyValidator) validateRouteNetwork(container *notice.Notic
 				}
 			}
 
-			if len(agencyTypes) > 5 {
-				container.AddNotice(notice.NewHighRouteTypeDiversityNotice(
-					agencyID,
-					len(agencyTypes),
-					agencyRouteCount,
-				))
-			}
 		}
 	}
 }

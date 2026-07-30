@@ -2,6 +2,9 @@ package notice
 
 import (
 	"fmt"
+	"hash"
+	"hash/fnv"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -66,15 +69,24 @@ type NoticeContainer struct {
 	notices      []Notice
 	noticeCounts map[string]int
 	maxPerType   int
+	seen         map[[16]byte]struct{}
+	hasher       hash.Hash
+	hashBuf      []byte
 	mutex        sync.RWMutex
 }
 
-// NewNoticeContainer creates a new notice container
+// NewNoticeContainer creates a new notice container that keeps every notice.
+//
+// There is deliberately no default limit. Capping per code silently discards
+// findings once the cap is reached, and because notices arrive in file order
+// rather than severity order, the discarded ones can be the errors. A report
+// that says "100 instances" when the real count is thousands is worse than a
+// large report. Use NewNoticeContainerWithLimit to opt into a cap.
 func NewNoticeContainer() *NoticeContainer {
 	return &NoticeContainer{
 		notices:      make([]Notice, 0),
 		noticeCounts: make(map[string]int),
-		maxPerType:   100, // Default limit
+		maxPerType:   0, // No limit
 	}
 }
 
@@ -87,7 +99,14 @@ func NewNoticeContainerWithLimit(maxPerType int) *NoticeContainer {
 	}
 }
 
-// AddNotice adds a notice to the container with optional limiting
+// AddNotice adds a notice to the container, skipping exact duplicates.
+//
+// Several checks are implemented in more than one validator package, so the
+// same finding can be reported twice — a loop trip, for example, is detected
+// both by the trip pattern validator and by the stop time consistency
+// validator, which inflated loop_route to double the real count. Two notices
+// with the same code and identical context are the same finding and cannot be
+// told apart in a report, so only the first is kept.
 func (nc *NoticeContainer) AddNotice(notice Notice) {
 	nc.mutex.Lock()
 	defer nc.mutex.Unlock()
@@ -99,8 +118,55 @@ func (nc *NoticeContainer) AddNotice(notice Notice) {
 		return // Skip adding more notices of this type
 	}
 
+	key := nc.noticeIdentity(code, notice.Context())
+	if nc.seen == nil {
+		nc.seen = make(map[[16]byte]struct{})
+	}
+	if _, duplicate := nc.seen[key]; duplicate {
+		return
+	}
+	nc.seen[key] = struct{}{}
+
 	nc.notices = append(nc.notices, notice)
 	nc.noticeCounts[code]++
+}
+
+// noticeIdentity hashes the code plus every context value into a key
+// identifying a single finding. Context keys are sorted so that map iteration
+// order does not affect the result.
+//
+// A 128-bit hash is stored rather than the key itself: on a large feed there
+// are hundreds of thousands of notices, and holding the full strings costs
+// several hundred megabytes. Callers must hold the mutex — the hasher and
+// buffer are reused to keep this allocation-free.
+func (nc *NoticeContainer) noticeIdentity(code string, context map[string]interface{}) [16]byte {
+	if nc.hasher == nil {
+		nc.hasher = fnv.New128a()
+	}
+	nc.hasher.Reset()
+
+	_, _ = nc.hasher.Write([]byte(code))
+
+	if len(context) > 0 {
+		keys := make([]string, 0, len(context))
+		for k := range context {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
+		for _, k := range keys {
+			_, _ = nc.hasher.Write([]byte{0x1f})
+			_, _ = nc.hasher.Write([]byte(k))
+			_, _ = nc.hasher.Write([]byte{'='})
+			_, _ = fmt.Fprintf(nc.hasher, "%v", context[k])
+		}
+	}
+
+	nc.hashBuf = nc.hasher.Sum(nc.hashBuf[:0])
+
+	var key [16]byte
+	copy(key[:], nc.hashBuf)
+	return key
 }
 
 // SetMaxNoticesPerType sets the maximum number of notices per type

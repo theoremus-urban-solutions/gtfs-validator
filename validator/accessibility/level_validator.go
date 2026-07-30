@@ -34,10 +34,8 @@ func (v *LevelValidator) Validate(loader *parser.FeedLoader, container *notice.N
 		return // No levels to validate
 	}
 
-	// Validate each level
-	for _, level := range levels {
-		v.validateLevel(container, level)
-	}
+	// level_name is Optional in the spec, not Recommended, so an unnamed level
+	// is not a defect and there is nothing to check per row.
 
 	// Check for duplicate level indices
 	v.validateDuplicateLevelIndices(container, levels)
@@ -109,27 +107,6 @@ func (v *LevelValidator) parseLevel(row *parser.CSVRow) *LevelInfo {
 	}
 
 	return level
-}
-
-// validateLevel validates a single level record
-func (v *LevelValidator) validateLevel(container *notice.NoticeContainer, level *LevelInfo) {
-	// Validate level index range (reasonable bounds)
-	if level.LevelIndex < -50 || level.LevelIndex > 50 {
-		container.AddNotice(notice.NewUnreasonableLevelIndexNotice(
-			level.LevelID,
-			level.LevelIndex,
-			level.RowNumber,
-		))
-	}
-
-	// Check for missing level name (recommended)
-	if level.LevelName == "" {
-		container.AddNotice(notice.NewMissingRecommendedFieldNotice(
-			"levels.txt",
-			"level_name",
-			level.RowNumber,
-		))
-	}
 }
 
 // validateDuplicateLevelIndices checks for duplicate level indices

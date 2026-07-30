@@ -27,7 +27,6 @@ type ServiceDefinition struct {
 	StartDate  string
 	EndDate    string
 	DaysActive []string
-	TripCount  int
 	RowNumber  int
 }
 
@@ -39,42 +38,18 @@ type ServiceException struct {
 	RowNumber     int
 }
 
-// TripService represents a trip's service usage
-type TripService struct {
-	TripID    string
-	ServiceID string
-	RouteID   string
-	RowNumber int
-}
-
-// Validate checks service consistency across calendar, calendar_dates, and trips
+// Validate checks service consistency across calendar and calendar_dates
 func (v *ServiceConsistencyValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
-	// Load services from calendar.txt
 	services := v.loadServices(loader)
-
-	// Load exceptions from calendar_dates.txt
 	exceptions := v.loadServiceExceptions(loader)
 
-	// Load trip services from trips.txt
-	tripServices := v.loadTripServices(loader)
-
-	// Cast CurrentDate to time.Time
 	currentDate, ok := config.CurrentDate.(time.Time)
 	if !ok {
 		currentDate = time.Now()
 	}
 
-	// Validate service definitions
-	v.validateServiceDefinitions(container, services, currentDate)
-
-	// Validate service exceptions
-	v.validateServiceExceptions(container, exceptions, currentDate)
-
-	// Validate service usage consistency
-	v.validateServiceUsage(container, services, exceptions, tripServices)
-
-	// Validate service patterns
-	v.validateServicePatterns(container, services, tripServices)
+	v.validateServiceExceptions(container, exceptions)
+	v.validateFeedStartsInFuture(container, services, exceptions, currentDate)
 }
 
 // loadServices loads service definitions from calendar.txt
@@ -206,111 +181,10 @@ func (v *ServiceConsistencyValidator) parseServiceException(row *parser.CSVRow) 
 	}
 }
 
-// loadTripServices loads trip service assignments from trips.txt
-func (v *ServiceConsistencyValidator) loadTripServices(loader *parser.FeedLoader) []*TripService {
-	var tripServices []*TripService
-
-	reader, err := loader.GetFile("trips.txt")
-	if err != nil {
-		return tripServices
-	}
-	defer func() {
-		if closeErr := reader.Close(); closeErr != nil {
-			log.Printf("Warning: failed to close reader %v", closeErr)
-		}
-	}()
-
-	csvFile, err := parser.NewCSVFile(reader, "trips.txt")
-	if err != nil {
-		return tripServices
-	}
-
-	for {
-		row, err := csvFile.ReadRow()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			continue
-		}
-
-		tripService := v.parseTripService(row)
-		if tripService != nil {
-			tripServices = append(tripServices, tripService)
-		}
-	}
-
-	return tripServices
-}
-
-// parseTripService parses a trip service assignment from trips.txt
-func (v *ServiceConsistencyValidator) parseTripService(row *parser.CSVRow) *TripService {
-	tripID, hasTripID := row.Values["trip_id"]
-	serviceID, hasServiceID := row.Values["service_id"]
-	routeID, hasRouteID := row.Values["route_id"]
-
-	if !hasTripID || !hasServiceID || !hasRouteID {
-		return nil
-	}
-
-	return &TripService{
-		TripID:    strings.TrimSpace(tripID),
-		ServiceID: strings.TrimSpace(serviceID),
-		RouteID:   strings.TrimSpace(routeID),
-		RowNumber: row.RowNumber,
-	}
-}
-
-// validateServiceDefinitions validates individual service definitions
-func (v *ServiceConsistencyValidator) validateServiceDefinitions(container *notice.NoticeContainer, services map[string]*ServiceDefinition, currentDate time.Time) {
-	for _, service := range services {
-		// Check if service has active days
-		if len(service.DaysActive) == 0 {
-			container.AddNotice(notice.NewServiceNeverActiveNotice(
-				service.ServiceID,
-				service.RowNumber,
-			))
-		}
-
-		// Check date range validity
-		if service.StartDate != "" && service.EndDate != "" {
-			startDate, startErr := time.Parse("20060102", service.StartDate)
-			endDate, endErr := time.Parse("20060102", service.EndDate)
-
-			if startErr == nil && endErr == nil {
-				if endDate.Before(startDate) {
-					container.AddNotice(notice.NewInvalidServiceDateRangeNotice(
-						service.ServiceID,
-						service.StartDate,
-						service.EndDate,
-						service.RowNumber,
-					))
-				}
-
-				// Check if service is too old
-				if endDate.Before(currentDate.AddDate(0, 0, -90)) {
-					container.AddNotice(notice.NewVeryOldServiceNotice(
-						service.ServiceID,
-						service.EndDate,
-						service.RowNumber,
-					))
-				}
-
-				// Check if service is too far in the future
-				if startDate.After(currentDate.AddDate(2, 0, 0)) {
-					container.AddNotice(notice.NewVeryFutureServiceNotice(
-						service.ServiceID,
-						service.StartDate,
-						service.RowNumber,
-					))
-				}
-			}
-		}
-	}
-}
-
-// validateServiceExceptions validates service exceptions
-func (v *ServiceConsistencyValidator) validateServiceExceptions(container *notice.NoticeContainer, exceptions map[string][]*ServiceException, currentDate time.Time) {
+// validateServiceExceptions reports a service given two exceptions for the same
+// date. Which of the two wins is undefined, so the schedule that day depends on
+// the consumer.
+func (v *ServiceConsistencyValidator) validateServiceExceptions(container *notice.NoticeContainer, exceptions map[string][]*ServiceException) {
 	for serviceID, serviceExceptions := range exceptions {
 		// Sort exceptions by date
 		sort.Slice(serviceExceptions, func(i, j int) bool {
@@ -339,145 +213,51 @@ func (v *ServiceConsistencyValidator) validateServiceExceptions(container *notic
 			} else {
 				dateMap[exception.Date] = exception
 			}
-
-			// Check if exception date is reasonable
-			if date, err := time.Parse("20060102", exception.Date); err == nil {
-				if date.Before(currentDate.AddDate(-5, 0, 0)) {
-					container.AddNotice(notice.NewVeryOldCalendarDateNotice(
-						serviceID,
-						exception.Date,
-						exception.RowNumber,
-					))
-				}
-				if date.After(currentDate.AddDate(5, 0, 0)) {
-					container.AddNotice(notice.NewVeryFutureCalendarDateNotice(
-						serviceID,
-						exception.Date,
-						exception.RowNumber,
-					))
-				}
-			}
 		}
 	}
 }
 
-// validateServiceUsage validates service usage consistency
-func (v *ServiceConsistencyValidator) validateServiceUsage(container *notice.NoticeContainer, services map[string]*ServiceDefinition, exceptions map[string][]*ServiceException, tripServices []*TripService) {
-	// Create service usage map
-	serviceUsage := make(map[string]int)
-	for _, tripService := range tripServices {
-		serviceUsage[tripService.ServiceID]++
-	}
+// validateFeedStartsInFuture reports a feed in which no service has begun yet.
+// The earliest date any service can run is the earliest calendar.txt start_date
+// or added calendar_dates.txt date; if even that is still ahead, the feed
+// schedules nothing for today.
+func (v *ServiceConsistencyValidator) validateFeedStartsInFuture(container *notice.NoticeContainer, services map[string]*ServiceDefinition, exceptions map[string][]*ServiceException, currentDate time.Time) {
+	var earliest *time.Time
 
-	// Update trip counts in service definitions
-	for serviceID, count := range serviceUsage {
-		if service, exists := services[serviceID]; exists {
-			service.TripCount = count
+	consider := func(dateStr string) {
+		date, err := time.Parse("20060102", dateStr)
+		if err != nil {
+			return
+		}
+		if earliest == nil || date.Before(*earliest) {
+			earliest = &date
 		}
 	}
-
-	// Check for services defined but not used
-	for serviceID, service := range services {
-		if service.TripCount == 0 {
-			container.AddNotice(notice.NewUnusedServiceNotice(
-				serviceID,
-				"calendar.txt",
-				service.RowNumber,
-			))
-		}
-	}
-
-	// Check for services used but not defined
-	for _, tripService := range tripServices {
-		if _, definedInCalendar := services[tripService.ServiceID]; !definedInCalendar {
-			if _, definedInExceptions := exceptions[tripService.ServiceID]; !definedInExceptions {
-				container.AddNotice(notice.NewUndefinedServiceNotice(tripService.ServiceID))
-			}
-		}
-	}
-
-	// Check for services with very few trips (potential data issues)
-	for serviceID, service := range services {
-		if service.TripCount > 0 && service.TripCount <= 2 {
-			container.AddNotice(notice.NewLowServiceUsageNotice(
-				serviceID,
-				service.TripCount,
-				service.RowNumber,
-			))
-		}
-	}
-}
-
-// validateServicePatterns validates service patterns for operational efficiency
-func (v *ServiceConsistencyValidator) validateServicePatterns(container *notice.NoticeContainer, services map[string]*ServiceDefinition, tripServices []*TripService) {
-	// Group trips by route and service
-	routeServiceMap := make(map[string]map[string]int)
-
-	for _, tripService := range tripServices {
-		if routeServiceMap[tripService.RouteID] == nil {
-			routeServiceMap[tripService.RouteID] = make(map[string]int)
-		}
-		routeServiceMap[tripService.RouteID][tripService.ServiceID]++
-	}
-
-	// Check for routes with too many different services
-	for routeID, serviceMap := range routeServiceMap {
-		serviceCount := len(serviceMap)
-		if serviceCount > 10 {
-			container.AddNotice(notice.NewExcessiveServiceVarietyNotice(
-				routeID,
-				serviceCount,
-			))
-		}
-
-		// Check for services with very few trips on a route
-		for serviceID, tripCount := range serviceMap {
-			if tripCount == 1 {
-				container.AddNotice(notice.NewSingleTripServiceNotice(
-					routeID,
-					serviceID,
-					tripCount,
-				))
-			}
-		}
-	}
-
-	// Analyze service day patterns
-	weekdayServices := 0
-	weekendServices := 0
-	mixedServices := 0
 
 	for _, service := range services {
-		if service.TripCount == 0 {
-			continue
+		// A service with no active weekday never runs regardless of its window,
+		// so it cannot be what covers today.
+		if len(service.DaysActive) > 0 {
+			consider(service.StartDate)
 		}
-
-		hasWeekdays := false
-		hasWeekends := false
-
-		for _, day := range service.DaysActive {
-			if day == "saturday" || day == "sunday" {
-				hasWeekends = true
-			} else {
-				hasWeekdays = true
+	}
+	for _, serviceExceptions := range exceptions {
+		for _, exception := range serviceExceptions {
+			if exception.ExceptionType == 1 {
+				consider(exception.Date)
 			}
-		}
-
-		switch {
-		case hasWeekdays && hasWeekends:
-			mixedServices++
-		case hasWeekdays:
-			weekdayServices++
-		case hasWeekends:
-			weekendServices++
 		}
 	}
 
-	// Report service pattern summary
-	container.AddNotice(notice.NewServicePatternSummaryNotice(
-		weekdayServices,
-		weekendServices,
-		mixedServices,
-		len(services),
+	// No parseable service date at all: a feed without calendars is reported as
+	// missing_calendar_and_calendar_date_files, and unparseable dates as
+	// invalid_date.
+	if earliest == nil || !earliest.After(currentDate) {
+		return
+	}
+
+	container.AddNotice(notice.NewFutureCalendarNotice(
+		currentDate.Format("20060102"),
+		earliest.Format("20060102"),
 	))
 }

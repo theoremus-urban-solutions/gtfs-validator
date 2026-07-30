@@ -105,22 +105,20 @@ func (s *StreamingStats) ProcessNotice(notice gtfsvalidator.NoticeGroup) {
 		s.startTime = time.Now()
 	}
 
-	// Update counts
+	// Update counts. A group can hold more than one severity, so take the
+	// breakdown rather than a single label.
 	s.totalNotices++
 	s.noticeCodes[notice.Code] += notice.TotalNotices
-	s.severityCounts[notice.Severity] += notice.TotalNotices
+	s.severityCounts["ERROR"] += notice.SeverityCounts.Errors
+	s.severityCounts["WARNING"] += notice.SeverityCounts.Warnings
+	s.severityCounts["INFO"] += notice.SeverityCounts.Infos
 
-	switch notice.Severity {
-	case "ERROR":
-		s.errorCount += notice.TotalNotices
-	case "WARNING":
-		s.warningCount += notice.TotalNotices
-	case "INFO":
-		s.infoCount += notice.TotalNotices
-	}
+	s.errorCount += notice.SeverityCounts.Errors
+	s.warningCount += notice.SeverityCounts.Warnings
+	s.infoCount += notice.SeverityCounts.Infos
 
-	// Print notice information
-	severity := notice.Severity
+	// Print notice information, badged by the most severe level present
+	severity := notice.HighestSeverity()
 	switch severity {
 	case "ERROR":
 		severity = "🔴 ERROR"

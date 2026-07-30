@@ -39,6 +39,10 @@ func (v *BlockOverlappingValidator) Validate(loader *parser.FeedLoader, containe
 		return // No block information available
 	}
 
+	// Check the modes of the routes the block's trips run on. This needs only
+	// trips.txt and routes.txt, so it runs before the stop_times work.
+	v.validateBlockRouteTypes(loader, container, tripBlocks)
+
 	// Load trip time ranges from stop_times.txt
 	tripTimeRanges := v.loadTripTimeRanges(loader, tripBlocks)
 	if len(tripTimeRanges) == 0 {
@@ -91,8 +95,10 @@ func (v *BlockOverlappingValidator) loadTripBlocks(loader *parser.FeedLoader) ma
 
 			if blockIDTrimmed != "" {
 				tripBlocks[tripIDTrimmed] = &TripBlock{
+					TripID:    tripIDTrimmed,
 					BlockID:   blockIDTrimmed,
 					ServiceID: serviceIDTrimmed,
+					RouteID:   strings.TrimSpace(row.Values["route_id"]),
 					RowNumber: row.RowNumber,
 				}
 			}
@@ -104,9 +110,99 @@ func (v *BlockOverlappingValidator) loadTripBlocks(loader *parser.FeedLoader) ma
 
 // TripBlock represents trip block information
 type TripBlock struct {
+	TripID    string
 	BlockID   string
 	ServiceID string
+	RouteID   string
 	RowNumber int
+}
+
+// validateBlockRouteTypes reports blocks whose trips run on routes of
+// different modes. A block is one vehicle working through the day, and a
+// vehicle does not turn from a bus into a tram between trips, so a mixed block
+// is either a reused block_id or a mislabelled route.
+func (v *BlockOverlappingValidator) validateBlockRouteTypes(loader *parser.FeedLoader, container *notice.NoticeContainer, tripBlocks map[string]*TripBlock) {
+	routeTypes := v.loadRouteTypes(loader)
+	if len(routeTypes) == 0 {
+		return
+	}
+
+	// Trips arrive from a map, so they are ordered by their row before the
+	// comparison: which trip a block is judged against must not depend on map
+	// iteration order.
+	trips := make([]*TripBlock, 0, len(tripBlocks))
+	for _, trip := range tripBlocks {
+		if _, known := routeTypes[trip.RouteID]; known {
+			trips = append(trips, trip)
+		}
+	}
+	sort.Slice(trips, func(i, j int) bool {
+		return trips[i].RowNumber < trips[j].RowNumber
+	})
+
+	// The first trip of a block sets the mode the rest are held to, so each
+	// block is reported once per trip that disagrees rather than for every pair.
+	firstOfBlock := make(map[string]*TripBlock)
+	for _, trip := range trips {
+		first, seen := firstOfBlock[trip.BlockID]
+		if !seen {
+			firstOfBlock[trip.BlockID] = trip
+			continue
+		}
+		if routeTypes[first.RouteID] == routeTypes[trip.RouteID] {
+			continue
+		}
+		container.AddNotice(notice.NewInconsistentRouteTypeForBlockIDNotice(
+			trip.BlockID,
+			first.TripID,
+			first.RouteID,
+			routeTypes[first.RouteID],
+			trip.TripID,
+			trip.RouteID,
+			routeTypes[trip.RouteID],
+			trip.RowNumber,
+		))
+	}
+}
+
+// loadRouteTypes maps each route to its mode, skipping routes whose type is
+// absent or unparseable — the field layer reports those.
+func (v *BlockOverlappingValidator) loadRouteTypes(loader *parser.FeedLoader) map[string]int {
+	routeTypes := make(map[string]int)
+
+	reader, err := loader.GetFile("routes.txt")
+	if err != nil {
+		return routeTypes
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+
+	csvFile, err := parser.NewCSVFile(reader, "routes.txt")
+	if err != nil {
+		return routeTypes
+	}
+
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			break
+		}
+
+		routeID := strings.TrimSpace(row.Values["route_id"])
+		routeType, err := strconv.Atoi(strings.TrimSpace(row.Values["route_type"]))
+		if routeID == "" || err != nil {
+			continue
+		}
+		routeTypes[routeID] = routeType
+	}
+
+	return routeTypes
 }
 
 // loadTripTimeRanges loads trip time ranges from stop_times.txt
@@ -319,7 +415,28 @@ func (v *BlockOverlappingValidator) validateBlockOverlaps(container *notice.Noti
 			continue // Need at least 2 trips to have overlaps
 		}
 
+		v.validateBlockServiceConsistency(container, blockID, trips)
 		v.validateBlockTripOverlaps(container, blockID, trips)
+	}
+}
+
+// validateBlockServiceConsistency reports blocks whose trips run on different
+// services. A block is a vehicle working through the day, so its trips must
+// share a calendar; OTP cannot interline them otherwise.
+func (v *BlockOverlappingValidator) validateBlockServiceConsistency(container *notice.NoticeContainer, blockID string, trips []TripTimeRange) {
+	first := trips[0]
+	for _, trip := range trips[1:] {
+		if trip.ServiceID == first.ServiceID {
+			continue
+		}
+		container.AddNotice(notice.NewBlockServiceMismatchNotice(
+			blockID,
+			first.TripID,
+			first.ServiceID,
+			trip.TripID,
+			trip.ServiceID,
+			trip.RowNumber,
+		))
 	}
 }
 

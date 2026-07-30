@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -125,14 +126,20 @@ func (v *validatorImpl) createInternalConfig() Config {
 
 // createValidationConfig creates the validation configuration based on mode.
 func (v *validatorImpl) createValidationConfig() validationConfig {
+	var config validationConfig
 	switch v.config.ValidationMode {
 	case ValidationModePerformance:
-		return performanceValidationConfig()
+		config = performanceValidationConfig()
 	case ValidationModeComprehensive:
-		return comprehensiveValidationConfig()
+		config = comprehensiveValidationConfig()
 	default:
-		return defaultValidationConfig()
+		config = defaultValidationConfig()
 	}
+
+	// The mode presets no longer cap notices; an explicit limit is the only
+	// thing that does.
+	config.MaxNoticesPerType = v.config.MaxNoticesPerType
+	return config
 }
 
 // convertReport converts internal report format to public API format.
@@ -145,18 +152,26 @@ func (v *validatorImpl) convertReport(internal *report.ValidationReport, elapsed
 			// This shouldn't happen with the current implementation
 			// but handle it gracefully
 			group.TotalNotices += n.TotalNotices
+			group.SeverityCounts.Errors += n.SeverityCounts.Errors
+			group.SeverityCounts.Warnings += n.SeverityCounts.Warnings
+			group.SeverityCounts.Infos += n.SeverityCounts.Infos
+			group.SeverityCounts.Total += n.SeverityCounts.Total
 			group.SampleNotices = append(group.SampleNotices, n.SampleNotices...)
 		} else {
 			enhanced := GetEnhancedNoticeDescription(n.Code)
 			noticeGroups[n.Code] = &NoticeGroup{
-				Code:           n.Code,
-				Severity:       n.Severity,
+				Code: n.Code,
+				SeverityCounts: NoticeCounts{
+					Errors:   n.SeverityCounts.Errors,
+					Warnings: n.SeverityCounts.Warnings,
+					Infos:    n.SeverityCounts.Infos,
+					Total:    n.SeverityCounts.Total,
+				},
 				Description:    enhanced.Description,
 				GTFSReference:  enhanced.GTFSReference,
-				AffectedFiles:  enhanced.AffectedFiles,
+				AffectedFiles:  affectedFiles(n.Code, enhanced),
 				AffectedFields: enhanced.AffectedFields,
 				ExampleFix:     enhanced.ExampleFix,
-				Impact:         enhanced.Impact,
 				TotalNotices:   n.TotalNotices,
 				SampleNotices:  n.SampleNotices,
 			}
@@ -198,17 +213,17 @@ func (v *validatorImpl) convertReport(internal *report.ValidationReport, elapsed
 // Internal types that mirror the existing implementation
 
 type validationConfig struct {
-	EnableCore            bool
-	EnableEntity          bool
-	EnableRelationship    bool
-	EnableBusiness        bool
-	EnableAccessibility   bool
-	EnableFare            bool
-	EnableMeta            bool
-	EnableGeospatial      bool
-	EnableNetworkTopology bool
-	EnableDateTrips       bool
-	MaxNoticesPerType     int
+	EnableCore          bool
+	EnableEntity        bool
+	EnableRelationship  bool
+	EnableBusiness      bool
+	EnableAccessibility bool
+	EnableFare          bool
+	EnableMeta          bool
+	EnableGeospatial    bool
+	EnableShapeGeometry bool
+	EnableDateTrips     bool
+	MaxNoticesPerType   int
 }
 
 func defaultValidationConfig() validationConfig {
@@ -220,7 +235,7 @@ func defaultValidationConfig() validationConfig {
 		EnableAccessibility: true,
 		EnableFare:          true,
 		EnableMeta:          true,
-		MaxNoticesPerType:   100,
+		MaxNoticesPerType:   0, // No limit: see NewNoticeContainer
 	}
 }
 
@@ -229,23 +244,23 @@ func performanceValidationConfig() validationConfig {
 		EnableCore:         true,
 		EnableRelationship: true,
 		EnableMeta:         true,
-		MaxNoticesPerType:  50,
+		MaxNoticesPerType:  0, // No limit: see NewNoticeContainer
 	}
 }
 
 func comprehensiveValidationConfig() validationConfig {
 	return validationConfig{
-		EnableCore:            true,
-		EnableEntity:          true,
-		EnableRelationship:    true,
-		EnableBusiness:        true,
-		EnableAccessibility:   true,
-		EnableFare:            true,
-		EnableMeta:            true,
-		EnableGeospatial:      true,
-		EnableNetworkTopology: true,
-		EnableDateTrips:       true,
-		MaxNoticesPerType:     1000,
+		EnableCore:          true,
+		EnableEntity:        true,
+		EnableRelationship:  true,
+		EnableBusiness:      true,
+		EnableAccessibility: true,
+		EnableFare:          true,
+		EnableMeta:          true,
+		EnableGeospatial:    true,
+		EnableShapeGeometry: true,
+		EnableDateTrips:     true,
+		MaxNoticesPerType:   0, // No limit: see NewNoticeContainer
 	}
 }
 
@@ -667,12 +682,15 @@ func (v *internalValidator) initializeValidators() {
 			core.NewMissingColumnValidator(),
 			core.NewRequiredFieldValidator(),
 			core.NewFieldFormatValidator(),
-			core.NewTimeFormatValidator(),
-			core.NewDateFormatValidator(),
 			core.NewCoordinateValidator(),
-			core.NewCurrencyValidator(),
 			core.NewDuplicateKeyValidator(),
 			core.NewInvalidRowValidator(),
+			core.NewFieldTypeValidator(),
+			// Registered here rather than in the core package because it lives
+			// in the validator package itself. It was previously constructed
+			// nowhere at all, so csv_parsing_failed and unknown_column counted
+			// as implemented while never being emitted.
+			validator.NewFileStructureValidator(),
 			// core.NewLeadingTrailingWhitespaceValidator(), // PROBLEMATIC: Hangs with large datasets (Sofia)
 		)
 	}
@@ -680,13 +698,10 @@ func (v *internalValidator) initializeValidators() {
 	// Entity validators
 	if v.validationConfig.EnableEntity {
 		v.validators = append(v.validators,
-			entity.NewPrimaryKeyValidator(),
-			entity.NewCalendarValidator(),
 			entity.NewAgencyConsistencyValidator(),
 			entity.NewRouteConsistencyValidator(),
 			entity.NewServiceValidationValidator(),
 			entity.NewStopLocationValidator(),
-			entity.NewCalendarConsistencyValidator(),
 			entity.NewShapeValidator(),
 			entity.NewZoneValidator(),
 			entity.NewRouteNameValidator(),
@@ -694,11 +709,11 @@ func (v *internalValidator) initializeValidators() {
 			entity.NewDuplicateRouteNameValidator(),
 			entity.NewRouteColorContrastValidator(),
 			entity.NewStopNameValidator(),
-			entity.NewBikesAllowanceValidator(),
 			entity.NewAttributionWithoutRoleValidator(),
-			// entity.NewTripBlockIdValidator(), // PROBLEMATIC: Causes hanging with large datasets
-			// entity.NewStopTimeHeadsignValidator(), // PROBLEMATIC: Hangs with large datasets (Sofia)
 			entity.NewRouteTypeValidator(),
+			entity.NewNameComparisonValidator(),
+			entity.NewMixedCaseNameValidator(),
+			entity.NewBikeAllowanceValidator(),
 		)
 	}
 
@@ -708,11 +723,14 @@ func (v *internalValidator) initializeValidators() {
 			relationship.NewForeignKeyValidator(),
 			relationship.NewStopTimeSequenceValidator(),
 			relationship.NewStopTimeSequenceTimeValidator(),
-			relationship.NewShapeDistanceValidator(),
+			relationship.NewStopTimeFieldValidator(),
+			relationship.NewUsageValidator(),
+			relationship.NewTranslationValidator(),
+			relationship.NewTripHeadsignValidator(),
+			relationship.NewTripShapeDistanceValidator(),
 			relationship.NewStopTimeConsistencyValidator(),
 			relationship.NewAttributionValidator(),
 			relationship.NewRouteConsistencyValidator(),
-			relationship.NewShapeIncreasingDistanceValidator(),
 		)
 	}
 
@@ -722,31 +740,23 @@ func (v *internalValidator) initializeValidators() {
 			business.NewFrequencyValidator(),
 			business.NewFeedExpirationDateValidator(),
 			business.NewTransferValidator(),
-			business.NewOverlappingFrequencyValidator(),
 			business.NewTripUsabilityValidator(),
-			business.NewTransferTimingValidator(),
 			business.NewTravelSpeedValidator(),
 			business.NewBlockOverlappingValidator(),
-			business.NewServiceCalendarValidator(),
 			business.NewServiceConsistencyValidator(),
-			business.NewScheduleConsistencyValidator(),
+			business.NewInSeatTransferValidator(),
 		)
 
 		// Expensive business validators (optional)
 		if v.validationConfig.EnableGeospatial {
 			v.validators = append(v.validators, business.NewGeospatialValidator())
 		}
-		if v.validationConfig.EnableNetworkTopology {
-			v.validators = append(v.validators, business.NewNetworkTopologyValidator())
+		if v.validationConfig.EnableShapeGeometry {
+			v.validators = append(v.validators, business.NewShapeGeometryValidator())
 		}
 		if v.validationConfig.EnableDateTrips {
 			v.validators = append(v.validators, business.NewDateTripsValidator())
 		}
-
-		// Note: Removed expensive validators that cause hangs on large datasets:
-		// TravelSpeedValidator, BlockOverlappingValidator, ServiceCalendarValidator
-		// These have O(n²) complexity and cause timeouts on large feeds like Sofia
-		// All core data validation is still performed by other validators
 	}
 
 	// Accessibility validators
@@ -808,28 +818,43 @@ func (v *internalValidator) streamNoticeGroups() {
 			continue
 		}
 
+		// Order most severe first so the sample cap cannot hide the errors
+		// in a group that is mostly warnings.
+		ordered := make([]notice.Notice, len(groupNotices))
+		copy(ordered, groupNotices)
+		sort.SliceStable(ordered, func(i, j int) bool {
+			return ordered[i].Severity() > ordered[j].Severity()
+		})
+
 		// Create sample notices (limit to 5 samples)
 		sampleNotices := make([]map[string]interface{}, 0)
 		sampleLimit := 5
-		for i, n := range groupNotices {
-			if i >= sampleLimit {
-				break
+		counts := NoticeCounts{Total: len(ordered)}
+		for i, n := range ordered {
+			if i < sampleLimit {
+				sampleNotices = append(sampleNotices, report.DescribeNotice(code, n))
 			}
-			sampleNotices = append(sampleNotices, n.Context())
+			switch n.Severity() {
+			case notice.ERROR:
+				counts.Errors++
+			case notice.WARNING:
+				counts.Warnings++
+			case notice.INFO:
+				counts.Infos++
+			}
 		}
 
 		// Create notice group for streaming
 		enhanced := GetEnhancedNoticeDescription(code)
 		noticeGroup := NoticeGroup{
 			Code:           code,
-			Severity:       groupNotices[0].Severity().String(),
+			SeverityCounts: counts,
 			Description:    enhanced.Description,
 			GTFSReference:  enhanced.GTFSReference,
-			AffectedFiles:  enhanced.AffectedFiles,
+			AffectedFiles:  affectedFiles(code, enhanced),
 			AffectedFields: enhanced.AffectedFields,
 			ExampleFix:     enhanced.ExampleFix,
-			Impact:         enhanced.Impact,
-			TotalNotices:   len(groupNotices),
+			TotalNotices:   len(ordered),
 			SampleNotices:  sampleNotices,
 		}
 
