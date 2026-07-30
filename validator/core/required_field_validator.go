@@ -7,6 +7,7 @@ import (
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
 	"github.com/theoremus-urban-solutions/gtfs-validator/parser"
+	"github.com/theoremus-urban-solutions/gtfs-validator/schema"
 	"github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
 
@@ -60,8 +61,16 @@ func (v *RequiredFieldValidator) validateFile(loader *parser.FeedLoader, contain
 		return
 	}
 
-	// Get required fields for this file
-	requiredFields := v.getRequiredFields(filename)
+	// The spec's own Presence column decides these, rather than a list kept
+	// by hand. Conditionally Required fields are deliberately absent: whether
+	// they apply depends on the rest of the feed, so each belongs to a rule
+	// that knows the condition — stop_name to missing_stop_name, agency_id to
+	// missing_required_agency_id, and so on.
+	requiredFields, known := schema.FieldsWithPresence(filename, schema.PresenceRequired)
+	if !known {
+		return
+	}
+	recommendedFields, _ := schema.FieldsWithPresence(filename, schema.PresenceRecommended)
 
 	// Read and validate each row
 	for {
@@ -73,23 +82,25 @@ func (v *RequiredFieldValidator) validateFile(loader *parser.FeedLoader, contain
 			return
 		}
 
-		// Check each required field
 		for _, field := range requiredFields {
-			value, exists := row.Values[field]
-			if !exists || strings.TrimSpace(value) == "" {
-				// stop_name is conditionally required: a stop, station or
-				// entrance must be named, and a generic node or boarding area
-				// need not be. For the types that must have one, the omission
-				// is reported as missing_stop_name by
-				// entity/stop_name_validator.go; for the rest the spec calls
-				// the field optional, not recommended, so there is nothing to
-				// say. A station's nodes are unnamed by design and a large
-				// station complex has dozens of them.
-				if filename == StopsFile && field == "stop_name" {
-					continue
-				}
-
+			// A few Required fields count a blank as one of their values —
+			// fare_attributes.transfers empty means unlimited. Required there
+			// means the column must exist, not that every row must fill it.
+			if schema.EmptyIsMeaningful(filename, field) {
+				continue
+			}
+			if isBlank(row.Values, field) {
 				container.AddNotice(notice.NewMissingRequiredFieldNotice(
+					filename,
+					field,
+					row.RowNumber,
+				))
+			}
+		}
+
+		for _, field := range recommendedFields {
+			if isBlank(row.Values, field) {
+				container.AddNotice(notice.NewMissingRecommendedFieldNotice(
 					filename,
 					field,
 					row.RowNumber,
@@ -99,38 +110,9 @@ func (v *RequiredFieldValidator) validateFile(loader *parser.FeedLoader, contain
 	}
 }
 
-// getRequiredFields returns the required fields for a given file
-func (v *RequiredFieldValidator) getRequiredFields(filename string) []string {
-	switch filename {
-	case AgencyFile:
-		return []string{"agency_name", "agency_url", "agency_timezone"}
-	case StopsFile:
-		return []string{"stop_id", "stop_name"}
-	case RoutesFile:
-		return []string{"route_id", "route_type"}
-	case TripsFile:
-		return []string{"route_id", "service_id", "trip_id"}
-	case StopTimesFile:
-		return []string{"trip_id", "stop_id", "stop_sequence"}
-	case CalendarFile:
-		return []string{"service_id", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "start_date", "end_date"}
-	case CalendarDatesFile:
-		return []string{"service_id", "date", "exception_type"}
-	case FareAttributesFile:
-		return []string{"fare_id", "price", "currency_type"}
-	case ShapesFile:
-		return []string{"shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"}
-	case FrequenciesFile:
-		return []string{"trip_id", "start_time", "end_time", "headway_secs"}
-	case TransfersFile:
-		return []string{"from_stop_id", "to_stop_id", "transfer_type"}
-	case "pathways.txt":
-		return []string{"pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional"}
-	case "levels.txt":
-		return []string{"level_id", "level_index"}
-	case FeedInfoFile:
-		return []string{"feed_publisher_name", "feed_publisher_url", "feed_lang"}
-	default:
-		return []string{}
-	}
+// isBlank reports whether a row leaves a field empty, either by omitting the
+// column or by carrying nothing in it.
+func isBlank(values map[string]string, field string) bool {
+	value, present := values[field]
+	return !present || strings.TrimSpace(value) == ""
 }

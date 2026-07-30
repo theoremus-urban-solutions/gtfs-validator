@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
+	"github.com/theoremus-urban-solutions/gtfs-validator/schema"
 	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 )
 
@@ -95,8 +96,8 @@ func TestFileStructureValidator_UnknownColumn(t *testing.T) {
 }
 
 // TestFileStructureValidator_KnownColumnsCoverSpecFiles guards the failure mode
-// this map has: a file the validator reads but has no entry for is checked
-// against nothing, so every one of its columns is reported.
+// this table has: a file the validator reads but the table does not describe is
+// checked against nothing, so every one of its columns is reported.
 func TestFileStructureValidator_KnownColumnsCoverSpecFiles(t *testing.T) {
 	required := []string{
 		"agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt",
@@ -106,8 +107,8 @@ func TestFileStructureValidator_KnownColumnsCoverSpecFiles(t *testing.T) {
 	}
 
 	for _, filename := range required {
-		if _, ok := gtfsFileColumns[filename]; !ok {
-			t.Errorf("gtfsFileColumns has no entry for %s", filename)
+		if _, ok := schema.KnownColumns(filename); !ok {
+			t.Errorf("the generated spec table has no entry for %s", filename)
 		}
 	}
 }
