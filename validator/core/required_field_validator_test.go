@@ -1,11 +1,13 @@
 package core
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
+	"github.com/theoremus-urban-solutions/gtfs-validator/schema"
 	gtfsvalidator "github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
 
@@ -100,10 +102,13 @@ func TestRequiredFieldValidator_Validate(t *testing.T) {
 		{
 			name: "stop_times.txt missing required fields",
 			files: map[string]string{
-				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,,", // Missing stop_id and stop_sequence
+				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,,",
 			},
-			expectedNoticeCodes: []string{"missing_required_field", "missing_required_field"},
-			description:         "stop_id and stop_sequence are required",
+			// stop_sequence is Required; stop_id is only Conditionally Required,
+			// because a Flex row may name a location group or GeoJSON location
+			// instead. That condition belongs to a rule that knows it.
+			expectedNoticeCodes: []string{"missing_required_field"},
+			description:         "stop_sequence is required outright, stop_id conditionally",
 		},
 		{
 			name: "calendar.txt missing weekday fields",
@@ -148,10 +153,13 @@ func TestRequiredFieldValidator_Validate(t *testing.T) {
 		{
 			name: "transfers.txt missing required fields",
 			files: map[string]string{
-				"transfers.txt": "from_stop_id,to_stop_id,transfer_type\n1,2,", // Missing transfer_type
+				"transfers.txt": "from_stop_id,to_stop_id,transfer_type\n1,2,",
 			},
-			expectedNoticeCodes: []string{"missing_required_field"},
-			description:         "transfer_type is required",
+			// transfer_type is Required, but its value list offers empty as a
+			// choice meaning a recommended transfer point, so a blank here is a
+			// value rather than an omission.
+			expectedNoticeCodes: []string{},
+			description:         "an empty transfer_type is a value, not a missing field",
 		},
 		{
 			name: "pathways.txt missing required fields",
@@ -172,10 +180,15 @@ func TestRequiredFieldValidator_Validate(t *testing.T) {
 		{
 			name: "feed_info.txt missing required fields",
 			files: map[string]string{
-				"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,,en", // Missing feed_publisher_url
+				"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang\nMetro,,en",
 			},
-			expectedNoticeCodes: []string{"missing_required_field"},
-			description:         "feed_publisher_url is required",
+			// feed_info.txt carries the only three Recommended fields in the
+			// spec, and this row omits all of them alongside the required URL.
+			expectedNoticeCodes: []string{
+				"missing_required_field",
+				"missing_recommended_field", "missing_recommended_field", "missing_recommended_field",
+			},
+			description: "feed_publisher_url is required; the three feed dates and version are recommended",
 		},
 		{
 			name: "whitespace-only fields treated as empty",
@@ -196,13 +209,14 @@ func TestRequiredFieldValidator_Validate(t *testing.T) {
 			description:         "Multiple rows with different missing required fields",
 		},
 		{
-			name: "files without required field definitions",
+			name: "file outside the spec",
 			files: map[string]string{
-				"translations.txt": "table_name,field_name,language,translation\n,,es,Calle Principal", // Empty fields but no requirements defined
-				"custom_file.txt":  "custom_field\n",                                                   // Empty field
+				"custom_file.txt": "custom_field\n",
 			},
+			// The spec table answers for every file it describes; anything else
+			// has no required fields to check.
 			expectedNoticeCodes: []string{},
-			description:         "Files without defined required fields should not generate notices",
+			description:         "A file the spec does not describe generates no notices",
 		},
 		{
 			name: "mixed valid and invalid rows",
@@ -262,124 +276,32 @@ func TestRequiredFieldValidator_Validate(t *testing.T) {
 	}
 }
 
-func TestRequiredFieldValidator_GetRequiredFields(t *testing.T) {
-	validator := NewRequiredFieldValidator()
-
-	tests := []struct {
-		filename       string
-		expectedFields []string
-		description    string
-	}{
-		{
-			filename:       "agency.txt",
-			expectedFields: []string{"agency_name", "agency_url", "agency_timezone"},
-			description:    "Agency file required fields",
-		},
-		{
-			filename:       "stops.txt",
-			expectedFields: []string{"stop_id", "stop_name"},
-			description:    "Stops file required fields",
-		},
-		{
-			filename:       "routes.txt",
-			expectedFields: []string{"route_id", "route_type"},
-			description:    "Routes file required fields",
-		},
-		{
-			filename:       "trips.txt",
-			expectedFields: []string{"route_id", "service_id", "trip_id"},
-			description:    "Trips file required fields",
-		},
-		{
-			filename:       "stop_times.txt",
-			expectedFields: []string{"trip_id", "stop_id", "stop_sequence"},
-			description:    "Stop times file required fields",
-		},
-		{
-			filename:       "calendar.txt",
-			expectedFields: []string{"service_id", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "start_date", "end_date"},
-			description:    "Calendar file required fields",
-		},
-		{
-			filename:       "calendar_dates.txt",
-			expectedFields: []string{"service_id", "date", "exception_type"},
-			description:    "Calendar dates file required fields",
-		},
-		{
-			filename:       "fare_attributes.txt",
-			expectedFields: []string{"fare_id", "price", "currency_type"},
-			description:    "Fare attributes file required fields",
-		},
-		{
-			filename:       "shapes.txt",
-			expectedFields: []string{"shape_id", "shape_pt_lat", "shape_pt_lon", "shape_pt_sequence"},
-			description:    "Shapes file required fields",
-		},
-		{
-			filename:       "frequencies.txt",
-			expectedFields: []string{"trip_id", "start_time", "end_time", "headway_secs"},
-			description:    "Frequencies file required fields",
-		},
-		{
-			filename:       "transfers.txt",
-			expectedFields: []string{"from_stop_id", "to_stop_id", "transfer_type"},
-			description:    "Transfers file required fields",
-		},
-		{
-			filename:       "pathways.txt",
-			expectedFields: []string{"pathway_id", "from_stop_id", "to_stop_id", "pathway_mode", "is_bidirectional"},
-			description:    "Pathways file required fields",
-		},
-		{
-			filename:       "levels.txt",
-			expectedFields: []string{"level_id", "level_index"},
-			description:    "Levels file required fields",
-		},
-		{
-			filename:       "feed_info.txt",
-			expectedFields: []string{"feed_publisher_name", "feed_publisher_url", "feed_lang"},
-			description:    "Feed info file required fields",
-		},
-		{
-			filename:       "unknown_file.txt",
-			expectedFields: []string{},
-			description:    "Unknown files should have no required fields",
-		},
+// The required and recommended field lists now come from the generated spec
+// table, so what is worth testing is that the table is wired in correctly and
+// that the two presence classes stay distinct — not the contents of a list this
+// package no longer owns.
+func TestRequiredFieldValidator_UsesSpecPresence(t *testing.T) {
+	required, known := schema.FieldsWithPresence("agency.txt", schema.PresenceRequired)
+	if !known {
+		t.Fatal("agency.txt should be described by the spec table")
+	}
+	if !slices.Contains(required, "agency_name") {
+		t.Errorf("agency_name is Required in the spec, got %v", required)
+	}
+	// Conditionally Required belongs to the rule that knows the condition, so
+	// it must not leak into the generic required list.
+	if slices.Contains(required, "agency_id") {
+		t.Error("agency_id is Conditionally Required and must not be treated as Required")
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.filename, func(t *testing.T) {
-			actualFields := validator.getRequiredFields(tt.filename)
+	// feed_info.txt holds the only Recommended fields in the whole spec.
+	recommended, _ := schema.FieldsWithPresence("feed_info.txt", schema.PresenceRecommended)
+	if !slices.Contains(recommended, "feed_version") {
+		t.Errorf("feed_version is Recommended in the spec, got %v", recommended)
+	}
 
-			if len(actualFields) != len(tt.expectedFields) {
-				t.Errorf("Expected %d required fields for %s, got %d", len(tt.expectedFields), tt.filename, len(actualFields))
-			}
-
-			// Create maps for easier comparison
-			expectedMap := make(map[string]bool)
-			for _, field := range tt.expectedFields {
-				expectedMap[field] = true
-			}
-
-			actualMap := make(map[string]bool)
-			for _, field := range actualFields {
-				actualMap[field] = true
-			}
-
-			// Check all expected fields are present
-			for _, expectedField := range tt.expectedFields {
-				if !actualMap[expectedField] {
-					t.Errorf("Expected required field '%s' for %s but didn't find it", expectedField, tt.filename)
-				}
-			}
-
-			// Check for unexpected fields
-			for _, actualField := range actualFields {
-				if !expectedMap[actualField] {
-					t.Errorf("Found unexpected required field '%s' for %s", actualField, tt.filename)
-				}
-			}
-		})
+	if _, known := schema.FieldsWithPresence("not_a_gtfs_file.txt", schema.PresenceRequired); known {
+		t.Error("a file the spec does not describe should not be known")
 	}
 }
 
@@ -420,11 +342,11 @@ func TestRequiredFieldValidator_ValidateFile(t *testing.T) {
 			description:     "Boarding area with parent generates warning",
 		},
 		{
-			name:            "file without required field definitions",
-			filename:        "translations.txt",
-			content:         "table_name,field_name,language,translation\n,,es,", // Empty fields
+			name:            "file the spec does not describe",
+			filename:        "custom_extension.txt",
+			content:         "some_field,another\n,",
 			expectedNotices: []string{},
-			description:     "Files without defined requirements generate no notices",
+			description:     "A file outside the spec has no required fields to check",
 		},
 	}
 
