@@ -390,18 +390,29 @@ func (v *BlockOverlappingValidator) calculateTripTimeRange(tripID string, stopTi
 	}
 }
 
-// loadServiceDates loads service date information (simplified - assumes all services overlap for now)
-func (v *BlockOverlappingValidator) loadServiceDates(loader *parser.FeedLoader) map[string]bool {
-	// For now, we'll assume all services potentially overlap
-	// A full implementation would parse calendar.txt and calendar_dates.txt
-	// to determine actual service date overlaps
-	serviceDates := make(map[string]bool)
-	serviceDates["*"] = true // Wildcard indicating we check all combinations
+// loadServiceDates expands calendar.txt and calendar_dates.txt into the active
+// dates for each service. Keeping an entry for services with no active dates
+// lets the overlap check distinguish an inactive service from an unknown one.
+func (v *BlockOverlappingValidator) loadServiceDates(loader *parser.FeedLoader) map[string]map[int64]struct{} {
+	calendarValidator := NewDateTripsValidator()
+	services := calendarValidator.loadServices(loader)
+	exceptionsByService := groupExceptionsByService(calendarValidator.loadCalendarExceptions(loader))
+	serviceDates := make(map[string]map[int64]struct{}, len(services)+len(exceptionsByService))
+
+	for _, serviceID := range serviceIDsOf(services, exceptionsByService) {
+		dates := calendarValidator.datesForService(services[serviceID], exceptionsByService[serviceID])
+		activeDates := make(map[int64]struct{}, len(dates))
+		for date := range dates {
+			activeDates[date] = struct{}{}
+		}
+		serviceDates[serviceID] = activeDates
+	}
+
 	return serviceDates
 }
 
 // validateBlockOverlaps validates that trips in the same block don't overlap
-func (v *BlockOverlappingValidator) validateBlockOverlaps(container *notice.NoticeContainer, tripTimeRanges []TripTimeRange, serviceDates map[string]bool) {
+func (v *BlockOverlappingValidator) validateBlockOverlaps(container *notice.NoticeContainer, tripTimeRanges []TripTimeRange, serviceDates map[string]map[int64]struct{}) {
 	// Group trips by block ID
 	blockTrips := make(map[string][]TripTimeRange)
 
@@ -416,7 +427,7 @@ func (v *BlockOverlappingValidator) validateBlockOverlaps(container *notice.Noti
 		}
 
 		v.validateBlockServiceConsistency(container, blockID, trips)
-		v.validateBlockTripOverlaps(container, blockID, trips)
+		v.validateBlockTripOverlaps(container, blockID, trips, serviceDates)
 	}
 }
 
@@ -441,7 +452,7 @@ func (v *BlockOverlappingValidator) validateBlockServiceConsistency(container *n
 }
 
 // validateBlockTripOverlaps validates overlaps within a single block
-func (v *BlockOverlappingValidator) validateBlockTripOverlaps(container *notice.NoticeContainer, blockID string, trips []TripTimeRange) {
+func (v *BlockOverlappingValidator) validateBlockTripOverlaps(container *notice.NoticeContainer, blockID string, trips []TripTimeRange, serviceDates map[string]map[int64]struct{}) {
 	// Sort trips by start time for easier comparison
 	sort.Slice(trips, func(i, j int) bool {
 		return trips[i].StartTime < trips[j].StartTime
@@ -453,9 +464,7 @@ func (v *BlockOverlappingValidator) validateBlockTripOverlaps(container *notice.
 			trip1 := &trips[i]
 			trip2 := &trips[j]
 
-			// Check if trips potentially serve on the same dates
-			// For now, we check all pairs since we're not doing full service date analysis
-			if v.tripsOverlap(trip1, trip2) {
+			if v.servicesOverlap(trip1.ServiceID, trip2.ServiceID, serviceDates) && v.tripsOverlap(trip1, trip2) {
 				container.AddNotice(notice.NewBlockTripsOverlapNotice(
 					blockID,
 					trip1.TripID,
@@ -472,6 +481,27 @@ func (v *BlockOverlappingValidator) validateBlockTripOverlaps(container *notice.
 			}
 		}
 	}
+}
+
+// servicesOverlap reports whether two services are active on at least one
+// common date. Unknown services are treated conservatively as overlapping;
+// other validators report their missing calendar definitions.
+func (v *BlockOverlappingValidator) servicesOverlap(serviceID1, serviceID2 string, serviceDates map[string]map[int64]struct{}) bool {
+	dates1, known1 := serviceDates[serviceID1]
+	dates2, known2 := serviceDates[serviceID2]
+	if !known1 || !known2 {
+		return true
+	}
+
+	if len(dates1) > len(dates2) {
+		dates1, dates2 = dates2, dates1
+	}
+	for date := range dates1 {
+		if _, found := dates2[date]; found {
+			return true
+		}
+	}
+	return false
 }
 
 // tripsOverlap checks if two trips overlap in time
