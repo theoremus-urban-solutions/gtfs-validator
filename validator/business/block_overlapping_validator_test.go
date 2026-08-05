@@ -32,6 +32,73 @@ func TestBlockOverlappingValidator_Validate(t *testing.T) {
 	}
 }
 
+func TestBlockOverlappingValidator_ServiceDateIntersection(t *testing.T) {
+	const (
+		trips     = "route_id,service_id,trip_id,block_id\nR1,S1,T1,B1\nR1,S2,T2,B1"
+		stopTimes = "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n" +
+			"T1,08:00:00,08:00:00,A,1\nT1,10:00:00,10:00:00,B,2\n" +
+			"T2,09:00:00,09:00:00,C,1\nT2,11:00:00,11:00:00,D,2"
+		calendarHeader = "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n"
+	)
+
+	tests := []struct {
+		name          string
+		calendar      string
+		calendarDates string
+		expected      int
+	}{
+		{
+			name:     "shared service date",
+			calendar: calendarHeader + "S1,1,0,0,0,0,0,0,20240101,20240101\nS2,1,0,0,0,0,0,0,20240101,20240101",
+			expected: 1,
+		},
+		{
+			name:     "disjoint service dates",
+			calendar: calendarHeader + "S1,1,0,0,0,0,0,0,20240101,20240102\nS2,0,1,0,0,0,0,0,20240101,20240102",
+			expected: 0,
+		},
+		{
+			name:          "calendar exception adds shared date",
+			calendar:      calendarHeader + "S1,1,0,0,0,0,0,0,20240101,20240102\nS2,0,1,0,0,0,0,0,20240101,20240102",
+			calendarDates: "service_id,date,exception_type\nS2,20240101,1",
+			expected:      1,
+		},
+		{
+			name:          "calendar exception removes shared date",
+			calendar:      calendarHeader + "S1,1,0,0,0,0,0,0,20240101,20240101\nS2,1,0,0,0,0,0,0,20240101,20240101",
+			calendarDates: "service_id,date,exception_type\nS2,20240101,2",
+			expected:      0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			files := map[string]string{
+				"trips.txt":      trips,
+				"stop_times.txt": stopTimes,
+				"calendar.txt":   tt.calendar,
+			}
+			if tt.calendarDates != "" {
+				files["calendar_dates.txt"] = tt.calendarDates
+			}
+
+			loader := testutil.CreateTestFeedLoader(t, files)
+			container := notice.NewNoticeContainer()
+			NewBlockOverlappingValidator().Validate(loader, container, gtfsvalidator.Config{})
+
+			count := 0
+			for _, n := range container.GetNotices() {
+				if n.Code() == "block_trips_with_overlapping_stop_times" {
+					count++
+				}
+			}
+			if count != tt.expected {
+				t.Errorf("block_trips_with_overlapping_stop_times: got %d, want %d", count, tt.expected)
+			}
+		})
+	}
+}
+
 func TestBlockOverlappingValidator_RouteTypeConsistency(t *testing.T) {
 	stopTimes := "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n" +
 		"T1,08:00:00,08:00:00,A,1\nT1,09:00:00,09:00:00,B,2\n" +
