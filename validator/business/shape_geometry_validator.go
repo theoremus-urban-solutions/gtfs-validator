@@ -24,10 +24,11 @@ const (
 	matchSeparationMetres = 250.0
 
 	// maxMatchesPerStop is how many separate passes a stop may have before the
-	// match is called ambiguous. A loop route passes a stop twice and a
-	// figure-of-eight three times; beyond that the shape is doubling back on
-	// itself or the stop is in the wrong place.
-	maxMatchesPerStop = 5
+	// match is called ambiguous, and is the canonical validator's threshold. It
+	// is far above the two passes of a loop or the three of a figure-of-eight
+	// because a stop sat in the middle of a dense city alignment legitimately
+	// collects a great many, and calling those ambiguous says nothing.
+	maxMatchesPerStop = 20
 
 	// maxOrderingCandidates bounds how many passes per stop the order check will
 	// weigh against each other. The check costs the square of this per stop, so
@@ -35,7 +36,7 @@ const (
 	// hundred times must not turn a pattern walk into a hundred-fold one. Set
 	// above maxMatchesPerStop, since a stop with more passes than that is
 	// already reported as ambiguous.
-	maxOrderingCandidates = 8
+	maxOrderingCandidates = 24
 
 	// tripShapeOvershootThreshold is the shape_dist_traveled overshoot below
 	// which a trip running past the end of its shape is treated as rounding.
@@ -379,6 +380,16 @@ func report(container *notice.NoticeContainer, tripIDs []string, build func(trip
 // clusterMatches folds the raw segment matches into one entry per pass of the
 // shape. Consecutive segments all report the same stop, so without this a
 // straight run past a stop would look like a dozen separate matches.
+//
+// A pass ends either because the shape left the stop's neighbourhood entirely,
+// or because it turned around inside it: where an alignment runs out to a
+// terminus and back, the outbound and return legs both stay within tolerance
+// the whole way, and the gap between their nearest points is a matter of
+// metres. Splitting on the gap alone would chain the two legs into one pass and
+// keep only the nearer, which then places the stop at a single point the trip
+// must be at both before and after its neighbours — the shape of a false
+// out-of-order report. So the run is also cut wherever the stop gets further
+// away and then closer again, one pass per local minimum.
 func clusterMatches(matches []shapeMatch) []shapeMatch {
 	if len(matches) == 0 {
 		return nil
@@ -389,16 +400,30 @@ func clusterMatches(matches []shapeMatch) []shapeMatch {
 	sort.Slice(ordered, func(i, j int) bool { return ordered[i].Along < ordered[j].Along })
 
 	passes := []shapeMatch{ordered[0]}
-	lastAlong := ordered[0].Along
+	previous := ordered[0]
+	receding := false
 
 	for _, match := range ordered[1:] {
-		current := &passes[len(passes)-1]
-		if match.Along-lastAlong > matchSeparationMetres {
+		switch {
+		case match.Along-previous.Along > matchSeparationMetres:
 			passes = append(passes, match)
-		} else if match.Metres < current.Metres {
-			*current = match
+			receding = false
+		case receding && match.Metres < previous.Metres:
+			passes = append(passes, match)
+			receding = false
+		default:
+			if current := &passes[len(passes)-1]; match.Metres < current.Metres {
+				*current = match
+			}
+			// Only moving away sets the flag. Two segments either side of a turn
+			// are the same distance off, and the grid can hand back the same
+			// segment twice; clearing on anything but a genuine approach would
+			// lose the turn on that plateau and fold the two legs into one pass.
+			if match.Metres > previous.Metres {
+				receding = true
+			}
 		}
-		lastAlong = match.Along
+		previous = match
 	}
 
 	return passes

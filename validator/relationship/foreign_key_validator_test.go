@@ -80,6 +80,43 @@ func TestForeignKeyValidator_ResolvesAgainstTheDefiningFile(t *testing.T) {
 			description: "The reference resolves",
 		},
 		{
+			name: "calendar date for a service no trip runs",
+			files: map[string]string{
+				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
+					"SV1,1,1,1,1,1,0,0,20260101,20261231\n" +
+					"SV2,0,0,0,0,0,1,1,20260101,20261231",
+				"calendar_dates.txt": "service_id,date,exception_type\nSV2,20260704,1",
+				"routes.txt":         "route_id,route_short_name,route_type\nR1,1,3",
+				"trips.txt":          "route_id,service_id,trip_id\nR1,SV1,T1",
+			},
+			expected: 0,
+			description: "SV2 is defined in calendar.txt and simply has no trips yet, " +
+				"which is a warning about an unused service, not a broken reference",
+		},
+		{
+			name: "trip naming a service the calendars do not define",
+			files: map[string]string{
+				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
+					"SV1,1,1,1,1,1,0,0,20260101,20261231",
+				"routes.txt": "route_id,route_short_name,route_type\nR1,1,3",
+				"trips.txt":  "route_id,service_id,trip_id\nR1,SV999,T1",
+			},
+			expected:    1,
+			description: "SV999 appears only in trips.txt",
+		},
+		{
+			name: "trip naming a shape shapes.txt does not define",
+			files: map[string]string{
+				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n" +
+					"SV1,1,1,1,1,1,0,0,20260101,20261231",
+				"routes.txt": "route_id,route_short_name,route_type\nR1,1,3",
+				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,0,0,1\nSH1,0,0.01,2",
+				"trips.txt":  "route_id,service_id,trip_id,shape_id\nR1,SV1,T1,SH999",
+			},
+			expected:    1,
+			description: "SH999 appears only in trips.txt",
+		},
+		{
 			name: "fare rule naming a zone no stop defines",
 			files: map[string]string{
 				"stops.txt":           "stop_id,stop_name,stop_lat,stop_lon,zone_id\nS1,Stop 1,0,0,Z1",

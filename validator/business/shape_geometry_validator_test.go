@@ -43,14 +43,58 @@ const (
 		"B,B,0,0.01\n" +
 		"C,C,0,0.015\n" +
 		"E,E,0.008,0.005"
+
+	tripsWithHairpinShape = "route_id,service_id,trip_id,shape_id\n" +
+		"R1,S1,T1,SH3"
+
+	// hairpinStops sits each stop on one leg of the hairpin and nearer the
+	// other: P is served on the way out but lies 5.6 m from the return leg and
+	// 27.8 m from the leg that serves it, and Q is the mirror of that. Reading
+	// either stop on its own puts it on the wrong leg, and reading both that way
+	// puts the trip in reverse.
+	hairpinStops = "stop_id,stop_name,stop_lat,stop_lon\n" +
+		"P,P,0.00025,0.0012\n" +
+		"Q,Q,0.00005,0.0008"
 )
 
-// zigzagShape runs 332 m north and back seven times, so it crosses (0,0) seven
-// times with 664 m of travel between one crossing and the next — far enough
-// apart that each counts as a separate pass of the stop.
+// hairpinShape runs 222 m east, steps 33 m north, and comes straight back west
+// over itself before leaving north. The two legs are close enough that a stop
+// beside either is within tolerance of both, and the turn between them is short
+// enough that the tolerance never lifts in between. Points are laid every 22 m,
+// as a surveyed alignment's are, so the matches along it run continuously into
+// one another rather than arriving as a handful of well-separated candidates.
+func hairpinShape() string {
+	rows := []string{"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence"}
+	add := func(lat, lon string) {
+		rows = append(rows, "SH3,"+lat+","+lon+","+strconv.Itoa(len(rows)))
+	}
+	for i := 0; i <= 10; i++ {
+		add("0", "0."+leadingZeros(i*2))
+	}
+	for i := 10; i >= 0; i-- {
+		add("0.0003", "0."+leadingZeros(i*2))
+	}
+	add("0.01", "0")
+	return strings.Join(rows, "\n")
+}
+
+// leadingZeros renders n ten-thousandths as the fractional digits of a degree,
+// so 2 becomes "0002" and 20 becomes "0020".
+func leadingZeros(n int) string {
+	s := strconv.Itoa(n)
+	for len(s) < 4 {
+		s = "0" + s
+	}
+	return s
+}
+
+// zigzagShape runs 332 m north and back, over and over, so it crosses (0,0)
+// twenty-two times with 664 m of travel between one crossing and the next — far
+// enough apart that each counts as a separate pass of the stop, and enough
+// passes to carry the stop past the point where the match means anything.
 func zigzagShape() string {
 	rows := []string{"shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence"}
-	for i := 0; i < 13; i++ {
+	for i := 0; i < 43; i++ {
 		lat := "0"
 		if i%2 == 1 {
 			lat = "0.003"
@@ -125,6 +169,18 @@ func TestShapeGeometryValidator_Validate(t *testing.T) {
 				"reading the doubled-back stretch puts this order forwards",
 		},
 		{
+			name: "stops either side of a hairpin the shape turns inside tolerance",
+			files: map[string]string{
+				"stops.txt":      hairpinStops,
+				"trips.txt":      tripsWithHairpinShape,
+				"shapes.txt":     hairpinShape(),
+				"stop_times.txt": "trip_id,stop_id,stop_sequence\nT1,P,1\nT1,Q,2",
+			},
+			expectedNoticeCodes: []string{},
+			description: "P outbound then Q on the return reads forwards, and the turn " +
+				"between the two legs must not fold them into one place on the shape",
+		},
+		{
 			name: "stop the shape passes over and over",
 			files: map[string]string{
 				"stops.txt":      "stop_id,stop_name,stop_lat,stop_lon\nA,A,0,0\nB,B,0.003,0",
@@ -133,7 +189,7 @@ func TestShapeGeometryValidator_Validate(t *testing.T) {
 				"stop_times.txt": "trip_id,stop_id,stop_sequence\nT1,A,1\nT1,B,2",
 			},
 			expectedNoticeCodes: []string{"stop_has_too_many_matches_for_shape"},
-			description:         "seven passes leave no way to say which one serves the stop",
+			description:         "twenty-two passes leave no way to say which one serves the stop",
 		},
 		{
 			name: "trip travels past the end of its shape",

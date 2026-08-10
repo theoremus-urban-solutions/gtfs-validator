@@ -69,23 +69,12 @@ func (v *ForeignKeyValidator) buildLookupMapsFromCache(cache *parser.ParsedFeedC
 	trips, err := cache.GetTrips()
 	if err == nil {
 		tripMap := make(map[string]bool, len(trips))
-		// Pre-allocate serviceMap and shapeMap with reasonable estimates
-		serviceMap := make(map[string]bool, len(trips)/50) // Typical: ~300 services for 15k trips
-		shapeMap := make(map[string]bool, len(trips)/10)   // Typical: ~1500 shapes for 15k trips
 		for _, trip := range trips {
 			if trip.TripID != "" {
 				tripMap[trip.TripID] = true
 			}
-			if trip.ServiceID != "" {
-				serviceMap[trip.ServiceID] = true
-			}
-			if trip.ShapeID != "" {
-				shapeMap[trip.ShapeID] = true
-			}
 		}
 		lookupMaps["trip_id"] = tripMap
-		lookupMaps["service_id"] = serviceMap
-		lookupMaps["shape_id"] = shapeMap
 	}
 
 	// Build route_id lookup from cached routes
@@ -114,11 +103,17 @@ func (v *ForeignKeyValidator) buildLookupMapsFromCache(cache *parser.ParsedFeedC
 	// For files not in cache, fall back to sequential loading
 	// (these are typically small files)
 	//
-	// agency_id has to come from agency.txt: building it from the cached routes
-	// would populate the lookup with the very values being checked against it,
-	// so no route could ever fail.
+	// A lookup has to be built from the file that defines the key, never from a
+	// file that refers to it. agency_id comes from agency.txt rather than the
+	// cached routes, service_id from the calendars rather than the cached trips,
+	// and shape_id from shapes.txt rather than the cached trips, because a
+	// lookup gathered from the referring side contains the very values being
+	// checked against it: nothing could fail, and anything defined but unused
+	// would be reported as missing.
 	loader := cache.GetLoader()
 	lookupMaps["agency_id"] = v.buildLookupMap(loader, "agency.txt", "agency_id")
+	lookupMaps["service_id"] = v.buildServiceIdLookupMap(loader)
+	lookupMaps["shape_id"] = v.buildLookupMap(loader, "shapes.txt", "shape_id")
 	lookupMaps["fare_id"] = v.buildLookupMap(loader, "fare_attributes.txt", "fare_id")
 	lookupMaps["pathway_id"] = v.buildLookupMap(loader, "pathways.txt", "pathway_id")
 	lookupMaps["level_id"] = v.buildLookupMap(loader, "levels.txt", "level_id")

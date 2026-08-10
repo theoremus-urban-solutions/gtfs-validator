@@ -62,19 +62,10 @@ func (c *ParsedFeedCache) GetStopTimes() ([]*schema.StopTime, error) {
 	defer c.mu.Unlock()
 
 	// Double-check: another goroutine may have loaded it
-	if c.loadedFiles["stop_times.txt"] {
-		return c.stopTimes, nil
-	}
-
-	// Load the file
-	stopTimes, err := c.loadStopTimesInternal()
-	if err != nil {
+	if err := c.ensureStopTimesLoaded(); err != nil {
 		return nil, err
 	}
-
-	c.stopTimes = stopTimes
-	c.loadedFiles["stop_times.txt"] = true
-	return stopTimes, nil
+	return c.stopTimes, nil
 }
 
 // GetTrips returns all trips from trips.txt.
@@ -95,19 +86,10 @@ func (c *ParsedFeedCache) GetTrips() ([]*schema.Trip, error) {
 	defer c.mu.Unlock()
 
 	// Double-check: another goroutine may have loaded it
-	if c.loadedFiles["trips.txt"] {
-		return c.trips, nil
-	}
-
-	// Load the file
-	trips, err := c.loadTripsInternal()
-	if err != nil {
+	if err := c.ensureTripsLoaded(); err != nil {
 		return nil, err
 	}
-
-	c.trips = trips
-	c.loadedFiles["trips.txt"] = true
-	return trips, nil
+	return c.trips, nil
 }
 
 // GetStops returns all stops from stops.txt.
@@ -128,19 +110,10 @@ func (c *ParsedFeedCache) GetStops() ([]*schema.Stop, error) {
 	defer c.mu.Unlock()
 
 	// Double-check: another goroutine may have loaded it
-	if c.loadedFiles["stops.txt"] {
-		return c.stops, nil
-	}
-
-	// Load the file
-	stops, err := c.loadStopsInternal()
-	if err != nil {
+	if err := c.ensureStopsLoaded(); err != nil {
 		return nil, err
 	}
-
-	c.stops = stops
-	c.loadedFiles["stops.txt"] = true
-	return stops, nil
+	return c.stops, nil
 }
 
 // GetRoutes returns all routes from routes.txt.
@@ -161,19 +134,10 @@ func (c *ParsedFeedCache) GetRoutes() ([]*schema.Route, error) {
 	defer c.mu.Unlock()
 
 	// Double-check: another goroutine may have loaded it
-	if c.loadedFiles["routes.txt"] {
-		return c.routes, nil
-	}
-
-	// Load the file
-	routes, err := c.loadRoutesInternal()
-	if err != nil {
+	if err := c.ensureRoutesLoaded(); err != nil {
 		return nil, err
 	}
-
-	c.routes = routes
-	c.loadedFiles["routes.txt"] = true
-	return routes, nil
+	return c.routes, nil
 }
 
 // GetTripByID returns a trip by its ID, building the index on first access.
@@ -197,12 +161,8 @@ func (c *ParsedFeedCache) GetTripByID(tripID string) (*schema.Trip, bool) {
 	}
 
 	// Ensure trips are loaded
-	if !c.loadedFiles["trips.txt"] {
-		_, err := c.loadTripsInternal()
-		if err != nil {
-			return nil, false
-		}
-		c.loadedFiles["trips.txt"] = true
+	if err := c.ensureTripsLoaded(); err != nil {
+		return nil, false
 	}
 
 	// Build index
@@ -236,12 +196,8 @@ func (c *ParsedFeedCache) GetStopByID(stopID string) (*schema.Stop, bool) {
 	}
 
 	// Ensure stops are loaded
-	if !c.loadedFiles["stops.txt"] {
-		_, err := c.loadStopsInternal()
-		if err != nil {
-			return nil, false
-		}
-		c.loadedFiles["stops.txt"] = true
+	if err := c.ensureStopsLoaded(); err != nil {
+		return nil, false
 	}
 
 	// Build index
@@ -275,12 +231,8 @@ func (c *ParsedFeedCache) GetRouteByID(routeID string) (*schema.Route, bool) {
 	}
 
 	// Ensure routes are loaded
-	if !c.loadedFiles["routes.txt"] {
-		_, err := c.loadRoutesInternal()
-		if err != nil {
-			return nil, false
-		}
-		c.loadedFiles["routes.txt"] = true
+	if err := c.ensureRoutesLoaded(); err != nil {
+		return nil, false
 	}
 
 	// Build index
@@ -314,12 +266,8 @@ func (c *ParsedFeedCache) GetStopTimesByTrip() (map[string][]*schema.StopTime, e
 	}
 
 	// Ensure stop times are loaded
-	if !c.loadedFiles["stop_times.txt"] {
-		_, err := c.loadStopTimesInternal()
-		if err != nil {
-			return nil, err
-		}
-		c.loadedFiles["stop_times.txt"] = true
+	if err := c.ensureStopTimesLoaded(); err != nil {
+		return nil, err
 	}
 
 	// Build index: group stop times by trip
@@ -353,12 +301,8 @@ func (c *ParsedFeedCache) GetTripsByRoute() (map[string][]*schema.Trip, error) {
 	}
 
 	// Ensure trips are loaded
-	if !c.loadedFiles["trips.txt"] {
-		_, err := c.loadTripsInternal()
-		if err != nil {
-			return nil, err
-		}
-		c.loadedFiles["trips.txt"] = true
+	if err := c.ensureTripsLoaded(); err != nil {
+		return nil, err
 	}
 
 	// Build index: group trips by route
@@ -395,7 +339,66 @@ func (c *ParsedFeedCache) GetLoader() *FeedLoader {
 	return c.loader
 }
 
-// Internal loading methods (must be called with write lock held)
+// Loading methods (must be called with the write lock held)
+//
+// Each ensure* method is the only way a file gets loaded: it parses the file,
+// keeps what it parsed, and records that it has done so. Reading the file and
+// recording it as read are one step here because they were once two, and an
+// accessor that performed the second without the first left the cache marked
+// as holding a feed it had thrown away — every later reader then saw an empty
+// file and reported the feed as missing everything in it.
+
+func (c *ParsedFeedCache) ensureStopTimesLoaded() error {
+	if c.loadedFiles["stop_times.txt"] {
+		return nil
+	}
+	stopTimes, err := c.loadStopTimesInternal()
+	if err != nil {
+		return err
+	}
+	c.stopTimes = stopTimes
+	c.loadedFiles["stop_times.txt"] = true
+	return nil
+}
+
+func (c *ParsedFeedCache) ensureTripsLoaded() error {
+	if c.loadedFiles["trips.txt"] {
+		return nil
+	}
+	trips, err := c.loadTripsInternal()
+	if err != nil {
+		return err
+	}
+	c.trips = trips
+	c.loadedFiles["trips.txt"] = true
+	return nil
+}
+
+func (c *ParsedFeedCache) ensureStopsLoaded() error {
+	if c.loadedFiles["stops.txt"] {
+		return nil
+	}
+	stops, err := c.loadStopsInternal()
+	if err != nil {
+		return err
+	}
+	c.stops = stops
+	c.loadedFiles["stops.txt"] = true
+	return nil
+}
+
+func (c *ParsedFeedCache) ensureRoutesLoaded() error {
+	if c.loadedFiles["routes.txt"] {
+		return nil
+	}
+	routes, err := c.loadRoutesInternal()
+	if err != nil {
+		return err
+	}
+	c.routes = routes
+	c.loadedFiles["routes.txt"] = true
+	return nil
+}
 
 func (c *ParsedFeedCache) loadStopTimesInternal() ([]*schema.StopTime, error) {
 	reader, err := c.loader.GetFile("stop_times.txt")

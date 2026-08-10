@@ -44,6 +44,41 @@ Three things drive the change:
 
 ### Fixed
 
+- `WithCaching(true)` returned different results from the same feed than
+  `WithCaching(false)`, in both directions. The parsed-feed cache recorded a
+  file as loaded without keeping what it had parsed whenever an index was the
+  first thing asked for, so whichever accessor a validator reached for first
+  decided whether the cache held the feed or was permanently empty — with
+  `GetStopTimesByTrip` first, every later reader saw a feed with no stop times
+  at all and the checks over them silently reported nothing. Separately, the
+  cached foreign-key path built the `service_id` and `shape_id` lookups out of
+  `trips.txt`, the file being checked against them, so a service defined in
+  `calendar.txt` but not yet used by any trip was reported as a broken
+  reference at ERROR, while a trip naming a service or shape that does not
+  exist could never fail.
+- `fast_travel_between_consecutive_stops` over-reported on timetables written to
+  the whole minute. The canonical rule reads a one-minute hop as up to two, on
+  the grounds that a scheduling system emitting minute resolution has already
+  rounded; without that allowance ordinary suburban services were reported as
+  supersonic.
+- `stops_match_shape_out_of_order` reported alignments that are in order. Where
+  a shape runs out to a terminus and back, both legs stay within tolerance of
+  the stops between them, and candidate matches were folded together by their
+  spacing along the shape — which chains an out-and-back into a single pass and
+  leaves each stop pinned at one point it must be at both before and after its
+  neighbours. Passes are now cut at each local minimum, as the canonical
+  validator cuts them. On one 34-route city feed this was 21 notices, all false.
+- Travel-speed limits per `route_type` did not match the canonical validator's
+  for six modes: light rail (was 500, now 100), subway (500 → 150), ferry
+  (100 → 80), cable tram (150 → 30), funicular (150 → 50) and monorail
+  (500 → 150). `fast_travel_between_far_stops` applied a flat 200 km/h rather
+  than the mode's own limit, and could report the same trip once per stop; it
+  now reports each trip at most once. A trip whose route cannot be resolved is
+  skipped rather than held to the bus limit, the broken reference being another
+  rule's to report.
+- `stop_has_too_many_matches_for_shape` called a stop ambiguous at 5 passes of
+  the shape, where the canonical threshold is 20. A stop in the middle of a
+  dense city alignment legitimately collects a great many.
 - `route_short_name_too_long` counted bytes rather than runes, so a Cyrillic or
   Greek short name tripped the 12-character limit at six characters.
 - `date_trips_validator` re-read `trips.txt` once per service, which was

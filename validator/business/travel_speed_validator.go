@@ -34,19 +34,27 @@ type StopTimeWithLocation struct {
 	RowNumber     int
 }
 
-// RouteTypeSpeedLimits defines speed limits by route type (km/h)
+// RouteTypeSpeedLimits defines speed limits by route type (km/h). The values
+// are the canonical validator's: the Houston METRORail reaches 100 km/h, a
+// maglev bullet train 500, a fast aerial tramway 43, and a cable car averages
+// 15 — each with some safety gap on top.
 var RouteTypeSpeedLimits = map[int]float64{
-	0:  500.0, // Tram, Streetcar, Light rail
-	1:  500.0, // Subway, Metro
+	0:  100.0, // Tram, Streetcar, Light rail
+	1:  150.0, // Subway, Metro
 	2:  500.0, // Rail
 	3:  150.0, // Bus
-	4:  100.0, // Ferry
-	5:  150.0, // Cable tram
+	4:  80.0,  // Ferry
+	5:  30.0,  // Cable tram
 	6:  50.0,  // Aerial lift, suspended cable car
-	7:  150.0, // Funicular
+	7:  50.0,  // Funicular
 	11: 150.0, // Trolleybus
-	12: 500.0, // Monorail
+	12: 150.0, // Monorail
 }
+
+// unknownRouteTypeSpeedLimitKph is what an unrecognised route_type is held to.
+// It is deliberately high: a mode the spec does not name is a mode whose top
+// speed we cannot argue about.
+const unknownRouteTypeSpeedLimitKph = 200.0
 
 // Validate checks travel speeds between consecutive stops
 func (v *TravelSpeedValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
@@ -226,9 +234,14 @@ func (v *TravelSpeedValidator) validateStopTimeSpeeds(loader *parser.FeedLoader,
 		}
 	}
 
-	// Validate each trip's travel speeds
+	// Validate each trip's travel speeds. A trip whose route cannot be resolved
+	// has no speed limit to be held to, and the broken reference behind that is
+	// reported by another rule.
 	for tripID, stopTimes := range tripStopTimes {
-		routeType := routeTypes[tripID]
+		routeType, hasRoute := routeTypes[tripID]
+		if !hasRoute {
+			continue
+		}
 		v.validateTripTravelSpeeds(container, tripID, stopTimes, routeType)
 	}
 }
@@ -321,10 +334,9 @@ func (v *TravelSpeedValidator) validateTripTravelSpeeds(container *notice.Notice
 		return stopTimes[i].StopSequence < stopTimes[j].StopSequence
 	})
 
-	// Get speed limit for this route type (default to bus speed if unknown)
 	speedLimit, exists := RouteTypeSpeedLimits[routeType]
 	if !exists {
-		speedLimit = RouteTypeSpeedLimits[3] // Default to bus speed (150 km/h)
+		speedLimit = unknownRouteTypeSpeedLimitKph
 	}
 
 	// Check consecutive stop pairs
@@ -335,18 +347,36 @@ func (v *TravelSpeedValidator) validateTripTravelSpeeds(container *notice.Notice
 		v.validateStopPairSpeed(container, tripID, prev, curr, speedLimit, routeType)
 	}
 
-	v.validateFarStopSpeeds(container, tripID, stopTimes)
+	v.validateFarStopSpeeds(container, tripID, stopTimes, speedLimit)
+}
+
+// travelSecondsBetween is how long the vehicle had to cover a stretch: the time
+// from leaving the first stop to reaching the last, with two allowances the
+// canonical validator makes.
+//
+// Times that run backwards or stand still are counted as a minute rather than
+// skipped. The stretch was still travelled, and the sequence rules that own the
+// bad timestamp say nothing about the distance covered.
+//
+// Times given to the whole minute are given a minute back. Many scheduling
+// systems only output minute resolution, so a hop written as one minute may
+// really be anything from a few seconds over none to nearly two minutes, and
+// the shortest reading of it would make ordinary services look supersonic.
+func travelSecondsBetween(departure, arrival int) int {
+	seconds := arrival - departure
+	if seconds <= 0 {
+		return 60
+	}
+	if arrival%60 == 0 && departure%60 == 0 {
+		seconds += 60
+	}
+	return seconds
 }
 
 const (
 	// farStopDistanceKm is the separation beyond which two stops count as
 	// "far" for fast_travel_between_far_stops.
 	farStopDistanceKm = 10.0
-
-	// farStopSpeedLimitKph is flat across modes, unlike the consecutive-stop
-	// limits: no scheduled surface transit sustains 200 km/h over 10 km, and
-	// the canonical rule does not distinguish route types here.
-	farStopSpeedLimitKph = 200.0
 
 	// farStopWindow bounds how many stops ahead the scan looks. A stretch that
 	// takes more than this many calls to reach 10 km is a local service where
@@ -355,10 +385,14 @@ const (
 )
 
 // validateFarStopSpeeds looks past consecutive stops for stretches of more than
-// 10 km covered faster than any transit vehicle manages. Over a distance that
-// long one mistyped time cannot account for the speed, so it points at the
-// trip's whole timetable or at its stop locations rather than at a single row.
-func (v *TravelSpeedValidator) validateFarStopSpeeds(container *notice.NoticeContainer, tripID string, stopTimes []StopTimeWithLocation) {
+// 10 km covered faster than the mode manages. Over a distance that long one
+// mistyped time cannot account for the speed, so it points at the trip's whole
+// timetable or at its stop locations rather than at a single row.
+//
+// One stretch is enough to make that point, so the first one found ends the
+// scan: a trip whose clock is wrong throughout would otherwise report the same
+// fault once for every stop it has.
+func (v *TravelSpeedValidator) validateFarStopSpeeds(container *notice.NoticeContainer, tripID string, stopTimes []StopTimeWithLocation, speedLimit float64) {
 	for i := range stopTimes {
 		from := &stopTimes[i]
 		departure := departureOrArrival(from)
@@ -384,12 +418,8 @@ func (v *TravelSpeedValidator) validateFarStopSpeeds(container *notice.NoticeCon
 				continue // no time to judge against; keep looking ahead
 			}
 
-			seconds := *arrival - *departure
-			if seconds <= 0 {
-				break // backwards or zero-length; the sequence checks own this
-			}
-
-			if speed := accumulatedKm / (float64(seconds) / 3600.0); speed > farStopSpeedLimitKph {
+			seconds := travelSecondsBetween(*departure, *arrival)
+			if speed := accumulatedKm / (float64(seconds) / 3600.0); speed > speedLimit {
 				container.AddNotice(notice.NewFastTravelBetweenFarStopsNotice(
 					tripID,
 					from.StopID, from.StopSequence,
@@ -397,6 +427,7 @@ func (v *TravelSpeedValidator) validateFarStopSpeeds(container *notice.NoticeCon
 					speed, accumulatedKm,
 					from.RowNumber, to.RowNumber,
 				))
+				return
 			}
 			break
 		}
@@ -444,11 +475,7 @@ func (v *TravelSpeedValidator) validateStopPairSpeed(container *notice.NoticeCon
 		return
 	}
 
-	// Skip if times are the same or backwards (other validators handle this)
-	timeDiffSeconds := *currTime - *prevTime
-	if timeDiffSeconds <= 0 {
-		return
-	}
+	timeDiffSeconds := travelSecondsBetween(*prevTime, *currTime)
 
 	// Calculate distance using Haversine formula
 	distance := v.haversineDistance(*prev.Latitude, *prev.Longitude, *curr.Latitude, *curr.Longitude)
