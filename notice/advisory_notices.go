@@ -1,5 +1,29 @@
 package notice
 
+// ValidatorSkippedNotice records a check that did not run because a file it
+// reads did not load. It is the counterpart to cascade suppression: when a
+// table is unusable, the checks that depend on it are stood down so the defect
+// is reported once at its cause rather than once per row that references it —
+// and this notice is what stops that silence from looking like a pass.
+//
+// INFO, and not canonical: MobilityData reports the same fact through its own
+// execution summary rather than as a rule. Nothing here is wrong with the feed
+// beyond the defect already reported against the file itself.
+type ValidatorSkippedNotice struct {
+	*BaseNotice
+}
+
+func NewValidatorSkippedNotice(validatorName string, filename string, reason string) *ValidatorSkippedNotice {
+	context := map[string]interface{}{
+		"validator": validatorName,
+		"filename":  filename,
+		"reason":    reason,
+	}
+	return &ValidatorSkippedNotice{
+		BaseNotice: NewBaseNotice("validator_skipped", INFO, context),
+	}
+}
+
 // Notices for the low-severity advisories and the translations trio, defined
 // by the Canonical GTFS Schedule Validator. Codes and severities match the
 // published rules; the checks are our own implementations.

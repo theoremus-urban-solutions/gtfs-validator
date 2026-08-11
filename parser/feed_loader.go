@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 // FeedLoader loads GTFS feeds from various sources
@@ -17,6 +18,11 @@ type FeedLoader struct {
 	zipFiles         map[string]*zip.File     // For ZIP files (new approach)
 	isDir            bool                     // True if loading from directory
 	filesInSubfolder bool                     // GTFS files found below the root
+
+	// Per-file state, computed on demand and memoised; see feed_state.go.
+	stateOnce sync.Once
+	stateMu   *sync.Mutex
+	states    map[string]FileState
 }
 
 // isArchiveMetadata reports whether a zip entry is packaging noise rather than

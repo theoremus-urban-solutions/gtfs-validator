@@ -72,6 +72,16 @@ func (v *RequiredFieldValidator) validateFile(loader *parser.FeedLoader, contain
 	}
 	recommendedFields, _ := schema.FieldsWithPresence(filename, schema.PresenceRecommended)
 
+	// A required field whose column is not in the file at all is one defect,
+	// reported once as missing_required_column. Reporting it again per row says
+	// nothing new and buries the real finding: removing stop_id from a 177-row
+	// stops.txt produced 177 missing_required_field errors on top of the single
+	// column error that explains them.
+	present := make(map[string]bool, len(csvFile.Headers))
+	for _, header := range csvFile.Headers {
+		present[strings.TrimSpace(header)] = true
+	}
+
 	// Read and validate each row
 	for {
 		row, err := csvFile.ReadRow()
@@ -87,6 +97,9 @@ func (v *RequiredFieldValidator) validateFile(loader *parser.FeedLoader, contain
 			// fare_attributes.transfers empty means unlimited. Required there
 			// means the column must exist, not that every row must fill it.
 			if schema.EmptyIsMeaningful(filename, field) {
+				continue
+			}
+			if !present[field] {
 				continue
 			}
 			if isBlank(row.Values, field) {

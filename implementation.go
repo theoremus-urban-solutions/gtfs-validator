@@ -321,6 +321,7 @@ func (v *internalValidator) validateWithContext(ctx context.Context) (report.Fee
 
 	// Initialize validators
 	v.initializeValidators()
+	v.skipValidatorsWithUnusableFiles()
 
 	// Run validators with context and progress reporting
 	validatorConfig := validator.Config{
@@ -360,6 +361,35 @@ func (v *internalValidator) validateWithContext(ctx context.Context) (report.Fee
 	feedInfo = v.collectFeedStatistics()
 
 	return feedInfo, nil
+}
+
+// skipValidatorsWithUnusableFiles drops the validators whose source files did
+// not load, recording each one so the report says what was not checked and why.
+//
+// Filtering here rather than inside each run loop keeps the sequential and
+// parallel paths identical, and means the skip is decided once per run rather
+// than re-derived per worker.
+func (v *internalValidator) skipValidatorsWithUnusableFiles() {
+	runnable := v.validators[:0]
+	for _, validatorImpl := range v.validators {
+		name := fmt.Sprintf("%T", validatorImpl)
+		skipped := false
+		for _, filename := range requiredFiles[name] {
+			state := v.feedLoader.FileState(filename)
+			if !state.LoadFailed() {
+				continue
+			}
+			v.noticeContainer.AddNotice(notice.NewValidatorSkippedNotice(
+				strings.TrimPrefix(name, "*"), filename, state.Reason(),
+			))
+			skipped = true
+			break
+		}
+		if !skipped {
+			runnable = append(runnable, validatorImpl)
+		}
+	}
+	v.validators = runnable
 }
 
 // runValidatorsSequential runs validators one after another (thread-safe).
@@ -597,6 +627,27 @@ func (v *internalValidator) extractServiceDates(feedInfo *report.FeedInfo) {
 	if endDate, exists := row.Values["feed_end_date"]; exists {
 		feedInfo.ServiceDateTo = endDate
 	}
+}
+
+// requiredFiles lists, for the validators that cannot work without them, the
+// files whose contents they read. A validator is skipped when one of its files
+// is absent, empty, unparseable or missing the ids it is joined on, because
+// every finding it would produce in that state restates the same defect once
+// per row: with trips.txt emptied, the route consistency check reported all 18
+// routes as having no trips, on top of the one empty_file error that explains
+// it.
+//
+// Only total dependencies belong here. A validator that reads a file for extra
+// detail, or that has something useful to say about the file itself, must keep
+// running — the point is to suppress restatement, not coverage.
+var requiredFiles = map[string][]string{
+	"*relationship.RouteConsistencyValidator":  {"routes.txt", "trips.txt"},
+	"*relationship.UsageValidator":             {"stops.txt", "trips.txt"},
+	"*entity.ZoneValidator":                    {"stops.txt"},
+	"*business.ShapeGeometryValidator":         {"shapes.txt", "trips.txt", "stops.txt"},
+	"*business.TravelSpeedValidator":           {"stops.txt", "trips.txt"},
+	"*business.BlockOverlappingValidator":      {"trips.txt"},
+	"*relationship.TripShapeDistanceValidator": {"shapes.txt", "trips.txt"},
 }
 
 // initializeValidators sets up the validators. Every one of them runs on every

@@ -279,6 +279,22 @@ func (v *ForeignKeyValidator) validateFileReferences(loader *parser.FeedLoader, 
 		return
 	}
 
+	// A reference can only be judged against a table that loaded. Where the
+	// defining file is absent, empty, or missing the ids it is joined on, every
+	// reference into it dangles for one reason already reported at its source —
+	// so checking them all reports that one defect once per referencing row. An
+	// emptied stops.txt yielded 4,043 violations on a small feed this way.
+	checkable := make(map[string]string, len(foreignKeys))
+	for fieldName, referencedTable := range foreignKeys {
+		if bad := v.unusableSource(loader, referencedTable); bad != "" {
+			continue
+		}
+		checkable[fieldName] = referencedTable
+	}
+	if len(checkable) == 0 {
+		return
+	}
+
 	for {
 		row, err := csvFile.ReadRow()
 		if err == io.EOF {
@@ -289,7 +305,7 @@ func (v *ForeignKeyValidator) validateFileReferences(loader *parser.FeedLoader, 
 		}
 
 		// Check each foreign key field
-		for fieldName, referencedTable := range foreignKeys {
+		for fieldName, referencedTable := range checkable {
 			if value, exists := row.Values[fieldName]; exists && strings.TrimSpace(value) != "" {
 				// Check if the referenced value exists
 				if lookupMap, tableExists := lookupMaps[referencedTable]; tableExists {
@@ -307,6 +323,30 @@ func (v *ForeignKeyValidator) validateFileReferences(loader *parser.FeedLoader, 
 			}
 		}
 	}
+}
+
+// unusableSource returns the reason the file defining a lookup key cannot be
+// referenced, or "" when it can. service_id is defined by two files and is
+// usable when either of them is, since a feed may declare its services in
+// calendar.txt, in calendar_dates.txt, or in both.
+func (v *ForeignKeyValidator) unusableSource(loader *parser.FeedLoader, referencedTable string) string {
+	if referencedTable == "service_id" {
+		calendar := loader.FileState("calendar.txt")
+		dates := loader.FileState("calendar_dates.txt")
+		if calendar.Usable() || dates.Usable() {
+			return ""
+		}
+		return calendar.Reason()
+	}
+
+	source := v.getReferencedTableName(referencedTable)
+	if !strings.HasSuffix(source, ".txt") {
+		return "" // no single defining file to judge
+	}
+	if state := loader.FileState(source); !state.Usable() {
+		return state.Reason()
+	}
+	return ""
 }
 
 // getReferencedTableName returns the table name for a given field
