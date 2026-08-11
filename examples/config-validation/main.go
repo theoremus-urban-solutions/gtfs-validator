@@ -61,7 +61,7 @@ func example2() {
 
 	// Create validator with valid custom settings
 	validator := gtfsvalidator.New(
-		gtfsvalidator.WithCountryCode("GB"), // Valid 2-letter code
+		gtfsvalidator.WithCountryCode("GB"),                        // Valid 2-letter code
 		gtfsvalidator.WithParallelWorkers(8),                       // Valid range
 		gtfsvalidator.WithMaxMemory(512*1024*1024),                 // 512MB
 		gtfsvalidator.WithMaxNoticesPerType(50),                    // Reasonable limit
