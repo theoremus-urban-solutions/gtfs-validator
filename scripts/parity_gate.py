@@ -255,7 +255,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jar", required=True, help="MobilityData gtfs-validator CLI jar")
     ap.add_argument("--binary", default=os.path.join(ROOT, "gtfs-validator"))
-    ap.add_argument("--country", default="US")
+    ap.add_argument("--country", default="BG",
+                    help="passed to both validators, so a country-dependent "
+                         "rule cannot disagree merely because the two were "
+                         "asked about different places. Defaults to this "
+                         "validator's own default, so the gate tests what an "
+                         "unflagged run actually does")
     ap.add_argument("--date", default="2026-08-11",
                     help="fixed validation date, so time-based rules cannot "
                          "disagree merely because the runs straddled midnight")

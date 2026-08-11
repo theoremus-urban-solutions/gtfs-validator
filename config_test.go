@@ -41,7 +41,7 @@ func TestConfigValidation(t *testing.T) {
 			},
 			expectValid: false, // Will be sanitized
 			expectedValues: map[string]interface{}{
-				"CountryCode": "US", // Should be sanitized to default
+				"CountryCode": "BG", // Should be sanitized to default
 			},
 		},
 		{
@@ -236,8 +236,8 @@ func TestConfigValidationFunctions(t *testing.T) {
 		sanitizeConfig(config)
 
 		// Verify all values are now valid
-		if config.CountryCode != "US" {
-			t.Errorf("Expected sanitized CountryCode to be 'US', got: %s", config.CountryCode)
+		if config.CountryCode != "BG" {
+			t.Errorf("Expected sanitized CountryCode to be 'BG', got: %s", config.CountryCode)
 		}
 
 		if config.MaxMemory != 0 {

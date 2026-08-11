@@ -179,7 +179,7 @@ gtfs-validator help                        # Show help
 | `--input` | `-i` | Path to GTFS feed (ZIP or directory) | *required* |
 | `--format` | `-f` | Output format: `console`, `json`, `summary` | `console` |
 | `--output` | `-o` | Output file path | `stdout` |
-| `--country` | `-c` | Country code for validation | `US` |
+| `--country` | `-c` | Country code for validation | `BG` |
 | `--workers` | `-w` | Number of parallel workers | `4` |
 | `--max-notices` | | Maximum notices per type (0 = no limit) | `0` |
 | `--progress` | `-p` | Show progress bar | `false` |

@@ -310,7 +310,12 @@ func WithMaxNoticesPerType(max int) Option {
 // that mattered for their feed.
 func New(opts ...Option) Validator {
 	config := &Config{
-		CountryCode:       "US",
+		// Bulgaria: this validator is run against Bulgarian feeds, and the
+		// country decides how agency_phone is measured. The canonical
+		// validator defaults to no country at all, which accepts any dialable
+		// length; defaulting to a country that is wrong for the feed is worse
+		// than that, because it fails working numbers.
+		CountryCode:       "BG",
 		CurrentDate:       time.Now(),
 		ParallelWorkers:   4,
 		ValidatorVersion:  "1.0.0",
@@ -466,7 +471,7 @@ func validateConfig(config *Config) error {
 func sanitizeConfig(config *Config) {
 	// Sanitize CountryCode
 	if len(config.CountryCode) != 2 {
-		config.CountryCode = "US"
+		config.CountryCode = "BG"
 	}
 
 	// Sanitize CurrentDate
