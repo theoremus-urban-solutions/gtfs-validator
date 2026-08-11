@@ -31,7 +31,11 @@ type StopTimeWithLocation struct {
 	DepartureTime *int // seconds since midnight
 	Latitude      *float64
 	Longitude     *float64
-	RowNumber     int
+	// Declared is true when stops.txt names this stop at all, whether or not it
+	// gave it usable coordinates. A stop_id nothing declares is a dangling
+	// reference and is left entirely to the foreign key check.
+	Declared  bool
+	RowNumber int
 }
 
 // RouteTypeSpeedLimits defines speed limits by route type (km/h). The values
@@ -107,24 +111,29 @@ func (v *TravelSpeedValidator) loadStopLocations(loader *parser.FeedLoader) map[
 			continue
 		}
 
+		// Every stop the file declares is recorded, placed or not. Whether a
+		// stop exists is a different question from whether it has coordinates,
+		// and the checks need both: a stop that is merely unplaced still sits
+		// in the trip, while a stop_id nothing declares is a dangling reference
+		// belonging to another rule.
 		lat, latErr := strconv.ParseFloat(strings.TrimSpace(latStr), 64)
 		lon, lonErr := strconv.ParseFloat(strings.TrimSpace(lonStr), 64)
-
-		if latErr == nil && lonErr == nil {
-			stopLocations[strings.TrimSpace(stopID)] = &StopLocation{
-				Latitude:  lat,
-				Longitude: lon,
-			}
+		stopLocations[strings.TrimSpace(stopID)] = &StopLocation{
+			Latitude:  lat,
+			Longitude: lon,
+			Placed:    latErr == nil && lonErr == nil,
 		}
 	}
 
 	return stopLocations
 }
 
-// StopLocation represents a stop's geographic location
+// StopLocation represents a stop's geographic location. Placed is false when
+// stops.txt declares the stop but its coordinates are blank or unparseable.
 type StopLocation struct {
 	Latitude  float64
 	Longitude float64
+	Placed    bool
 }
 
 // loadRouteTypes loads route types from routes.txt and trips.txt
@@ -264,18 +273,24 @@ func (v *TravelSpeedValidator) parseStopTimeWithLocation(row *parser.CSVRow, sto
 	}
 
 	stopIDTrimmed := strings.TrimSpace(stopID)
-	stopLocation, hasLocation := stopLocations[stopIDTrimmed]
-	if !hasLocation {
-		return nil // Skip stops without location data
-	}
 
+	// A stop with no usable coordinates is kept in the trip with nil position
+	// rather than dropped. It still occupies its place in the sequence, and the
+	// checks below decide for themselves what an unplaceable stop means to
+	// them — dropping it here would silently close the gap it leaves and hide
+	// the legs on either side.
 	stopTime := &StopTimeWithLocation{
 		TripID:       strings.TrimSpace(tripID),
 		StopID:       stopIDTrimmed,
 		StopSequence: stopSequence,
-		Latitude:     &stopLocation.Latitude,
-		Longitude:    &stopLocation.Longitude,
 		RowNumber:    row.RowNumber,
+	}
+	if stopLocation, declared := stopLocations[stopIDTrimmed]; declared {
+		stopTime.Declared = true
+		if stopLocation.Placed {
+			stopTime.Latitude = &stopLocation.Latitude
+			stopTime.Longitude = &stopLocation.Longitude
+		}
 	}
 
 	// Parse times (similar to previous validator)
@@ -399,15 +414,32 @@ func (v *TravelSpeedValidator) validateFarStopSpeeds(container *notice.NoticeCon
 		if departure == nil {
 			continue
 		}
+		// An unplaceable stop cannot start a stretch — except at the very front
+		// of the trip, where the canonical validator seeds its running position
+		// from the first stop without checking it has one, so an absent
+		// coordinate reads as the origin of the coordinate system. That is what
+		// makes a first stop with no position appear ~5,000 km from its
+		// neighbour there, and it is reproduced here because matching canonical
+		// is the point; it looks like an oversight upstream rather than intent.
+		fromLat, fromLon, placed := position(from)
+		if !placed {
+			if i != 0 || !from.Declared {
+				continue
+			}
+			fromLat, fromLon = 0, 0
+		}
 
 		// The walk stops as soon as the stretch is long enough to judge, which
 		// keeps the pass linear in the length of the trip.
 		accumulatedKm := 0.0
+		previousLat, previousLon := fromLat, fromLon
 		for j := i + 1; j < len(stopTimes) && j-i <= farStopWindow; j++ {
-			accumulatedKm += v.haversineDistance(
-				*stopTimes[j-1].Latitude, *stopTimes[j-1].Longitude,
-				*stopTimes[j].Latitude, *stopTimes[j].Longitude,
-			)
+			toLat, toLon, toPlaced := position(&stopTimes[j])
+			if !toPlaced {
+				continue // nothing to measure to; the gap is not a distance
+			}
+			accumulatedKm += v.haversineDistance(previousLat, previousLon, toLat, toLon)
+			previousLat, previousLon = toLat, toLon
 			if accumulatedKm <= farStopDistanceKm {
 				continue
 			}
@@ -475,10 +507,20 @@ func (v *TravelSpeedValidator) validateStopPairSpeed(container *notice.NoticeCon
 		return
 	}
 
+	// A leg with an unplaceable stop at either end has no length to judge a
+	// speed against. The missing coordinate is reported as
+	// stop_without_location; inventing a position here would turn one missing
+	// field into a fictitious hop of several thousand kilometres.
+	prevLat, prevLon, prevPlaced := position(prev)
+	currLat, currLon, currPlaced := position(curr)
+	if !prevPlaced || !currPlaced {
+		return
+	}
+
 	timeDiffSeconds := travelSecondsBetween(*prevTime, *currTime)
 
 	// Calculate distance using Haversine formula
-	distance := v.haversineDistance(*prev.Latitude, *prev.Longitude, *curr.Latitude, *curr.Longitude)
+	distance := v.haversineDistance(prevLat, prevLon, currLat, currLon)
 
 	// Skip very short distances (< 10 meters) to avoid false positives
 	if distance < 0.01 {
@@ -526,4 +568,15 @@ func (v *TravelSpeedValidator) haversineDistance(lat1, lon1, lat2, lon2 float64)
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 
 	return R * c
+}
+
+// position returns a stop time's coordinates and whether it has any. A stop
+// whose stop_lat or stop_lon is blank or unparseable has none; that omission is
+// reported as stop_without_location, and the distance checks leave it alone
+// rather than measuring to a point that does not exist.
+func position(stopTime *StopTimeWithLocation) (lat float64, lon float64, ok bool) {
+	if stopTime.Latitude == nil || stopTime.Longitude == nil {
+		return 0, 0, false
+	}
+	return *stopTime.Latitude, *stopTime.Longitude, true
 }

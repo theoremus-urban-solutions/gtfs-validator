@@ -715,11 +715,17 @@ func (v *ShapeGeometryValidator) loadStopLocations(loader *parser.FeedLoader) ma
 		}
 
 		stopID := strings.TrimSpace(row.Values["stop_id"])
-		lat, latErr := strconv.ParseFloat(strings.TrimSpace(row.Values["stop_lat"]), 64)
-		lon, lonErr := strconv.ParseFloat(strings.TrimSpace(row.Values["stop_lon"]), 64)
-		if stopID == "" || latErr != nil || lonErr != nil {
+		if stopID == "" {
 			continue
 		}
+		// A coordinate that is blank or unparseable becomes zero rather than
+		// removing the stop from the geometry checks. The missing value is
+		// reported on its own, and dropping the stop here would additionally
+		// silence every distance that involves it — which is how a stop sitting
+		// 5,000 km off its own alignment went unreported while canonical, which
+		// defaults the field to zero and keeps measuring, flagged it.
+		lat, _ := strconv.ParseFloat(strings.TrimSpace(row.Values["stop_lat"]), 64)
+		lon, _ := strconv.ParseFloat(strings.TrimSpace(row.Values["stop_lon"]), 64)
 		locations[stopID] = &StopLocation{Latitude: lat, Longitude: lon}
 	}
 

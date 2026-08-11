@@ -141,6 +141,16 @@ absence therefore still strands every stop reference.
   threshold. Canonical defines the rule at WARNING; the runtime severity also
   made it the one rule the audit could not compare statically, and it reported
   it as "not comparable" rather than as the disagreement it was.
+- A stop whose `stop_lat`/`stop_lon` are blank was dropped from the geometry and
+  speed checks entirely, so every distance involving it went unmeasured — on one
+  railway feed that hid 5 `stop_too_far_from_shape` warnings and both
+  `fast_travel_between_far_stops` notices for a stop sitting 5,000 km from its
+  neighbour. Such a stop is now kept in the trip, unplaced: legs touching it are
+  not measured, but the far-stop scan seeds its origin from the trip's first stop
+  whether or not that stop has coordinates, which is what canonical does. A
+  `stop_id` that `stops.txt` never declares is still left to the foreign key
+  check. `fast_travel_between_consecutive_stops` no longer double-reports a leg
+  already covered by the far-stop rule.
 - `Config.CountryCode` was read by nothing at all, so `-c`/`--country` and
   `WithCountryCode` were inert. It is now plumbed into field validation, where
   `invalid_phone_number` needs it: the check was a country-blind shape
