@@ -44,6 +44,18 @@ const (
 	// decimal places of coordinate can express — the canonical rule's
 	// threshold, applied in whatever unit the feed declared its distances in.
 	tripShapeOvershootThreshold = 11.1
+
+	// railRouteType is route_type 2, heavy rail.
+	railRouteType = 2
+
+	// railEdgeToleranceFactor widens the alignment tolerance at the two ends of
+	// a rail trip. A station platform sits alongside the track rather than on
+	// the centre line the shape traces, and at a terminus the shape usually
+	// stops at the buffer while the platform runs back a long way from it, so
+	// the first and last stops of a rail trip are routinely further off than
+	// the 100 m that suits a bus stop at the kerb. Only the edges: an
+	// intermediate station is passed on the running line and gets no leeway.
+	railEdgeToleranceFactor = 4.0
 )
 
 // ShapeGeometryValidator checks trips against the path their shape draws:
@@ -104,11 +116,24 @@ type sequencedPoint struct {
 // stopPattern is a shape and the stops a trip calls at along it, plus every
 // trip that repeats that arrangement. A timetable runs the same pattern dozens
 // of times a day and the geometry does not change between runs, so it is
-// walked once and reported against each of them.
+// walked once and reported once, naming the first of those trips.
+//
+// RouteType is part of the pattern's identity, not decoration: it changes the
+// tolerance the stops are judged against, so two trips that agree on shape and
+// stops but run under different route types are different patterns and must not
+// be merged.
 type stopPattern struct {
-	ShapeID string
-	Stops   []tripStop
-	TripIDs []string
+	ShapeID   string
+	RouteType int
+	Stops     []tripStop
+	TripIDs   []string
+}
+
+// tripRoute is what the geometry checks need to know about a trip beyond its
+// stops: which shape it follows and what kind of service runs it.
+type tripRoute struct {
+	ShapeID   string
+	RouteType int
 }
 
 // Validate checks every distinct trip pattern against its shape
@@ -118,7 +143,7 @@ func (v *ShapeGeometryValidator) Validate(loader *parser.FeedLoader, container *
 		return
 	}
 
-	tripShapes := v.loadTripShapes(loader, shapes)
+	tripShapes := v.loadTripShapes(loader, shapes, v.loadRouteTypes(loader))
 	if len(tripShapes) == 0 {
 		return
 	}
@@ -138,6 +163,12 @@ func (v *ShapeGeometryValidator) Validate(loader *parser.FeedLoader, container *
 	}
 	sort.Strings(keys)
 
+	// How far a stop sits from a shape is a fact about that pair alone, so it
+	// is reported once however many patterns run over the same shape. Without
+	// this a station served by twenty patterns of one line reports the same
+	// misplacement twenty times.
+	reportedStopDistance := make(map[string]bool)
+
 	indexes := make(map[string]*shapeIndex, len(shapes))
 	for _, key := range keys {
 		pattern := patterns[key]
@@ -146,21 +177,35 @@ func (v *ShapeGeometryValidator) Validate(loader *parser.FeedLoader, container *
 			index = newShapeIndex(shapes[pattern.ShapeID])
 			indexes[pattern.ShapeID] = index
 		}
-		v.validatePattern(container, pattern, index)
+		v.validatePattern(container, pattern, index, reportedStopDistance)
 	}
 }
 
 // validatePattern runs every geometric check over one distinct pattern.
-func (v *ShapeGeometryValidator) validatePattern(container *notice.NoticeContainer, pattern *stopPattern, index *shapeIndex) {
-	v.validateStopsAgainstShape(container, pattern, index)
-	v.validateUserDistances(container, pattern, index)
+func (v *ShapeGeometryValidator) validatePattern(container *notice.NoticeContainer, pattern *stopPattern, index *shapeIndex, reportedStopDistance map[string]bool) {
+	v.validateStopsAgainstShape(container, pattern, index, reportedStopDistance)
+	v.validateUserDistances(container, pattern, index, reportedStopDistance)
 	v.validateTripDistance(container, pattern, index)
+}
+
+// firstReport marks a shape-and-stop pair as reported for one check and says
+// whether this is the first time, so the caller can skip a repeat from another
+// pattern over the same shape. The check name is part of the key: the geometric
+// match and the declared-distance match are separate findings about the same
+// pair and neither should silence the other.
+func firstReport(seen map[string]bool, check string, shapeID string, stopID string) bool {
+	key := check + "\x00" + shapeID + "\x00" + stopID
+	if seen[key] {
+		return false
+	}
+	seen[key] = true
+	return true
 }
 
 // validateStopsAgainstShape matches each stop of the pattern onto the shape and
 // reports the three ways that can go wrong: no match, too many matches, or a
 // match that goes backwards along a shape the trip travels forwards.
-func (v *ShapeGeometryValidator) validateStopsAgainstShape(container *notice.NoticeContainer, pattern *stopPattern, index *shapeIndex) {
+func (v *ShapeGeometryValidator) validateStopsAgainstShape(container *notice.NoticeContainer, pattern *stopPattern, index *shapeIndex, reportedStopDistance map[string]bool) {
 	if len(index.points) < 2 {
 		return
 	}
@@ -175,17 +220,20 @@ func (v *ShapeGeometryValidator) validateStopsAgainstShape(container *notice.Not
 			continue
 		}
 
-		matches = index.nearby(location.Latitude, location.Longitude, maxStopToShapeMetres, matches[:0])
+		tolerance := stopToShapeTolerance(pattern, i)
+		matches = index.nearby(location.Latitude, location.Longitude, tolerance, matches[:0])
 		passes := clusterMatches(matches)
 
 		if len(passes) == 0 {
 			nearest := index.nearest(location.Latitude, location.Longitude)
-			report(container, pattern.TripIDs, func(tripID string) notice.Notice {
-				return notice.NewStopTooFarFromShapeNotice(
-					tripID, stop.StopID, stop.StopSequence,
-					pattern.ShapeID, nearest.Metres, stop.RowNumber,
-				)
-			})
+			if firstReport(reportedStopDistance, "geometric", pattern.ShapeID, stop.StopID) {
+				report(container, pattern.TripIDs, func(tripID string) notice.Notice {
+					return notice.NewStopTooFarFromShapeNotice(
+						tripID, stop.StopID, stop.StopSequence,
+						pattern.ShapeID, nearest.Metres, stop.RowNumber,
+					)
+				})
+			}
 			continue
 		}
 
@@ -202,6 +250,15 @@ func (v *ShapeGeometryValidator) validateStopsAgainstShape(container *notice.Not
 	}
 
 	v.reportOutOfOrder(container, pattern, matched)
+}
+
+// stopToShapeTolerance is how far the stop at index i may sit from the shape.
+func stopToShapeTolerance(pattern *stopPattern, i int) float64 {
+	isEdge := i == 0 || i == len(pattern.Stops)-1
+	if pattern.RouteType == railRouteType && isEdge {
+		return maxStopToShapeMetres * railEdgeToleranceFactor
+	}
+	return maxStopToShapeMetres
 }
 
 // reportOutOfOrder decides where along the shape the pattern serves each of its
@@ -278,13 +335,20 @@ func (v *ShapeGeometryValidator) reportOutOfOrder(container *notice.NoticeContai
 			continue
 		}
 		earlier, later := matched[i-1].Stop, matched[i].Stop
+		// The pair is named in the order the shape reaches them, not the order
+		// stop_times lists them — which for an out-of-order pair is the
+		// reverse. So the stop with the later stop_sequence is stopId1.
 		report(container, pattern.TripIDs, func(tripID string) notice.Notice {
 			return notice.NewStopsMatchShapeOutOfOrderNotice(
 				tripID, pattern.ShapeID,
-				earlier.StopID, earlier.StopSequence,
 				later.StopID, later.StopSequence,
+				earlier.StopID, earlier.StopSequence,
 			)
 		})
+		// One notice per trip. The pairs after the first are downstream of the
+		// same disagreement between the stop sequence and the geometry, and
+		// reporting each of them turns one fault into a run of them.
+		return
 	}
 }
 
@@ -311,7 +375,7 @@ func boundCandidates(passes []shapeMatch) []shapeMatch {
 // shape_dist_traveled against the place on the shape that distance points at.
 // Unlike the geometric match this trusts the feed's own numbers, so it catches
 // distances measured in the wrong unit or against the wrong shape.
-func (v *ShapeGeometryValidator) validateUserDistances(container *notice.NoticeContainer, pattern *stopPattern, index *shapeIndex) {
+func (v *ShapeGeometryValidator) validateUserDistances(container *notice.NoticeContainer, pattern *stopPattern, index *shapeIndex, reportedStopDistance map[string]bool) {
 	for i := range pattern.Stops {
 		stop := &pattern.Stops[i]
 		if stop.Dist == nil || stop.Location == nil {
@@ -324,10 +388,13 @@ func (v *ShapeGeometryValidator) validateUserDistances(container *notice.NoticeC
 		}
 
 		metres := haversineMetres(lat, lon, stop.Location.Latitude, stop.Location.Longitude)
-		if metres <= maxStopToShapeMetres {
+		if metres <= stopToShapeTolerance(pattern, i) {
 			continue
 		}
 
+		if !firstReport(reportedStopDistance, "user-distance", pattern.ShapeID, stop.StopID) {
+			continue
+		}
 		report(container, pattern.TripIDs, func(tripID string) notice.Notice {
 			return notice.NewStopTooFarFromShapeUsingUserDistanceNotice(
 				tripID, stop.StopID, stop.StopSequence,
@@ -370,11 +437,20 @@ func (v *ShapeGeometryValidator) validateTripDistance(container *notice.NoticeCo
 	})
 }
 
-// report records one finding against every trip that shares the pattern.
+// report records one finding for the pattern, naming the first of the trips
+// that share it.
+//
+// One notice, not one per trip: the finding is about the geometry, and the
+// geometry is identical across every trip in the pattern. A shape served by
+// fifty trips a day was previously reported fifty times for a single
+// misplaced stop, which buries the fifty distinct faults elsewhere in the feed.
+// The trip id is still carried so the reader has somewhere to start looking;
+// the other trips in the pattern have the same defect for the same reason.
 func report(container *notice.NoticeContainer, tripIDs []string, build func(tripID string) notice.Notice) {
-	for _, tripID := range tripIDs {
-		container.AddNotice(build(tripID))
+	if len(tripIDs) == 0 {
+		return
 	}
+	container.AddNotice(build(tripIDs[0]))
 }
 
 // clusterMatches folds the raw segment matches into one entry per pass of the
@@ -518,11 +594,15 @@ func (v *ShapeGeometryValidator) loadShapes(loader *parser.FeedLoader) map[strin
 	return shapes
 }
 
-// loadTripShapes maps each trip to its shape, skipping trips whose shape_id
-// names a shape that is not in the feed — foreign key violations are reported
-// elsewhere and there is no geometry here to check against.
-func (v *ShapeGeometryValidator) loadTripShapes(loader *parser.FeedLoader, shapes map[string][]shapePoint) map[string]string {
-	tripShapes := make(map[string]string)
+// loadTripShapes maps each trip to its shape and route type, skipping trips
+// whose shape_id names a shape that is not in the feed — foreign key violations
+// are reported elsewhere and there is no geometry here to check against.
+//
+// A trip whose route_id is missing from routes.txt keeps route type -1, which
+// matches no special case and so is judged at the ordinary tolerance; the
+// dangling reference itself is reported by the foreign key check.
+func (v *ShapeGeometryValidator) loadTripShapes(loader *parser.FeedLoader, shapes map[string][]shapePoint, routeTypes map[string]int) map[string]tripRoute {
+	tripShapes := make(map[string]tripRoute)
 
 	reader, err := loader.GetFile("trips.txt")
 	if err != nil {
@@ -556,10 +636,54 @@ func (v *ShapeGeometryValidator) loadTripShapes(loader *parser.FeedLoader, shape
 		if len(shapes[shapeID]) < 2 {
 			continue
 		}
-		tripShapes[tripID] = shapeID
+
+		routeType := -1
+		if known, ok := routeTypes[strings.TrimSpace(row.Values["route_id"])]; ok {
+			routeType = known
+		}
+		tripShapes[tripID] = tripRoute{ShapeID: shapeID, RouteType: routeType}
 	}
 
 	return tripShapes
+}
+
+// loadRouteTypes reads route_type for each route.
+func (v *ShapeGeometryValidator) loadRouteTypes(loader *parser.FeedLoader) map[string]int {
+	routeTypes := make(map[string]int)
+
+	reader, err := loader.GetFile("routes.txt")
+	if err != nil {
+		return routeTypes
+	}
+	defer func() {
+		if closeErr := reader.Close(); closeErr != nil {
+			log.Printf("Warning: failed to close reader %v", closeErr)
+		}
+	}()
+
+	csvFile, err := parser.NewCSVFile(reader, "routes.txt")
+	if err != nil {
+		return routeTypes
+	}
+
+	for {
+		row, err := csvFile.ReadRow()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			break
+		}
+
+		routeID := strings.TrimSpace(row.Values["route_id"])
+		routeType, typeErr := strconv.Atoi(strings.TrimSpace(row.Values["route_type"]))
+		if routeID == "" || typeErr != nil {
+			continue
+		}
+		routeTypes[routeID] = routeType
+	}
+
+	return routeTypes
 }
 
 // loadStopLocations reads the coordinates of every stop.
@@ -606,7 +730,7 @@ func (v *ShapeGeometryValidator) loadStopLocations(loader *parser.FeedLoader) ma
 // arrangements of shape, stops and declared distances they use. This is what
 // keeps the cost proportional to the timetable's variety rather than its size:
 // a feed with 40 000 trips typically has a few hundred patterns.
-func (v *ShapeGeometryValidator) loadPatterns(loader *parser.FeedLoader, tripShapes map[string]string, stopLocations map[string]*StopLocation) map[string]*stopPattern {
+func (v *ShapeGeometryValidator) loadPatterns(loader *parser.FeedLoader, tripShapes map[string]tripRoute, stopLocations map[string]*StopLocation) map[string]*stopPattern {
 	patterns := make(map[string]*stopPattern)
 
 	reader, err := loader.GetFile("stop_times.txt")
@@ -661,15 +785,17 @@ func (v *ShapeGeometryValidator) loadPatterns(loader *parser.FeedLoader, tripSha
 		}
 		sort.SliceStable(stops, func(i, j int) bool { return stops[i].StopSequence < stops[j].StopSequence })
 
-		key := patternKey(tripShapes[tripID], stops)
+		route := tripShapes[tripID]
+		key := patternKey(route, stops)
 		if pattern, seen := patterns[key]; seen {
 			pattern.TripIDs = append(pattern.TripIDs, tripID)
 			continue
 		}
 		patterns[key] = &stopPattern{
-			ShapeID: tripShapes[tripID],
-			Stops:   stops,
-			TripIDs: []string{tripID},
+			ShapeID:   route.ShapeID,
+			RouteType: route.RouteType,
+			Stops:     stops,
+			TripIDs:   []string{tripID},
 		}
 	}
 
@@ -683,9 +809,13 @@ func (v *ShapeGeometryValidator) loadPatterns(loader *parser.FeedLoader, tripSha
 // patternKey identifies trips whose geometry checks would produce identical
 // findings. Row numbers are deliberately left out: they differ between trips
 // that are otherwise the same, and including them would defeat the grouping.
-func patternKey(shapeID string, stops []tripStop) string {
+// Route type is in, because it decides the tolerance the stops are measured
+// against and so can make the same stops on the same shape come out differently.
+func patternKey(route tripRoute, stops []tripStop) string {
 	var key strings.Builder
-	key.WriteString(shapeID)
+	key.WriteString(route.ShapeID)
+	key.WriteByte(0)
+	key.WriteString(strconv.Itoa(route.RouteType))
 	for _, stop := range stops {
 		key.WriteByte(0)
 		key.WriteString(stop.StopID)
