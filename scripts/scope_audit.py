@@ -40,10 +40,20 @@ DEPRECATED = {
 # Java implementation's execution model rather than feed defects. See §3 of the
 # proposal. `runtime_exception_in_validator_error` is deliberately NOT declined:
 # we already implement it as `validator_error`.
+#
+# Both of these sets are exclusions by name, which is a blunt instrument — a rule
+# that merely reads like an extension gets dropped from the scope count without
+# anyone re-deriving why. Two were wrong and hid ERROR rules for a full release:
+# `location_with_unexpected_stop_time` sat in FLEX although it is core GTFS,
+# emitted by the same canonical validator as `stop_without_stop_time`, and
+# `invalid_input_files_in_subfolder` sat in DECLINED_RUNTIME although a zip whose
+# files are not at the root is a packaging defect in the feed, not an artefact of
+# the Java runner. Before adding to either set, check the rule against
+# MobilityData's own exported notice schema rather than the rendered rules page.
 FLEX = re.compile(
     r"geo_json|prior_notice|prior_day|booking|pickup_drop_off_window"
     r"|pickup_or_drop_off_window|geometry|feature_type|malformed_json"
-    r"|invalid_geometry|missing_required_element|location_with_unexpected_stop_time"
+    r"|invalid_geometry|missing_required_element"
     r"|geography_id"
 )
 FARES = re.compile(
@@ -55,8 +65,9 @@ DECLINED_RUNTIME = {
     "runtime_exception_in_loader_error",
     "thread_execution_error",
     "too_many_rows",
-    "invalid_input_files_in_subfolder",
 }
+
+IMPLEMENTATION_GO = os.path.join(ROOT, "implementation.go")
 
 
 def scrape(refresh=False):
@@ -85,27 +96,134 @@ def scrape(refresh=False):
     return rules
 
 
+def strip_comments(text):
+    """Blank out // line comments and /* */ blocks, preserving offsets loosely."""
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    return re.sub(r"//[^\n]*", "", text)
+
+
+def registered_constructors():
+    """Return the set of validator constructors actually wired into the registry.
+
+    Source presence is not reachability: a validator whose file compiles but
+    which `initializeValidators` never constructs emits nothing at runtime. That
+    is exactly how `leading_or_trailing_whitespaces` stayed commented out while
+    every doc counted it as implemented, so this reads the registry body with
+    comments stripped and takes only the constructors that survive.
+    """
+    text = open(IMPLEMENTATION_GO, encoding="utf-8", errors="replace").read()
+    start = text.find("func (v *internalValidator) initializeValidators()")
+    if start == -1:
+        sys.exit("could not find initializeValidators in implementation.go")
+
+    # Walk braces from the signature to the matching close, so the body is taken
+    # exactly rather than by a fragile line count.
+    brace = text.find("{", start)
+    depth, end = 0, None
+    for i in range(brace, len(text)):
+        if text[i] == "{":
+            depth += 1
+        elif text[i] == "}":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    if end is None:
+        sys.exit("initializeValidators body is unbalanced")
+
+    body = strip_comments(text[brace:end])
+    return set(re.findall(r"\b(?:\w+\.)?(New\w+)\s*\(", body))
+
+
+def go_sources():
+    """Yield (path, comment-stripped text) for every non-test Go file."""
+    for base, dirs, files in os.walk(ROOT):
+        dirs[:] = [d for d in dirs if d not in (".git", "testdata", "docs", "vendor")]
+        for fn in files:
+            if not fn.endswith(".go") or fn.endswith("_test.go"):
+                continue
+            path = os.path.join(base, fn)
+            text = open(path, encoding="utf-8", errors="replace").read()
+            yield path, strip_comments(text)
+
+
+def severity_of(match):
+    sev = match.group(2).rsplit(".", 1)[-1]
+    return sev if sev in ("ERROR", "WARNING", "INFO") else "COMPUTED"
+
+
+def notice_constructors(notice_dir):
+    """Return ({ctor: code}, {code: severity}) for the notice package.
+
+    Most codes are produced by a `NewSomethingNotice` wrapper around a literal
+    `NewBaseNotice("code", SEVERITY, ...)`, so the wrapper is the unit validators
+    call and therefore the unit whose reachability matters. Only the notice
+    package is scanned here; `NewBaseNotice` called directly from a validator is
+    handled at its call site instead, where the enclosing file settles the
+    question on its own.
+    """
+    ctor_code, severities = {}, {}
+    for path, text in go_sources():
+        if not path.startswith(notice_dir):
+            continue
+        # Split on top-level func declarations so a NewBaseNotice call is
+        # attributed to the wrapper it sits inside.
+        parts = re.split(r"^func\s+(New\w+)\s*\(", text, flags=re.M)
+        for ctor, body in zip(parts[1::2], parts[2::2]):
+            m = re.search(r'NewBaseNotice\("([a-z0-9_]+)",\s*([A-Za-z_.]+)', body)
+            if not m:
+                continue
+            ctor_code[ctor] = m.group(1)
+            severities.setdefault(m.group(1), severity_of(m))
+    return ctor_code, severities
+
+
 def scan_repo():
-    """Return {code: severity} for every notice the production build can emit.
+    """Return ({code: severity}, unreachable_codes) for the production build.
 
     Severity is the literal passed to NewBaseNotice, normalised across the
     `ERROR` and `notice.ERROR` spellings. Where it is computed at runtime the
     value is a variable name, reported as "COMPUTED" — those cannot be compared
     against canonical statically and are excluded from the mismatch count.
+
+    Reachability, not source presence, decides whether a code counts as
+    implemented. A notice constructor is reachable when something outside the
+    notice package calls it from a live site: any file outside `validator/`, or
+    a validator file whose own constructor the registry actually builds. A code
+    whose every call site sits in an unregistered validator — or which nothing
+    calls at all — emits nothing at runtime and is reported as missing.
     """
-    ours = {}
-    for base, dirs, files in os.walk(ROOT):
-        dirs[:] = [d for d in dirs if d not in (".git", "testdata", "docs")]
-        for fn in files:
-            if not fn.endswith(".go") or fn.endswith("_test.go"):
+    validator_dir = os.path.join(ROOT, "validator") + os.sep
+    notice_dir = os.path.join(ROOT, "notice") + os.sep
+
+    registered = registered_constructors()
+    ctor_code, severities = notice_constructors(notice_dir)
+
+    reachable_codes = set()
+    for path, text in go_sources():
+        if path.startswith(notice_dir):
+            continue  # definitions, not call sites
+        if path.startswith(validator_dir):
+            own = set(re.findall(r"^func (New\w+)\s*\(", text, re.M))
+            # A validator file with constructors none of which the registry
+            # builds is dead code; a file with no constructors is a shared
+            # helper reached through whichever validator calls it.
+            if own and not (own & registered):
                 continue
-            text = open(os.path.join(base, fn), encoding="utf-8", errors="replace").read()
-            for m in re.finditer(r'NewBaseNotice\("([a-z0-9_]+)",\s*([A-Za-z_.]+)', text):
-                sev = m.group(2).rsplit(".", 1)[-1]
-                if sev not in ("ERROR", "WARNING", "INFO"):
-                    sev = "COMPUTED"
-                ours.setdefault(m.group(1), sev)
-    return ours
+        for ctor in re.findall(r"\b(?:\w+\.)?(New\w+Notice)\s*\(", text):
+            if ctor in ctor_code:
+                reachable_codes.add(ctor_code[ctor])
+        # Codes built straight from NewBaseNotice at a live site, with no
+        # wrapper in the notice package to trace.
+        for m in re.finditer(
+            r'NewBaseNotice\("([a-z0-9_]+)",\s*([A-Za-z_.]+)', text
+        ):
+            severities.setdefault(m.group(1), severity_of(m))
+            reachable_codes.add(m.group(1))
+
+    unreachable = set(severities) - reachable_codes
+    ours = {c: severities[c] for c in reachable_codes}
+    return ours, unreachable
 
 
 def bucket(code):
@@ -128,7 +246,7 @@ def main():
     args = ap.parse_args()
 
     canon = scrape(args.refresh)
-    ours = scan_repo()
+    ours, unreachable = scan_repo()
 
     buckets = {}
     for code in canon:
@@ -170,6 +288,11 @@ def main():
         for code, (o, c) in sorted(sev_mismatch.items()):
             print(f"  {code:<52} {o:>8} -> {c}")
 
+    if unreachable:
+        print("\nin source but never constructed — these emit nothing at runtime:")
+        for code in sorted(unreachable):
+            print(f"  {canon.get(code, '?'):<8} {code}")
+
     if args.list:
         print("\n=== canonical rules to add (in scope, not implemented) ===")
         for code in sorted(to_add):
@@ -189,6 +312,14 @@ def main():
             f.write("\n")
         print(f"\nwrote {CANONICAL_JSON}\nwrote {CURRENT_JSON}")
 
+    # Exit non-zero on the two conditions that make the parity claim a lie: a
+    # validator present in source but missing from the registry, and a severity
+    # that disagrees with canonical. Rules still to add are printed but do not
+    # fail the run, so the script stays usable while a gap is being closed.
+    if unreachable or sev_mismatch:
+        return 1
+    return 0
+
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -26,7 +26,7 @@ def main():
     markdown = "--markdown" in sys.argv
 
     baseline = json.load(open(BASELINE))
-    current = scope_audit.scan_repo()
+    current, _ = scope_audit.scan_repo()
     canon = scope_audit.scrape()
 
     removed = sorted(set(baseline) - set(current))

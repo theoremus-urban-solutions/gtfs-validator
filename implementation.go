@@ -691,7 +691,7 @@ func (v *internalValidator) initializeValidators() {
 			// nowhere at all, so csv_parsing_failed and unknown_column counted
 			// as implemented while never being emitted.
 			validator.NewFileStructureValidator(),
-			// core.NewLeadingTrailingWhitespaceValidator(), // PROBLEMATIC: Hangs with large datasets (Sofia)
+			core.NewLeadingTrailingWhitespaceValidator(),
 		)
 	}
 

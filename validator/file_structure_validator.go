@@ -20,6 +20,13 @@ func NewFileStructureValidator() *FileStructureValidator {
 
 // Validate checks the structure of all GTFS files
 func (v *FileStructureValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config Config) {
+	// Reported before the per-file checks because it explains them: the nested
+	// files are not loaded, so everything downstream sees an empty feed and
+	// reports each required file as missing.
+	if loader.HasFilesInSubfolder() {
+		container.AddNotice(notice.NewInvalidInputFilesInSubfolderNotice())
+	}
+
 	files := loader.ListFiles()
 
 	for _, filename := range files {

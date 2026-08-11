@@ -302,30 +302,30 @@ func (v *StopTimeConsistencyValidator) validateTripStopTimes(container *notice.N
 	v.validateShapeDistanceConsistency(container, stopTimes)
 }
 
-// validateFirstLastTimes checks that first and last stops have times
+// validateFirstLastTimes checks that first and last stops have both times.
+//
+// Each field is tested on its own. Requiring both to be absent before
+// reporting, as this once did, accepts the most common form of the defect: a
+// terminus carrying an arrival but no departure (or the reverse) is a partial
+// edge, and it is exactly the case the spec calls out — if there is no separate
+// time for the other event, repeat the same value rather than leave it empty.
 func (v *StopTimeConsistencyValidator) validateFirstLastTimes(container *notice.NoticeContainer, tripID string, stopTimes []*StopTimeInfo) {
 	if len(stopTimes) == 0 {
 		return
 	}
 
-	// Check first stop
-	first := stopTimes[0]
-	if first.ArrivalTime == "" && first.DepartureTime == "" {
-		container.AddNotice(notice.NewMissingTripFirstTimeNotice(
-			tripID,
-			first.StopID,
-			first.RowNumber,
-		))
-	}
-
-	// Check last stop
-	last := stopTimes[len(stopTimes)-1]
-	if last.ArrivalTime == "" && last.DepartureTime == "" {
-		container.AddNotice(notice.NewMissingTripLastTimeNotice(
-			tripID,
-			last.StopID,
-			last.RowNumber,
-		))
+	edges := []*StopTimeInfo{stopTimes[0], stopTimes[len(stopTimes)-1]}
+	for _, edge := range edges {
+		if edge.ArrivalTime == "" {
+			container.AddNotice(notice.NewMissingTripEdgeNotice(
+				tripID, edge.RowNumber, edge.StopSequence, "arrival_time",
+			))
+		}
+		if edge.DepartureTime == "" {
+			container.AddNotice(notice.NewMissingTripEdgeNotice(
+				tripID, edge.RowNumber, edge.StopSequence, "departure_time",
+			))
+		}
 	}
 }
 

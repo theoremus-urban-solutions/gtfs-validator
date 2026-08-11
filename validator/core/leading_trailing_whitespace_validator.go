@@ -1,6 +1,8 @@
 package core
 
 import (
+	"encoding/csv"
+	"errors"
 	"io"
 	"log"
 	"strings"
@@ -10,7 +12,10 @@ import (
 	"github.com/theoremus-urban-solutions/gtfs-validator/validator"
 )
 
-// LeadingTrailingWhitespaceValidator checks for fields with leading or trailing whitespace
+// LeadingTrailingWhitespaceValidator reports fields padded with leading or
+// trailing whitespace. The padding is rarely visible to the author but is
+// significant to consumers: an id with a trailing space does not match the same
+// id without one, so the reference silently fails to resolve.
 type LeadingTrailingWhitespaceValidator struct{}
 
 // NewLeadingTrailingWhitespaceValidator creates a new whitespace validator
@@ -61,7 +66,18 @@ func (v *LeadingTrailingWhitespaceValidator) validateFile(loader *parser.FeedLoa
 			break
 		}
 		if err != nil {
-			continue
+			// A malformed record is recoverable: the CSV reader has already
+			// consumed it, so skipping the row makes progress. Any other error
+			// comes from the underlying stream — a truncated or corrupt member
+			// in the archive, say — and is returned again on every subsequent
+			// call without consuming anything, so continuing here spins
+			// forever. That is the "hangs with large datasets" this validator
+			// was disabled for; it is a stalled read, not slow work.
+			var parseErr *csv.ParseError
+			if errors.As(err, &parseErr) {
+				continue
+			}
+			return
 		}
 
 		// Check each field for whitespace issues
@@ -103,8 +119,6 @@ func (v *LeadingTrailingWhitespaceValidator) validateFieldWhitespace(container *
 			rowNumber,
 		))
 	}
-
-	// Check for excessive internal whitespace (multiple consecutive spaces)
 }
 
 // shouldValidateField determines if a field should be checked for whitespace

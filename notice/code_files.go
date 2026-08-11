@@ -257,6 +257,7 @@ var codeFiles = map[string][]string{
 	"wrong_parent_location_type":           stops,
 	"unused_station":                       stops,
 	"stop_without_stop_time":               {"stops.txt", "stop_times.txt"},
+	"location_with_unexpected_stop_time":   {"stops.txt", "stop_times.txt"},
 
 	// stop_times.txt
 	"missing_trip_edge":                                     stopTimes,

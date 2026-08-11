@@ -969,34 +969,27 @@ func NewUnusedZoneNotice(zoneID string, rowNumber int) *UnusedZoneNotice {
 
 // STOP TIME CONSISTENCY VALIDATOR NOTICES
 
-// MissingTripFirstTimeNotice is generated when first stop has no times
-type MissingTripFirstTimeNotice struct {
+// MissingTripEdgeNotice reports a first or last stop of a trip that leaves
+// arrival_time or departure_time empty. Both are required at the edges: they
+// are what anchors the trip in time, and a consumer cannot infer a missing edge
+// time by interpolation the way it can for an intermediate stop.
+//
+// One notice describes one missing field, so a stop that omits both produces
+// two. This replaces the earlier first/last pair of constructors: canonical
+// draws no distinction between the two edges in the payload, and naming the
+// absent field is what makes the notice actionable.
+type MissingTripEdgeNotice struct {
 	*BaseNotice
 }
 
-func NewMissingTripFirstTimeNotice(tripID string, stopID string, rowNumber int) *MissingTripFirstTimeNotice {
+func NewMissingTripEdgeNotice(tripID string, rowNumber int, stopSequence int, specifiedField string) *MissingTripEdgeNotice {
 	context := map[string]interface{}{
-		"tripId":       tripID,
-		"stopId":       stopID,
-		"csvRowNumber": rowNumber,
+		"tripId":         tripID,
+		"csvRowNumber":   rowNumber,
+		"stopSequence":   stopSequence,
+		"specifiedField": specifiedField,
 	}
-	return &MissingTripFirstTimeNotice{
-		BaseNotice: NewBaseNotice("missing_trip_edge", ERROR, context),
-	}
-}
-
-// MissingTripLastTimeNotice is generated when last stop has no times
-type MissingTripLastTimeNotice struct {
-	*BaseNotice
-}
-
-func NewMissingTripLastTimeNotice(tripID string, stopID string, rowNumber int) *MissingTripLastTimeNotice {
-	context := map[string]interface{}{
-		"tripId":       tripID,
-		"stopId":       stopID,
-		"csvRowNumber": rowNumber,
-	}
-	return &MissingTripLastTimeNotice{
+	return &MissingTripEdgeNotice{
 		BaseNotice: NewBaseNotice("missing_trip_edge", ERROR, context),
 	}
 }

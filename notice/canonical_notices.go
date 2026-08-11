@@ -208,6 +208,42 @@ func NewStopWithoutStopTimeNotice(stopID string, stopName string, rowNumber int)
 	}
 }
 
+// InvalidInputFilesInSubfolderNotice reports GTFS files packaged below the root
+// of the archive instead of directly at it. Usually the containing folder was
+// zipped rather than its contents. Canonical carries no payload on this notice,
+// and emits it once however many files are nested.
+type InvalidInputFilesInSubfolderNotice struct {
+	*BaseNotice
+}
+
+func NewInvalidInputFilesInSubfolderNotice() *InvalidInputFilesInSubfolderNotice {
+	return &InvalidInputFilesInSubfolderNotice{
+		BaseNotice: NewBaseNotice("invalid_input_files_in_subfolder", ERROR, map[string]interface{}{}),
+	}
+}
+
+// LocationWithUnexpectedStopTimeNotice reports a location that stop_times.txt
+// calls at even though it is not a stop or platform. Only location_type 0 (or
+// empty) may be referenced by stop_times.stop_id: a station is reached through
+// its children, and entrances, nodes and boarding areas are never called at.
+// Referencing one usually means the parent station's id was used where a
+// platform id was meant, which silently strands every trip through it.
+type LocationWithUnexpectedStopTimeNotice struct {
+	*BaseNotice
+}
+
+func NewLocationWithUnexpectedStopTimeNotice(stopID string, stopName string, rowNumber int, stopTimeRowNumber int) *LocationWithUnexpectedStopTimeNotice {
+	context := map[string]interface{}{
+		"stopId":               stopID,
+		"stopName":             stopName,
+		"csvRowNumber":         rowNumber,
+		"stopTimeCsvRowNumber": stopTimeRowNumber,
+	}
+	return &LocationWithUnexpectedStopTimeNotice{
+		BaseNotice: NewBaseNotice("location_with_unexpected_stop_time", ERROR, context),
+	}
+}
+
 // UnusedTripNotice reports a trip with no stop_times rows. It calls nowhere,
 // so no consumer can route with it.
 type UnusedTripNotice struct {

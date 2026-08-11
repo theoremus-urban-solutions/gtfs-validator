@@ -43,11 +43,18 @@ func (v *UsageValidator) Validate(loader *parser.FeedLoader, container *notice.N
 	for _, stop := range stops {
 		// Only stops and platforms are called at; a station is reached
 		// through its children, and entrances and nodes never appear in
-		// stop_times.txt at all.
+		// stop_times.txt at all. A non-stop location that *is* referenced is
+		// the other half of the same canonical validator, and the more
+		// serious half: the reference does not resolve to anything boardable.
 		if stop.LocationType != 0 {
+			if row, referenced := visitedStops[stop.StopID]; referenced {
+				container.AddNotice(notice.NewLocationWithUnexpectedStopTimeNotice(
+					stop.StopID, stop.StopName, stop.RowNumber, row,
+				))
+			}
 			continue
 		}
-		if !visitedStops[stop.StopID] {
+		if _, referenced := visitedStops[stop.StopID]; !referenced {
 			container.AddNotice(notice.NewStopWithoutStopTimeNotice(
 				stop.StopID, stop.StopName, stop.RowNumber,
 			))
@@ -75,10 +82,12 @@ func (v *UsageValidator) Validate(loader *parser.FeedLoader, container *notice.N
 	}
 }
 
-// scanStopTimes returns the set of stops any trip calls at, and the set of
-// trips that have at least one stop time.
-func (v *UsageValidator) scanStopTimes(loader *parser.FeedLoader) (map[string]bool, map[string]bool) {
-	visitedStops := make(map[string]bool)
+// scanStopTimes maps each stop any trip calls at to the first stop_times.txt
+// row that references it, and returns the set of trips that have at least one
+// stop time. The row number is kept because the unexpected-location notice
+// reports the referencing row alongside the stop's own.
+func (v *UsageValidator) scanStopTimes(loader *parser.FeedLoader) (map[string]int, map[string]bool) {
+	visitedStops := make(map[string]int)
 	tripsWithStopTimes := make(map[string]bool)
 
 	reader, err := loader.GetFile("stop_times.txt")
@@ -105,7 +114,9 @@ func (v *UsageValidator) scanStopTimes(loader *parser.FeedLoader) (map[string]bo
 			continue
 		}
 		if stopID := strings.TrimSpace(row.Values["stop_id"]); stopID != "" {
-			visitedStops[stopID] = true
+			if _, seen := visitedStops[stopID]; !seen {
+				visitedStops[stopID] = row.RowNumber
+			}
 		}
 		if tripID := strings.TrimSpace(row.Values["trip_id"]); tripID != "" {
 			tripsWithStopTimes[tripID] = true

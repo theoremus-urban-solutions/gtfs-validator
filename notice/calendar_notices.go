@@ -81,20 +81,25 @@ func NewBigGapInServiceNotice(previousServiceDate string, nextServiceDate string
 	}
 }
 
-// FeedValidBeyondTotalServiceWindowNotice reports a feed_info.txt whose
-// feed_end_date runs more than 14 days past the last date any trip is scheduled
-// on. The feed claims a validity it has no service to back, so a consumer
-// trusting feed_end_date plans against an empty schedule.
+// FeedValidBeyondTotalServiceWindowNotice reports a feed_info.txt validity
+// period that reaches more than 14 days past the dates any trip is actually
+// scheduled on — at either end. The feed claims a validity it has no service to
+// back, so a consumer trusting the declared period plans against an empty
+// schedule.
+//
+// The condition is two-sided, so the payload carries both ends of both spans
+// rather than a single "days beyond" figure: with either side able to trigger
+// the notice, one number no longer says which did.
 type FeedValidBeyondTotalServiceWindowNotice struct {
 	*BaseNotice
 }
 
-func NewFeedValidBeyondTotalServiceWindowNotice(rowNumber int, feedEndDate string, lastServiceDate string, daysBeyond int) *FeedValidBeyondTotalServiceWindowNotice {
+func NewFeedValidBeyondTotalServiceWindowNotice(feedStartDate string, feedEndDate string, serviceWindowStartDate string, serviceWindowEndDate string) *FeedValidBeyondTotalServiceWindowNotice {
 	context := map[string]interface{}{
-		"csvRowNumber":    rowNumber,
-		"feedEndDate":     feedEndDate,
-		"lastServiceDate": lastServiceDate,
-		"daysBeyond":      daysBeyond,
+		"feedStartDate":          feedStartDate,
+		"feedEndDate":            feedEndDate,
+		"serviceWindowStartDate": serviceWindowStartDate,
+		"serviceWindowEndDate":   serviceWindowEndDate,
 	}
 	return &FeedValidBeyondTotalServiceWindowNotice{
 		BaseNotice: NewBaseNotice("feed_valid_beyond_total_service_window", INFO, context),

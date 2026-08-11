@@ -60,7 +60,7 @@ def main():
         else:
             by_file[current].append(line.strip())
 
-    ours = scope_audit.scan_repo()
+    ours, unreachable = scope_audit.scan_repo()
     canon = scope_audit.scrape()
 
     print("# Validator rules")
@@ -103,7 +103,15 @@ def main():
             print("|---|---|---|")
             for code in by_file[path]:
                 severity = ours.get(code, "")
-                mark = "canonical" if code in canon else ""
+                if code in unreachable:
+                    # The validator exists in source but the registry never
+                    # constructs it, so this code cannot fire. Saying so here is
+                    # the point: this document previously advertised exactly
+                    # such a rule as implemented for a full release.
+                    mark = "**not registered — never emitted**"
+                    severity = canon.get(code, "")
+                else:
+                    mark = "canonical" if code in canon else ""
                 print(f"| `{code}` | {severity} | {mark} |")
             print()
 

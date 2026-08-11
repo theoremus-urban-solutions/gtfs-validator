@@ -596,7 +596,7 @@ func (v *DateTripsValidator) validateServiceGaps(container *notice.NoticeContain
 // period is dropped by consumers that honour it, and a declared period reaching
 // far past the last day of service promises coverage that is not there.
 func (v *DateTripsValidator) validateAgainstFeedPeriod(loader *parser.FeedLoader, container *notice.NoticeContainer, calendar ServiceCalendar) {
-	feedStart, feedEnd, rowNumber := v.loadFeedPeriod(loader)
+	feedStart, feedEnd := v.loadFeedPeriod(loader)
 	if feedStart == nil || feedEnd == nil {
 		// A feed_info.txt without dates is reported as missing_feed_info_date.
 		return
@@ -607,13 +607,20 @@ func (v *DateTripsValidator) validateAgainstFeedPeriod(loader *parser.FeedLoader
 	if len(calendar.Dates) == 0 {
 		return
 	}
+	// Both ends count. A period that starts well before the first day of
+	// service overstates coverage exactly as much as one that runs past the
+	// last, and testing only the end silently accepted the former. One notice
+	// covers the period whichever side is at fault.
+	windowStart := calendar.Dates[0]
 	windowEnd := calendar.Dates[len(calendar.Dates)-1]
-	if feedEnd.After(windowEnd.AddDate(0, 0, feedValidityGraceDays)) {
+	startsTooEarly := feedStart.Before(windowStart.AddDate(0, 0, -feedValidityGraceDays))
+	endsTooLate := feedEnd.After(windowEnd.AddDate(0, 0, feedValidityGraceDays))
+	if startsTooEarly || endsTooLate {
 		container.AddNotice(notice.NewFeedValidBeyondTotalServiceWindowNotice(
-			rowNumber,
+			v.formatGTFSDate(*feedStart),
 			v.formatGTFSDate(*feedEnd),
+			v.formatGTFSDate(windowStart),
 			v.formatGTFSDate(windowEnd),
-			int(feedEnd.Sub(windowEnd).Hours()/24),
 		))
 	}
 }
@@ -665,10 +672,10 @@ func daysBetween(from time.Time, to time.Time) int {
 
 // loadFeedPeriod reads the validity period declared by the first row of
 // feed_info.txt. Rows past the first are reported as multiple_feed_info_entries.
-func (v *DateTripsValidator) loadFeedPeriod(loader *parser.FeedLoader) (start *time.Time, end *time.Time, rowNumber int) {
+func (v *DateTripsValidator) loadFeedPeriod(loader *parser.FeedLoader) (start *time.Time, end *time.Time) {
 	reader, err := loader.GetFile("feed_info.txt")
 	if err != nil {
-		return nil, nil, 0
+		return nil, nil
 	}
 	defer func() {
 		if closeErr := reader.Close(); closeErr != nil {
@@ -678,15 +685,14 @@ func (v *DateTripsValidator) loadFeedPeriod(loader *parser.FeedLoader) (start *t
 
 	csvFile, err := parser.NewCSVFile(reader, "feed_info.txt")
 	if err != nil {
-		return nil, nil, 0
+		return nil, nil
 	}
 
 	row, err := csvFile.ReadRow()
 	if err != nil {
-		return nil, nil, 0
+		return nil, nil
 	}
 
 	return v.parseGTFSDate(strings.TrimSpace(row.Values["feed_start_date"])),
-		v.parseGTFSDate(strings.TrimSpace(row.Values["feed_end_date"])),
-		row.RowNumber
+		v.parseGTFSDate(strings.TrimSpace(row.Values["feed_end_date"]))
 }

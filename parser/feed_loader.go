@@ -11,12 +11,21 @@ import (
 
 // FeedLoader loads GTFS feeds from various sources
 type FeedLoader struct {
-	files     map[string]io.ReadCloser // For ZIP files (deprecated approach)
-	filePaths map[string]string        // For directory files
-	zipReader *zip.ReadCloser          // For ZIP files (new approach)
-	zipFiles  map[string]*zip.File     // For ZIP files (new approach)
-	isDir     bool                     // True if loading from directory
-	cache     *ParsedFeedCache         // Optional cache for parsed data (nil = disabled)
+	files            map[string]io.ReadCloser // For ZIP files (deprecated approach)
+	filePaths        map[string]string        // For directory files
+	zipReader        *zip.ReadCloser          // For ZIP files (new approach)
+	zipFiles         map[string]*zip.File     // For ZIP files (new approach)
+	isDir            bool                     // True if loading from directory
+	cache            *ParsedFeedCache         // Optional cache for parsed data (nil = disabled)
+	filesInSubfolder bool                     // GTFS files found below the root
+}
+
+// isArchiveMetadata reports whether a zip entry is packaging noise rather than
+// part of the dataset. Archives zipped on macOS carry a __MACOSX sidecar tree;
+// treating that as "GTFS files in a subfolder" would fail almost every feed
+// produced on a Mac.
+func isArchiveMetadata(name string) bool {
+	return strings.HasPrefix(name, "__MACOSX/") || strings.HasPrefix(filepath.Base(name), "._")
 }
 
 // LoadFromZip loads a GTFS feed from a zip file
@@ -34,15 +43,30 @@ func LoadFromZip(zipPath string) (*FeedLoader, error) {
 		isDir:     false,
 	}
 
-	// Map ZIP files for multiple access
+	// Map ZIP files for multiple access. Only entries at the archive root are
+	// part of the dataset: the spec requires the files to sit directly at the
+	// root, and a subfolder is a packaging error the caller has to fix. This
+	// used to key on filepath.Base, which silently flattened `gtfs/stops.txt`
+	// to `stops.txt` and validated the nested feed as though it were correct —
+	// hiding both the packaging error and the missing-file errors that follow
+	// from it.
 	for _, file := range reader.File {
-		if file.FileInfo().IsDir() {
+		if file.FileInfo().IsDir() || isArchiveMetadata(file.Name) {
 			continue
 		}
 
-		// Only include .txt and .geojson files at root level
-		name := filepath.Base(file.Name)
+		// Zip entry names always use forward slashes, whatever wrote them.
+		name := strings.TrimPrefix(file.Name, "./")
 		if !strings.HasSuffix(name, ".txt") && !strings.HasSuffix(name, ".geojson") {
+			continue
+		}
+
+		if strings.Contains(name, "/") {
+			// A stray text file in a subfolder is not a GTFS packaging error;
+			// only a file the spec knows about is.
+			if isGTFSFilename(filepath.Base(name)) {
+				loader.filesInSubfolder = true
+			}
 			continue
 		}
 
@@ -67,6 +91,18 @@ func LoadFromDirectory(dirPath string) (*FeedLoader, error) {
 
 	for _, entry := range entries {
 		if entry.IsDir() {
+			// Same packaging error as the zip case, reached by unpacking one.
+			// Only the immediate children are examined: the error being
+			// described is "the containing folder was handed over instead of
+			// its contents", which is always exactly one level.
+			if subEntries, err := os.ReadDir(filepath.Join(dirPath, entry.Name())); err == nil {
+				for _, sub := range subEntries {
+					if !sub.IsDir() && isGTFSFilename(sub.Name()) {
+						loader.filesInSubfolder = true
+						break
+					}
+				}
+			}
 			continue
 		}
 
@@ -80,6 +116,27 @@ func LoadFromDirectory(dirPath string) (*FeedLoader, error) {
 	}
 
 	return loader, nil
+}
+
+// HasFilesInSubfolder reports whether GTFS files were found below the root of
+// the archive or directory. Those files are deliberately not loaded, so the
+// feed also reports every required file as missing — which is the same thing
+// the canonical validator does, and the reason the root is treated as empty
+// rather than being quietly substituted with the subfolder's contents.
+func (l *FeedLoader) HasFilesInSubfolder() bool {
+	return l.filesInSubfolder
+}
+
+// isGTFSFilename reports whether a name is a file the GTFS spec defines.
+func isGTFSFilename(name string) bool {
+	for _, group := range [][]string{RequiredFiles, ConditionallyRequiredFiles, OptionalFiles} {
+		for _, known := range group {
+			if name == known {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // GetFile returns a reader for the specified GTFS file
