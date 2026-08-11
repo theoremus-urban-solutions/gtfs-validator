@@ -166,7 +166,16 @@ func (v *FieldTypeValidator) validateField(container *notice.NoticeContainer, fi
 		}
 
 	case typeEnum:
-		if !spec.admits(value) {
+		// An enum is an integer first and a constrained set second, and the two
+		// failures are different findings. A value that is not an integer at all
+		// cannot be out of range — it has no range — so it is reported as a bad
+		// integer, at ERROR, exactly as canonical does. Only a value that parses
+		// and then falls outside the set is an unexpected enum, at WARNING.
+		// Reporting a non-numeric enum as merely unexpected let a feed with
+		// `friday=ZZZ` pass with no errors while canonical rejected it.
+		if _, err := strconv.Atoi(value); err != nil {
+			container.AddNotice(notice.NewInvalidIntegerNotice(filename, row.RowNumber, spec.Name, value))
+		} else if !spec.admits(value) {
 			container.AddNotice(notice.NewUnexpectedEnumValueNotice(filename, row.RowNumber, spec.Name, value))
 		}
 

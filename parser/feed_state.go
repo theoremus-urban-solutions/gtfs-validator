@@ -37,6 +37,11 @@ const (
 	// among the headers, so no row can be referenced.
 	FileStateMissingKeyColumn
 
+	// FileStateInvalidRows means at least one row holds a value that does not
+	// parse as its declared type. The table loaded, but a check that reads it
+	// would be reasoning over a row the feed could not express.
+	FileStateInvalidRows
+
 	// FileStateInvalidKeyValues means at least one row leaves the key blank.
 	// The row cannot be referenced and is excluded from lookups; the blank
 	// itself is reported as a missing required field.
@@ -84,6 +89,8 @@ func (s FileState) Reason() string {
 		return "unparseable"
 	case FileStateMissingKeyColumn:
 		return "missing its key column"
+	case FileStateInvalidRows:
+		return "has rows whose values do not parse"
 	case FileStateInvalidKeyValues:
 		return "has rows with a blank key"
 	default:

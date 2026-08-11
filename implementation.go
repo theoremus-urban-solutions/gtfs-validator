@@ -321,7 +321,6 @@ func (v *internalValidator) validateWithContext(ctx context.Context) (report.Fee
 
 	// Initialize validators
 	v.initializeValidators()
-	v.skipValidatorsWithUnusableFiles()
 
 	// Run validators with context and progress reporting
 	validatorConfig := validator.Config{
@@ -331,19 +330,19 @@ func (v *internalValidator) validateWithContext(ctx context.Context) (report.Fee
 		ParallelWorkers: v.config.ParallelWorkers,
 	}
 
-	totalValidators := len(v.validators)
+	// Two passes. The foundation checks decide which tables actually loaded;
+	// only then can the rest be stood down against that answer. Running them
+	// together would judge a table by a verdict not yet reached.
+	foundation, rest := v.partitionValidators()
+	v.validators = foundation
+	if err := v.runValidators(ctx, validatorConfig, startTime, len(foundation)); err != nil {
+		return feedInfo, err
+	}
+	v.validators = v.skipValidatorsWithUnusableFiles(rest, v.filesWithRowErrors())
 
-	// Use parallel workers if configured
-	if v.config.ParallelWorkers > 1 && totalValidators > 1 {
-		err := v.runValidatorsParallel(ctx, validatorConfig, startTime, totalValidators)
-		if err != nil {
-			return feedInfo, err
-		}
-	} else {
-		err := v.runValidatorsSequential(ctx, validatorConfig, startTime, totalValidators)
-		if err != nil {
-			return feedInfo, err
-		}
+	totalValidators := len(v.validators)
+	if err := v.runValidators(ctx, validatorConfig, startTime, totalValidators); err != nil {
+		return feedInfo, err
 	}
 
 	// Final progress report
@@ -363,21 +362,121 @@ func (v *internalValidator) validateWithContext(ctx context.Context) (report.Fee
 	return feedInfo, nil
 }
 
+// foundationValidators are the checks that establish whether each table loaded:
+// its presence, its header, its columns and the types of its values. They read
+// only the file in front of them, so nothing they report depends on another
+// table having survived, and they must run before anything is stood down.
+var foundationValidators = map[string]bool{
+	"*core.MissingFilesValidator":              true,
+	"*core.EmptyFileValidator":                 true,
+	"*core.UnknownFileValidator":               true,
+	"*core.DuplicateHeaderValidator":           true,
+	"*core.MissingColumnValidator":             true,
+	"*core.RequiredFieldValidator":             true,
+	"*core.FieldFormatValidator":               true,
+	"*core.CoordinateValidator":                true,
+	"*core.DuplicateKeyValidator":              true,
+	"*core.InvalidRowValidator":                true,
+	"*core.FieldTypeValidator":                 true,
+	"*validator.FileStructureValidator":        true,
+	"*core.LeadingTrailingWhitespaceValidator": true,
+}
+
+// partitionValidators splits the registry into the foundation checks and the
+// rest, preserving order within each.
+func (v *internalValidator) partitionValidators() (foundation []validator.Validator, rest []validator.Validator) {
+	for _, validatorImpl := range v.validators {
+		if foundationValidators[fmt.Sprintf("%T", validatorImpl)] {
+			foundation = append(foundation, validatorImpl)
+		} else {
+			rest = append(rest, validatorImpl)
+		}
+	}
+	return foundation, rest
+}
+
+// filesWithRowErrors returns the tables that produced a row-level error while
+// being read.
+//
+// A value that does not parse as its declared type makes the row it sits in
+// unusable, and canonical treats one such row as poisoning the whole table for
+// every check that depends on it — a single `friday=ZZZ` in calendar.txt stops
+// it reporting on the service window at all. Only errors that name a row count:
+// a missing file or a missing column is a fact about the table's shape, handled
+// by the file state, not about a row inside it.
+func (v *internalValidator) filesWithRowErrors() map[string]bool {
+	poisoned := make(map[string]bool)
+	for _, n := range v.noticeContainer.GetNotices() {
+		if !parseErrorCodes[n.Code()] {
+			continue
+		}
+		context := n.Context()
+		if _, hasRow := notice.LineNumber(context); !hasRow {
+			continue
+		}
+		if filename, ok := notice.FileName(n.Code(), context); ok {
+			poisoned[filename] = true
+		}
+	}
+	return poisoned
+}
+
+// parseErrorCodes are the errors that mean a row could not be read as the types
+// it declares. Only these poison a table.
+//
+// The distinction is between a value the feed could not express and a value it
+// expressed and got wrong. `friday=ZZZ` is the first: there is no integer there,
+// so nothing downstream can reason about that service at all. A start_date after
+// its end_date is the second — both dates parsed, the row is legible, and the
+// checks that read it still have something true to say. Treating the second as
+// unreadable silences rules canonical still reports.
+var parseErrorCodes = map[string]bool{
+	"invalid_integer":         true,
+	"invalid_float":           true,
+	"invalid_date":            true,
+	"invalid_time":            true,
+	"invalid_color":           true,
+	"invalid_url":             true,
+	"invalid_email":           true,
+	"invalid_phone_number":    true,
+	"invalid_timezone":        true,
+	"invalid_language_code":   true,
+	"invalid_currency_code":   true,
+	"invalid_currency_amount": true,
+	"missing_required_field":  true,
+	"invalid_row_length":      true,
+}
+
+// runValidators runs whatever is currently registered, in parallel when that is
+// configured and there is enough to spread.
+func (v *internalValidator) runValidators(ctx context.Context, validatorConfig validator.Config, startTime time.Time, total int) error {
+	if total == 0 {
+		return nil
+	}
+	if v.config.ParallelWorkers > 1 && total > 1 {
+		return v.runValidatorsParallel(ctx, validatorConfig, startTime, total)
+	}
+	return v.runValidatorsSequential(ctx, validatorConfig, startTime, total)
+}
+
 // skipValidatorsWithUnusableFiles drops the validators whose source files did
 // not load, recording each one so the report says what was not checked and why.
 //
 // Filtering here rather than inside each run loop keeps the sequential and
 // parallel paths identical, and means the skip is decided once per run rather
 // than re-derived per worker.
-func (v *internalValidator) skipValidatorsWithUnusableFiles() {
-	runnable := v.validators[:0]
-	for _, validatorImpl := range v.validators {
+func (v *internalValidator) skipValidatorsWithUnusableFiles(candidates []validator.Validator, poisoned map[string]bool) []validator.Validator {
+	runnable := candidates[:0]
+	for _, validatorImpl := range candidates {
 		name := fmt.Sprintf("%T", validatorImpl)
 		skipped := false
 		for _, filename := range requiredFiles[name] {
 			state := v.feedLoader.FileState(filename)
-			if !state.LoadFailed() {
+			if !state.LoadFailed() && !poisoned[filename] {
 				continue
+			}
+			if poisoned[filename] && !state.LoadFailed() {
+				state = parser.FileStateInvalidRows
 			}
 			v.noticeContainer.AddNotice(notice.NewValidatorSkippedNotice(
 				strings.TrimPrefix(name, "*"), filename, state.Reason(),
@@ -389,7 +488,7 @@ func (v *internalValidator) skipValidatorsWithUnusableFiles() {
 			runnable = append(runnable, validatorImpl)
 		}
 	}
-	v.validators = runnable
+	return runnable
 }
 
 // runValidatorsSequential runs validators one after another (thread-safe).
@@ -641,6 +740,9 @@ func (v *internalValidator) extractServiceDates(feedInfo *report.FeedInfo) {
 // detail, or that has something useful to say about the file itself, must keep
 // running — the point is to suppress restatement, not coverage.
 var requiredFiles = map[string][]string{
+	"*business.DateTripsValidator":             {"calendar.txt", "trips.txt"},
+	"*entity.ServiceValidationValidator":       {"calendar.txt"},
+	"*business.TripUsabilityValidator":         {"trips.txt", "stop_times.txt"},
 	"*relationship.RouteConsistencyValidator":  {"routes.txt", "trips.txt"},
 	"*relationship.UsageValidator":             {"stops.txt", "trips.txt"},
 	"*entity.ZoneValidator":                    {"stops.txt"},

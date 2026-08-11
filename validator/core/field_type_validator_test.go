@@ -36,15 +36,15 @@ func TestFieldTypeValidator_Validate(t *testing.T) {
 				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon,location_type\n1,Main St,34.05,-118.25,5",
 			},
 			expectedNoticeCodes: []string{"unexpected_enum_value"},
-			description:         "location_type only runs 0-4",
+			description:         "location_type only runs 0-4; 5 parses as an integer and is simply not one of them",
 		},
 		{
 			name: "non-numeric enum value",
 			files: map[string]string{
 				"stops.txt": "stop_id,stop_name,stop_lat,stop_lon,location_type\n1,Main St,34.05,-118.25,platform",
 			},
-			expectedNoticeCodes: []string{"unexpected_enum_value"},
-			description:         "The old per-field checks parsed first and so reported nothing here",
+			expectedNoticeCodes: []string{"invalid_integer"},
+			description:         "An enum is an integer first: a non-numeric value has no range to be outside of, so it is a bad integer rather than an unexpected enum",
 		},
 		{
 			name: "several bad enums in one row",
