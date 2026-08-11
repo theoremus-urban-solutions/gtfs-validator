@@ -80,15 +80,27 @@ checks that depend on a table stand down when it did not load, emitting an INFO
 
 Measured on a 177-stop feed:
 
-| fixture | before | after | canonical |
+| fixture | before | after | canonical v8.0.1 |
 |---|---|---|---|
-| `stops.txt` emptied | 4,044 errors | **1** | 1 |
+| `stops.txt` zero bytes | 4,044 errors | **1** | 1 |
 | `stop_id` column removed | 4,221 errors | **1** | 1 |
 | one blank `stop_id` | 52 errors | **1** | 1 |
+| `stops.txt` header only, no rows | 4,044 errors | **1** | **4,043** |
 
 A single bad row does not silence a whole check — only a table that produced no
 usable rows does. The six real feeds in the parity corpus are unaffected: this
 only changes what a broken feed reports.
+
+**Known divergence, unresolved.** The last row is a real disagreement with
+canonical, not a rounding of it. Canonical distinguishes a zero-byte file (which
+it reports as `empty_file` and which stands its dependants down) from a file with
+a valid header and no data rows (which it loads as a legitimately empty table and
+does not suppress at all, emitting the full reference cascade). This
+implementation treats both as empty. It also raises `empty_file` on the
+header-only case, which canonical does not. Verified by running v8.0.1 on both
+variants. Resolving this is a judgement call between matching canonical and not
+reporting four thousand errors for one defect, and it is deliberately left open
+rather than settled silently here.
 
 ### Fixed
 
