@@ -51,6 +51,16 @@ var knownGTFSFiles = map[string]bool{
 	"locations.geojson":        true,
 }
 
+// IsKnownGTFSTable reports whether a filename names a GTFS table that is read
+// as rows and columns.
+//
+// locations.geojson is a known GTFS file but not such a table, so it is
+// excluded: asking a CSV reader about it would call a well-formed feed
+// unparseable.
+func IsKnownGTFSTable(filename string) bool {
+	return knownGTFSFiles[filename] && strings.HasSuffix(filename, ".txt")
+}
+
 // Validate checks for unknown files in the GTFS feed
 func (v *UnknownFileValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
 	files := loader.ListFiles()

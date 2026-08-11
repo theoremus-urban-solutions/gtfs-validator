@@ -74,9 +74,14 @@ func (v *MissingFilesValidator) validateConditionalFiles(loader *parser.FeedLoad
 
 // validateRecommendedFiles checks for files the spec recommends.
 //
-// feed_info.txt is the only one: it carries the feed's language, version and
-// validity range, none of which any other file states. When translations.txt
-// makes it outright required, validateConditionalFiles has already said so.
+// feed_info.txt is the only one this check owns: it carries the feed's
+// language, version and validity range, none of which any other file states.
+// When translations.txt makes it outright required, validateConditionalFiles
+// has already said so.
+//
+// shapes.txt is recommended too, but reporting it belongs to
+// MissingShapesFileValidator: canonical only asks that question of a feed
+// whose tables all loaded, and this check runs before that is known.
 func (v *MissingFilesValidator) validateRecommendedFiles(loader *parser.FeedLoader, container *notice.NoticeContainer) {
 	if loader.HasFile("feed_info.txt") || loader.HasFile("translations.txt") {
 		return

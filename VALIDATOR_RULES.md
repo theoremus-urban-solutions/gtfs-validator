@@ -117,6 +117,14 @@ MissingFilesValidator validates presence of required and conditional files
 | `missing_recommended_file` | WARNING | canonical |
 | `missing_required_file` | ERROR | canonical |
 
+### `missing_shapes_file_validator.go`
+
+MissingShapesFileValidator reports a feed that draws no trip geometry.
+
+| code | severity | |
+|---|---|---|
+| `missing_recommended_file` | WARNING | canonical |
+
 ### `required_field_validator.go`
 
 RequiredFieldValidator validates required fields in GTFS files

@@ -459,6 +459,73 @@ func (v *internalValidator) runValidators(ctx context.Context, validatorConfig v
 	return v.runValidatorsSequential(ctx, validatorConfig, startTime, total)
 }
 
+// wholeFeedValidators are the checks that stand down unless every table in the
+// feed loaded, rather than only the tables they read.
+//
+// Canonical hands these the feed as a whole instead of a named table, and its
+// loader skips any check whose injected dependency failed to parse. The effect
+// is that one unreadable table silences them even though they never look at it:
+// a feed whose agency.txt holds a malformed phone number is not also told that
+// it has no shapes. Listing a validator here reproduces that reach.
+var wholeFeedValidators = map[string]bool{
+	"*core.MissingShapesFileValidator": true,
+}
+
+// specRequiredFiles are the tables whose absence stops the feed loading as a
+// dataset at all.
+//
+// A missing optional table is not a load failure — there was simply nothing to
+// read — so only these four count. stops.txt is deliberately absent from the
+// list: it became conditionally required when locations.geojson arrived, and
+// canonical goes on validating a feed without it.
+var specRequiredFiles = map[string]bool{
+	"agency.txt":     true,
+	"routes.txt":     true,
+	"trips.txt":      true,
+	"stop_times.txt": true,
+}
+
+// firstUnloadableTable returns the first table that did not load, so a check
+// that depends on the feed as a whole can name the file that stood it down.
+//
+// Files the archive does not contain are judged by whether the spec requires
+// them; files it does contain are judged by whether they parsed. Anything that
+// is not a GTFS table is skipped: an unknown file is reported as unknown and
+// never becomes a table, so it cannot fail to load.
+func (v *internalValidator) firstUnloadableTable(poisoned map[string]bool) (string, parser.FileState, bool) {
+	for _, filename := range sortedKeys(specRequiredFiles) {
+		if v.feedLoader.FileState(filename) == parser.FileStateMissing {
+			return filename, parser.FileStateMissing, true
+		}
+	}
+
+	present := append([]string(nil), v.feedLoader.ListFiles()...)
+	sort.Strings(present)
+	for _, filename := range present {
+		if !core.IsKnownGTFSTable(filename) {
+			continue
+		}
+		state := v.feedLoader.FileState(filename)
+		if state.LoadFailed() {
+			return filename, state, true
+		}
+		if poisoned[filename] {
+			return filename, parser.FileStateInvalidRows, true
+		}
+	}
+	return "", parser.FileStateParsed, false
+}
+
+// sortedKeys keeps the file the skip record names stable from run to run.
+func sortedKeys(set map[string]bool) []string {
+	keys := make([]string, 0, len(set))
+	for key := range set {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
 // skipValidatorsWithUnusableFiles drops the validators whose source files did
 // not load, recording each one so the report says what was not checked and why.
 //
@@ -470,6 +537,16 @@ func (v *internalValidator) skipValidatorsWithUnusableFiles(candidates []validat
 	for _, validatorImpl := range candidates {
 		name := fmt.Sprintf("%T", validatorImpl)
 		skipped := false
+
+		if wholeFeedValidators[name] {
+			if filename, state, failed := v.firstUnloadableTable(poisoned); failed {
+				v.noticeContainer.AddNotice(notice.NewValidatorSkippedNotice(
+					strings.TrimPrefix(name, "*"), filename, state.Reason(),
+				))
+				continue
+			}
+		}
+
 		for _, filename := range requiredFiles[name] {
 			state := v.feedLoader.FileState(filename)
 			if !state.LoadFailed() && !poisoned[filename] {
@@ -774,6 +851,10 @@ func (v *internalValidator) initializeValidators() {
 		// Registered here rather than in the core package because it lives in
 		// the validator package itself.
 		validator.NewFileStructureValidator(),
+		// Not a foundation check despite reading only files: it speaks for the
+		// feed as a whole, so it waits until the foundation says every table
+		// loaded. See wholeFeedValidators.
+		core.NewMissingShapesFileValidator(),
 
 		// Entity: properties and constraints of a single record.
 		entity.NewAgencyConsistencyValidator(),
