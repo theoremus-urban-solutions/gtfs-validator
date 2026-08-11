@@ -7,15 +7,15 @@ detailed reports on errors, warnings, and informational notices. It supports bot
 ZIP files and directories containing GTFS data.
 
 Features:
-  - Comprehensive validation with 294+ rules across 57 validators
-  - Multiple validation modes (performance, default, comprehensive)
+  - 179 validation rules across 54 validators, all of which always run
+  - Full parity with the 135 applicable Canonical GTFS Schedule Validator rules
   - Thread-safe concurrent processing with memory pools
   - Context-based cancellation support
   - Progress reporting with structured logging
   - Configurable notice limits and memory management
   - Streaming CSV processing for massive feeds (2-4M rows/sec)
   - Memory-efficient processing with constant memory usage
-  - Enhanced error descriptions with 180+ comprehensive, user-friendly descriptions
+  - Enhanced error descriptions for every notice code
 
 Basic Usage:
 
@@ -39,7 +39,6 @@ Advanced Usage with Options:
 	// Create a validator with custom configuration
 	validator := gtfsvalidator.New(
 		gtfsvalidator.WithCountryCode("UK"),
-		gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),
 		gtfsvalidator.WithMaxNoticesPerType(50),
 		gtfsvalidator.WithProgressCallback(func(info gtfsvalidator.ProgressInfo) {
 			fmt.Printf("Progress: %.1f%% - %s\n",
@@ -54,13 +53,18 @@ Advanced Usage with Options:
 
 	report, err := validator.ValidateFileWithContext(ctx, "large-feed.zip")
 
-Validation Modes:
+Validation Scope:
 
-The library supports three validation modes:
+Every check the library implements runs on every feed. There is no mode or
+preset that selects a subset: a Sofia feed of 685k stop times validates in
+about 9.5s with all 54 validators running, and a caller cannot tell in advance
+which of the rules a preset drops would have been the one that mattered.
 
-  - Performance: Runs only essential validators for fast validation (10-15s for large feeds)
-  - Default: Runs standard validators excluding expensive ones (30-120s)
-  - Comprehensive: Runs all validators including geospatial analysis (2+ minutes)
+Checks that read a table stand down when that table did not load — absent,
+empty, unparseable, or missing the ids other files join it on — and record why.
+This keeps one defect from being restated once per row that references it: an
+emptied stops.txt reports one empty file rather than four thousand dangling
+references.
 
 Thread Safety:
 
@@ -69,11 +73,10 @@ operation is independent and does not affect other concurrent validations.
 
 Memory Management:
 
-For large feeds, use the performance mode and set memory limits. The streaming
+For large feeds, set memory limits and tune the worker count. The streaming
 CSV parser automatically handles feeds with millions of records:
 
 	validator := gtfsvalidator.New(
-		gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),
 		gtfsvalidator.WithMaxMemory(512 * 1024 * 1024), // 512MB limit
 		gtfsvalidator.WithParallelWorkers(4), // Optimize for your CPU cores
 	)

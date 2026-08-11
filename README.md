@@ -2,20 +2,26 @@
 
 [![Go Version](https://img.shields.io/badge/go-1.21+-blue.svg)](https://golang.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Validation Rules](https://img.shields.io/badge/Validation%20Rules-176-brightgreen.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
-[![Canonical Parity](https://img.shields.io/badge/Canonical%20Parity-133%2F133-brightgreen.svg)](CANONICAL_PARITY.md)
+[![Validation Rules](https://img.shields.io/badge/Validation%20Rules-179-brightgreen.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
+[![Canonical Parity](https://img.shields.io/badge/Canonical%20Parity-135%2F135-brightgreen.svg)](CANONICAL_PARITY.md)
 [![Test Coverage](https://img.shields.io/badge/Test%20Coverage-100%25-brightgreen.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
-[![Performance](https://img.shields.io/badge/Performance-5s%20for%20588k%20stops-orange.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
+[![Performance](https://img.shields.io/badge/Performance-9s%20for%20685k%20stop%20times-orange.svg)](https://github.com/theoremus-urban-solutions/gtfs-validator)
 
-A fast, comprehensive GTFS (General Transit Feed Specification) validator library for Go. 176 validation rules: every applicable rule from the Canonical GTFS Schedule Validator, plus business-logic checks that matter to downstream consumers such as OpenTripPlanner.
+A fast, comprehensive GTFS (General Transit Feed Specification) validator library for Go. 179 validation rules: every applicable rule from the Canonical GTFS Schedule Validator, plus business-logic checks that matter to downstream consumers such as OpenTripPlanner.
 
-> **📊 Scope**: 176 rules. **All 133 applicable rules from the
+> **📊 Scope**: 179 rules. **All 135 applicable rules from the
 > [Canonical GTFS Schedule Validator](https://gtfs-validator.mobilitydata.org/rules.html)
-> are implemented**, at the severity it gives them. The 48 canonical rules not
-> implemented are GTFS-Flex, GTFS-Fares v2, deprecated upstream, or artefacts of
-> that validator's own execution model rather than feed defects.
+> are implemented and registered**, at the severity it gives them. The 46
+> canonical rules not implemented are GTFS-Flex, GTFS-Fares v2, deprecated
+> upstream, or artefacts of that validator's own execution model rather than
+> feed defects.
 >
-> The other 43 rules are ours, covering failure modes the canonical set does not
+> The count is checked by `scripts/scope_audit.py`, which fails if a validator
+> exists in source but is never constructed. That check is new because its
+> absence let three canonical rules — two of them ERROR — be advertised as
+> implemented while emitting nothing.
+>
+> The other 44 rules are ours, covering failure modes the canonical set does not
 > model — several of which break OpenTripPlanner graph builds. None of them is
 > ERROR: a code MobilityData does not define is our opinion, and an opinion
 > should not fail your feed. See [CANONICAL_PARITY.md](CANONICAL_PARITY.md) and
@@ -24,8 +30,8 @@ A fast, comprehensive GTFS (General Transit Feed Specification) validator librar
 ## Features
 
 - **🚀 Fast Validation**: Optimized for large feeds with parallel processing and memory pools
-- **📋 Comprehensive**: 176 validation rules across 50 validators, in full parity with the canonical validator
-- **🔧 Multiple Modes**: Performance, default, and comprehensive validation modes
+- **📋 Comprehensive**: 179 validation rules across 54 validators, in full parity with the canonical validator
+- **🔧 No Modes**: every check runs on every feed — there is no preset that quietly drops rules
 - **⚡ Concurrent**: Thread-safe with configurable worker pools
 - **⏰ Context Support**: Cancellation, timeouts, and progress reporting
 - **💾 Memory Efficient**: Memory pooling and streaming CSV parser for large feeds
@@ -73,20 +79,24 @@ gtfs-validator -i feed.zip
 # Validate with subcommand
 gtfs-validator validate feed.zip
 
-# Fast mode with JSON output  
-gtfs-validator -i feed.zip -m performance -f json
+# JSON output
+gtfs-validator -i feed.zip -f json
 
 # With progress and output file
-gtfs-validator validate feed.zip --mode performance --progress -o report.json
+gtfs-validator validate feed.zip --progress -o report.json
 ```
 
-## Validation Modes
+## No validation modes
 
-| Mode | Speed | Use Case | Validators |
-|------|-------|----------|------------|
-| **Performance** | 10-15s | Production, CI/CD | Essential validations |
-| **Default** | 30-120s | Development, testing | Standard validators |
-| **Comprehensive** | 2+ minutes | Deep analysis | All validators + geospatial |
+Every check runs on every feed. There is no performance, default or
+comprehensive preset, and no option to select a subset.
+
+The presets existed on the assumption that full validation was too slow to
+always run. Measurement did not support it: the former comprehensive set is
+about 1.15x the former default on the largest feed available here, which is a
+Sofia feed of 685k stop times validated in **9.5s**. What the presets did buy
+was silence — performance mode ran 24 of the 54 validators, so a feed could pass
+having never been checked against 30 rules the tool implements.
 
 ## Advanced Usage
 
@@ -94,7 +104,6 @@ gtfs-validator validate feed.zip --mode performance --progress -o report.json
 
 ```go
 validator := gtfsvalidator.New(
-    gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),
     gtfsvalidator.WithCountryCode("UK"),
     gtfsvalidator.WithMaxNoticesPerType(50),
     gtfsvalidator.WithParallelWorkers(8),
@@ -139,9 +148,7 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}()
     
-    validator := gtfsvalidator.New(
-        gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),
-    )
+    validator := gtfsvalidator.New()
     
     report, err := validator.ValidateReader(file)
     if err != nil {
@@ -170,7 +177,6 @@ gtfs-validator help                        # Show help
 | Flag | Short | Description | Default |
 |------|-------|-------------|---------|
 | `--input` | `-i` | Path to GTFS feed (ZIP or directory) | *required* |
-| `--mode` | `-m` | Validation mode: `performance`, `default`, `comprehensive` | `default` |
 | `--format` | `-f` | Output format: `console`, `json`, `summary` | `console` |
 | `--output` | `-o` | Output file path | `stdout` |
 | `--country` | `-c` | Country code for validation | `US` |
@@ -187,7 +193,7 @@ gtfs-validator help                        # Show help
 gtfs-validator -i feed.zip
 
 # Subcommand with long flags
-gtfs-validator validate feed.zip --mode performance --progress
+gtfs-validator validate feed.zip --progress
 
 # JSON output to file
 gtfs-validator -i feed.zip -f json -o validation-report.json
@@ -310,18 +316,22 @@ See the [examples/](examples/) directory:
 ## Performance & Reliability
 
 ### **Real-World Performance**
-Tested on Sofia GTFS feed (180 routes, 588k stop times, 607k shapes):
-- **Performance mode**: 5-6 seconds ⚡
-- **Comprehensive mode**: 2+ minutes for deep analysis
-- **Memory usage**: ~200MB peak (efficient with memory pooling)
+Measured on a Sofia GTFS feed (198 routes, 30k trips, 685k stop times), every
+validator running:
+- **Wall time**: ~9.5s
+- **Peak memory**: ~1.2GB
 - **Streaming CSV**: 2-4M rows/sec sustained throughput
 - **Parallel processing**: Scales with CPU cores
 - **Context cancellation**: Sub-second response time
 
+A 5.7MB railway feed validates in ~2.6s at ~660MB peak. Allocation volume is
+high relative to feed size and is the open performance question; wall time is
+not currently a constraint.
+
 ### **Production Ready**
 - ✅ **Zero false positives** - Fixed GTFS time validation for late-night service (25:30:00+)
-- ✅ **Sofia GTFS validation**: 0 errors, 257 warnings (Google-validated feed)
-- ✅ **Comprehensive test suite**: All 57 validators have complete test coverage
+- ✅ **Sofia GTFS validation**: 0 errors (Google-validated feed)
+- ✅ **Registry-checked scope**: the parity audit fails if a validator is in source but never constructed
 - ✅ **Thread-safe**: Concurrent validation with configurable worker pools
 - ✅ **Memory optimized**: Memory pools reduce garbage collection overhead
 - ✅ **Streaming processing**: Handle feeds with millions of records without OOM

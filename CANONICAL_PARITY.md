@@ -12,12 +12,35 @@ and prints the reconciliation.
 |---|---|
 | Canonical rules published | 181 |
 | — less deprecated upstream | 4 |
-| — less GTFS-Flex / GeoJSON | 27 |
+| — less GTFS-Flex / GeoJSON | 26 |
 | — less GTFS-Fares v2 | 11 |
-| — less declined runtime notices | 6 |
-| **In scope** | **133** |
-| **Implemented** | **133** |
+| — less declined runtime notices | 5 |
+| **In scope** | **135** |
+| **Implemented and registered** | **135** |
 | Severity disagreements with canonical | 0 |
+
+`scope_audit.py` exits non-zero if any rule disagrees on severity, or if a
+validator exists in source but the registry never constructs it. The second
+check is why "implemented" now reads "implemented and registered": the earlier
+count of 133/133 was wrong in three places, and two of them were ERRORs that
+made this validator pass feeds MobilityData rejects.
+
+- `location_with_unexpected_stop_time` (ERROR) was excluded by a
+  name-matching rule that mistook it for GTFS-Flex. It is core GTFS, emitted by
+  the same canonical validator as `stop_without_stop_time`, which was already
+  implemented — half a validator had shipped and the other half was filed as an
+  extension. A station referenced by `stop_times.stop_id` was 1 ERROR in
+  canonical and 0 here.
+- `invalid_input_files_in_subfolder` (ERROR) was filed as a Java execution
+  artefact. It is a packaging defect in the feed. Worse, the loader flattened
+  nested paths, so a zip with its files in a subfolder was validated as though
+  correctly packaged: 7 ERRORs in canonical, 0 here.
+- `leading_or_trailing_whitespaces` (WARNING) was counted as implemented
+  because its source file existed. Its validator was commented out of the
+  registry with the note "PROBLEMATIC: Hangs with large datasets (Sofia)". It
+  does not hang: re-enabled, Sofia validates in 9.5s, and a synthetic feed with
+  684,740 whitespace defects completes in 9.2s. The audit now reads the registry
+  so source presence can no longer be mistaken for reachability.
 
 Scope is set by two criteria, in priority order: the canonical rules minus the
 extensions we do not consume, and cheap extras that OpenTripPlanner acts on.
@@ -34,10 +57,10 @@ are our own.
 
 | group | count | reason |
 |---|---|---|
-| GTFS-Flex / GeoJSON | 27 | extension, unused by the feeds we validate |
+| GTFS-Flex / GeoJSON | 26 | extension, unused by the feeds we validate |
 | GTFS-Fares v2 | 11 | extension, unused |
 | Deprecated upstream | 4 | withdrawn from the canonical rule set |
-| Runtime / infrastructure | 6 | `i_o_error`, `thread_execution_error`, `runtime_exception_in_loader_error`, `u_r_i_syntax_error`, `too_many_rows`, `invalid_input_files_in_subfolder` — artefacts of the Java implementation's execution model, not feed defects |
+| Runtime / infrastructure | 5 | `i_o_error`, `thread_execution_error`, `runtime_exception_in_loader_error`, `u_r_i_syntax_error`, `too_many_rows` — artefacts of the Java implementation's execution model, not feed defects |
 
 One rule is carved out of that last group: `runtime_exception_in_validator_error`.
 We already implement exactly that failure mode — both validator loops wrap each

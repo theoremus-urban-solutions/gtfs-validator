@@ -255,11 +255,16 @@ hang them on. Cheap relative to what those validators already do.
 `pathway_to_stop_with_access_outside_of_station_pathways`,
 `bidirectional_exit_gate`, plus `missing_level_id`.
 
-### Tier 5 — geometric, defer or gate behind a flag (11)
+### Tier 5 — geometric (11)
 
 Correct and canonical, but each needs shape interpolation or a spatial index
-over the whole feed. These are the ones that justify the existing
-performance/comprehensive mode split.
+over the whole feed. This tier was the argument for the performance/
+comprehensive mode split.
+
+**Superseded.** The modes were removed and all of these now always run. The
+cost the split was defending turned out not to exist: running the full set is
+about 1.15x the old default on the largest feed to hand, not the 2x to 20x the
+docs asserted. See `BENCHMARKS.md`.
 
 `stop_too_far_from_shape`, `stop_too_far_from_shape_using_user_distance`,
 `stops_match_shape_out_of_order`, `stop_has_too_many_matches_for_shape`,
@@ -301,7 +306,7 @@ nothing to add and nothing to skip.
 |---|---|---|
 | GTFS-Flex / GeoJSON | 27 | extension, unused (incl. `missing_pickup_or_drop_off_window`) |
 | GTFS-Fares v2 | 11 | extension, unused |
-| Runtime/infrastructure | 6 | `i_o_error`, `thread_execution_error`, `runtime_exception_in_loader_error`, `u_r_i_syntax_error`, `too_many_rows`, `invalid_input_files_in_subfolder` — artefacts of the Java implementation's execution model, not feed defects. |
+| Runtime/infrastructure | 5 | `i_o_error`, `thread_execution_error`, `runtime_exception_in_loader_error`, `u_r_i_syntax_error`, `too_many_rows` — artefacts of the Java implementation's execution model, not feed defects. `invalid_input_files_in_subfolder` was listed here and should not have been: a zip whose files sit below the root is a defect in the feed's packaging, and it is now implemented. |
 
 **One exception, carved out of that group:
 `runtime_exception_in_validator_error`.** We already implement exactly this
@@ -436,7 +441,7 @@ the gap legible. Not required for the rename — noting it as follow-up.
 5. **Tier 3 + Tier 4**.
 6. **1e** — remap the service/expiry cluster once `expired_calendar` and
    `future_calendar` exist to remap onto.
-7. **Tier 5** behind the existing comprehensive-mode flag; **Tier 6** last.
+7. **Tier 5** — done, and unconditional: there is no longer a mode flag to gate it behind. **Tier 6** last.
 
 Steps 1, 2 and 4 are breaking changes to emitted codes and should land together
 in one release with a mapping table in `CHANGELOG.md`.

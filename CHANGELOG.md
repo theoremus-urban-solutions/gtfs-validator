@@ -16,18 +16,19 @@ moved. Anything keying on specific codes needs the mapping tables below.
 
 | | before | after |
 |---|---|---|
-| Codes emitted | 201 | 176 |
-| — canonical | 40 | **133 (all of them)** |
-| — our own | 161 | 43 |
+| Codes emitted | 201 | 179 |
+| — canonical | 40 | **135 (all of them)** |
+| — our own | 161 | 44 |
 | Codes that are ERROR but not canonical | 86 | **0** |
 | Severities disagreeing with canonical | 8 | **0** |
-| Registered validators | 58 | 50 |
+| Registered validators | 58 | 54 |
 
 Three things drive the change:
 
-- **Every in-scope canonical rule is now implemented.** In scope means the 181
-  published rules less 4 deprecated upstream, 27 GTFS-Flex, 11 GTFS-Fares v2 and
-  6 that are artefacts of the canonical validator's own execution model.
+- **Every in-scope canonical rule is now implemented and registered.** In scope
+  means the 181 published rules less 4 deprecated upstream, 26 GTFS-Flex, 11
+  GTFS-Fares v2 and 5 that are artefacts of the canonical validator's own
+  execution model. "Registered" is load-bearing — see below.
 - **Only canonical rules may be ERROR.** A code MobilityData does not define is
   our opinion, and an opinion should not fail someone's feed. 86 of our own
   codes were ERROR; a feed could fail on checks nobody else recognises.
@@ -42,10 +43,109 @@ Three things drive the change:
 `docs/validation-scope/VALIDATION_SCOPE_PROPOSAL.md` is the full argument, and
 `VALIDATOR_RULES.md` lists every code by validator.
 
+### Removed — validation modes and the parsed-feed cache (breaking)
+
+`WithValidationMode`, the `ValidationMode` type and its three constants,
+`Config.ValidationMode`, `WithCaching`, `Config.EnableCaching` and the CLI's
+`--mode`/`-m` flag are all gone. There is no replacement knob. Every registered
+validator runs on every feed.
+
+**Modes.** The presets were defended by a cost that measurement does not
+support: the comprehensive set is about 1.15x the old default on the largest
+feed available (Sofia, 685k stop times, 8.59s to 9.86s), not the "2+ minutes"
+the README claimed or the "5-30 minutes" in `BENCHMARKS.md`. Neither figure was
+ever a measurement. What the split did buy was silence — performance mode ran 24
+of the 54 validators, so a feed could pass having never been checked against 30
+rules this tool implements. Callers on performance mode gain those 30 checks and
+should expect new findings.
+
+**The cache.** It was consulted by 3 of the ~50 validators; 26 validator files
+read `stop_times.txt` directly and bypassed it. It saved a constant 3.98 GB of
+allocation (2.5-3.4%) regardless of how much validation ran, with no wall-time
+or peak-RSS benefit. Its three cached paths were also worse than the direct ones
+they shadowed: they could not carry a row number, so row-bearing notices
+reported row 0; they skipped the trimming and row-validity filters the direct
+path applies, so a row with an unparseable stop sequence sorted to the front and
+was treated as the trip's first stop; and the cached foreign-key path skipped a
+check entirely when a defining file was missing. All three validators now use
+their direct path.
+
+### Added — cascade suppression
+
+A defect in one table no longer restates itself once per row that references it.
+The loader classifies each file it is joined on — parsed, missing, empty,
+unparseable, missing its key column, or carrying rows with a blank key — and
+checks that depend on a table stand down when it did not load, emitting an INFO
+`validator_skipped` naming the check, the file and the reason.
+
+Measured on a 177-stop feed:
+
+| fixture | before | after | canonical |
+|---|---|---|---|
+| `stops.txt` emptied | 4,044 errors | **1** | 1 |
+| `stop_id` column removed | 4,221 errors | **1** | 1 |
+| one blank `stop_id` | 52 errors | **1** | 1 |
+
+A single bad row does not silence a whole check — only a table that produced no
+usable rows does. The six real feeds in the parity corpus are unaffected: this
+only changes what a broken feed reports.
+
 ### Fixed
 
+- **Three canonical rules were counted as implemented while emitting nothing**,
+  two of them ERROR, so this validator passed feeds MobilityData rejects.
+  `scripts/scope_audit.py` excluded rules by matching their names and confirmed
+  implementation by scanning source files without consulting the registry. It
+  now reads the registry and exits non-zero when a validator exists in source
+  but is never constructed.
+  - `location_with_unexpected_stop_time` (ERROR) — a station referenced by
+    `stop_times.stop_id` was 1 error in canonical and 0 here. It had been filed
+    as GTFS-Flex; it is core GTFS, emitted by the same canonical validator as
+    `stop_without_stop_time`, which was already implemented.
+  - `invalid_input_files_in_subfolder` (ERROR) — a zip with its files in a
+    subfolder was 7 errors in canonical and 0 here. `LoadFromZip` keyed on
+    `filepath.Base`, silently flattening `gtfs/stops.txt` to `stops.txt` and
+    validating the nested feed as though correctly packaged, which suppressed
+    both the packaging error and the missing-file errors that follow from it.
+    Only root-level entries are loaded now.
+  - `leading_or_trailing_whitespaces` (WARNING) — commented out of the registry
+    as "PROBLEMATIC: Hangs with large datasets (Sofia)". It does not hang. Sofia
+    validates in 9.5s with it enabled, and a synthetic feed carrying 684,740
+    whitespace defects completes in 9.2s. The read loop did have a real latent
+    spin — it continued rather than stopped on a non-parse read error, which is
+    returned again forever without consuming input — and that is fixed.
+- `missing_trip_edge` required *both* `arrival_time` and `departure_time` to be
+  absent before reporting. Canonical tests each field on its own and emits one
+  notice per missing field per edge, so the most common form of the defect — a
+  terminus with an arrival but no departure — was silently accepted. The payload
+  now carries `stopSequence` and `specifiedField` as canonical does, and the
+  first/last notice constructors are replaced by a single `MissingTripEdgeNotice`.
+- `feed_valid_beyond_total_service_window` tested only whether the declared feed
+  end ran past the service window. The condition is two-sided; a period starting
+  well before the first day of service overstates coverage just as much. The
+  payload is now canonical's four dates (`feedStartDate`, `feedEndDate`,
+  `serviceWindowStartDate`, `serviceWindowEndDate`) instead of a single "days
+  beyond", which is ambiguous once either side can trigger it.
+- Shape geometry differed from canonical in four ways, all fixed: rail first and
+  last stops now get four times the base 100 m tolerance (a platform sits
+  alongside the track, and at a terminus the shape stops at the buffer);
+  out-of-order pairs are reported once per trip rather than once per pair, the
+  later ones being downstream of the same disagreement; notices are emitted once
+  per shape-and-pattern rather than once per trip, and stop-distance notices once
+  per shape-and-stop, so a shape served by fifty trips no longer multiplies one
+  misplaced stop by fifty; and the two stop ids in the
+  `stops_match_shape_out_of_order` payload were in the opposite order from
+  canonical. On a railway feed this moved `stop_too_far_from_shape` from 45 to
+  35 and `stops_match_shape_out_of_order` from 21 to 20, both matching canonical.
+- `missing_required_field` was reported for every row of a file whose column was
+  absent entirely, on top of the single `missing_required_column` that explains
+  it. Removing `stop_id` from a 177-row `stops.txt` produced 177 redundant
+  errors.
+
 - `WithCaching(true)` returned different results from the same feed than
-  `WithCaching(false)`, in both directions. The parsed-feed cache recorded a
+  `WithCaching(false)`, in both directions. (Superseded within this release: the
+  cache is removed outright, so this fix survives only as the reason not to
+  reintroduce one.) The parsed-feed cache recorded a
   file as loaded without keeping what it had parsed whenever an index was the
   first thing asked for, so whichever accessor a validator reached for first
   decided whether the cache held the feed or was permanently empty — with
@@ -93,13 +193,32 @@ Three things drive the change:
 
 ### Performance
 
-- Shape-matching checks (`stop_too_far_from_shape` and the rest of the
-  geometric set) run only in comprehensive mode, behind `EnableShapeGeometry`.
 - Removed the whole-feed graph build in `network_topology_validator`, the most
   expensive validator in the suite, along with two redundant passes over
   `shapes.txt` and several duplicated passes over `stop_times.txt`.
+- Shape-matching checks were briefly gated behind comprehensive mode. That
+  gating is gone with the modes; see "Removed" below.
 
 ### Migration
+
+#### Options removed
+
+| before | after |
+|---|---|
+| `WithValidationMode(ValidationModePerformance)` | delete the option; 30 more validators now run |
+| `WithValidationMode(ValidationModeDefault)` | delete the option; 3 more validators now run |
+| `WithValidationMode(ValidationModeComprehensive)` | delete the option; no behaviour change |
+| `WithCaching(true)` / `WithCaching(false)` | delete the option |
+| CLI `--mode` / `-m` | delete the flag |
+
+`Config.ValidationMode` and `Config.EnableCaching` are gone from the struct, so
+code constructing `Config` literally will not compile until those fields are
+removed.
+
+Callers that gate on the error count should revalidate their feeds against this
+build before deploying it. Two new ERROR rules and the corrected `missing_trip_edge`
+condition can fail a feed that previously passed, and the shape and cascade
+changes move counts in the other direction.
 
 #### Codes removed
 

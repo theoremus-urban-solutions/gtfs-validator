@@ -67,6 +67,7 @@
  "invalid_email": "ERROR",
  "invalid_field_format": "WARNING",
  "invalid_float": "ERROR",
+ "invalid_input_files_in_subfolder": "ERROR",
  "invalid_integer": "ERROR",
  "invalid_language_code": "ERROR",
  "invalid_phone_number": "ERROR",
@@ -76,6 +77,7 @@
  "invalid_url": "ERROR",
  "last_stop_no_drop_off": "WARNING",
  "leading_or_trailing_whitespaces": "WARNING",
+ "location_with_unexpected_stop_time": "ERROR",
  "location_without_parent_station": "ERROR",
  "missing_attribution_contact": "WARNING",
  "missing_bike_allowance": "WARNING",
@@ -174,5 +176,6 @@
  "unused_station": "INFO",
  "unused_trip": "WARNING",
  "unused_zone": "WARNING",
+ "validator_skipped": "INFO",
  "wrong_parent_location_type": "ERROR"
 }

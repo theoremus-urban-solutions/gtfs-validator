@@ -36,91 +36,58 @@ go test -bench=. -benchmem -count=3 -run=^$ ./... > benchmark-results.txt
 
 *Note: Diminishing returns after 8 workers on most systems*
 
-## Validation Mode Performance
+## Measured feed performance
 
-### Performance Mode
-- **Speed**: Fastest (10-15s for large feeds)
-- **Memory**: Lowest usage (~128-256MB)
-- **Coverage**: Essential validators only
-- **Use Case**: CI/CD, quick validation
+Every validator runs on every feed; there are no modes to choose between. These
+are wall time and peak RSS on an Apple silicon laptop, whole run including
+report generation.
 
-### Default Mode  
-- **Speed**: Balanced (30-120s for large feeds)
-- **Memory**: Moderate usage (~256-512MB)
-- **Coverage**: Standard validators
-- **Use Case**: Regular validation, development
+| Feed | Size | Stop times | Wall time | Peak RSS |
+|---|---|---|---|---|
+| Kazanlak | 32 KB | ~1k | < 0.1 s | ~30 MB |
+| Railway (BG) | 5.7 MB | ~30k | 2.6 s | ~660 MB |
+| Sofia | 18 MB | 685k | 9.5 s | ~1.2 GB |
 
-### Comprehensive Mode
-- **Speed**: Thorough (2+ minutes for large feeds)
-- **Memory**: Highest usage (~512MB-2GB)
-- **Coverage**: All validators including expensive ones
-- **Use Case**: Production validation, final review
+Two things are worth knowing before sizing a deployment.
 
-## Feed Size Performance
+**Running everything costs about 15% more than the old default mode**, not the
+2x to 20x the previous version of this document claimed. The comprehensive
+preset was measured at 1.15x default on Sofia (8.59 s to 9.86 s) and 1.19x on
+the railway feed. Those old figures — "5-30 minutes" for large feeds — were
+never measurements.
 
-### Small Feeds (< 1MB, < 10K stop times)
-```
-Performance Mode:    < 1 second
-Default Mode:        1-3 seconds  
-Comprehensive Mode:  3-10 seconds
-```
+**Allocation volume is the real cost, and it is high**: validating an 18 MB feed
+allocates on the order of 150 GB in total, which is why peak RSS is over a
+gigabyte and why the run is GC-bound rather than I/O-bound. Wall time is not
+currently a constraint; this is the open performance question.
 
-### Medium Feeds (1-100MB, 10K-1M stop times)
-```
-Performance Mode:    5-15 seconds
-Default Mode:        15-60 seconds
-Comprehensive Mode:  60-300 seconds
-```
-
-### Large Feeds (> 100MB, > 1M stop times)
-```
-Performance Mode:    15-45 seconds
-Default Mode:        60-300 seconds  
-Comprehensive Mode:  5-30 minutes
-```
-
-## Memory Usage Patterns
-
-### Memory by Validation Mode
-- **Performance**: 50-200MB peak usage
-- **Default**: 100-500MB peak usage  
-- **Comprehensive**: 200MB-2GB peak usage
-
-### Memory by Feed Size
-- **Small feeds**: 50-100MB regardless of mode
-- **Medium feeds**: Scales linearly with stop_times.txt size
-- **Large feeds**: May require memory limits to prevent OOM
+There is no parsed-feed cache. One existed and was removed: it was consulted by
+3 of the ~50 validators, saved a constant 3.98 GB of allocation (about 2.5%)
+regardless of how much validation ran, and produced no wall-time or peak-RSS
+improvement at all. Its cached code paths also lost row numbers and skipped
+row-validity filters, so it changed notice payloads for no measured gain.
 
 ## Optimization Recommendations
 
 ### For Speed
 ```go
 validator := gtfsvalidator.New(
-    gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),
     gtfsvalidator.WithParallelWorkers(8), // Adjust based on CPU cores
-    gtfsvalidator.WithMaxNoticesPerType(10),
 )
 ```
 
 ### For Memory Efficiency
 ```go
 validator := gtfsvalidator.New(
-    gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModeDefault),
     gtfsvalidator.WithParallelWorkers(2),
     gtfsvalidator.WithMaxMemory(512 * 1024 * 1024), // 512MB limit
-    gtfsvalidator.WithMaxNoticesPerType(25),
 )
 ```
 
-### For Large Feeds
-```go
-validator := gtfsvalidator.New(
-    gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),
-    gtfsvalidator.WithParallelWorkers(4),
-    gtfsvalidator.WithMaxMemory(1024 * 1024 * 1024), // 1GB limit
-    gtfsvalidator.WithMaxNoticesPerType(50),
-)
-```
+Note that `WithMaxNoticesPerType` trades findings for memory, not just report
+size: notices arrive in file order rather than severity order, so a cap can
+discard errors and keep warnings. Set it only when a truncated report is
+genuinely what you want.
 
 ## System Requirements
 
@@ -148,7 +115,6 @@ validator := gtfsvalidator.New(
 1. **Match workers to CPU cores**: Use 1-2 workers per CPU core
 2. **Set memory limits**: Prevent system OOM with `WithMaxMemory()`
 3. **Limit notices**: Use `WithMaxNoticesPerType()` for large feeds
-4. **Choose appropriate mode**: Balance speed vs thoroughness
 
 ### System Optimization
 1. **Use SSD storage**: 2-3x faster I/O than traditional HDDs
@@ -158,7 +124,7 @@ validator := gtfsvalidator.New(
 
 ### Code Optimization
 1. **Use streaming validation**: For real-time feedback
-2. **Implement caching**: Cache validation results when appropriate
+2. **Cache at your own layer**: reuse reports across runs rather than revalidating
 3. **Batch processing**: Process multiple feeds efficiently
 4. **Error handling**: Handle validation errors gracefully
 

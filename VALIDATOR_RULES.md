@@ -9,7 +9,7 @@ and matches its severity; the rest are ours, and by policy none of them is
 ERROR — a code MobilityData does not define is our opinion, and an opinion
 should not fail someone's feed.
 
-176 codes, 133 of them canonical.
+179 codes, 135 of them canonical.
 
 ## Core
 
@@ -94,7 +94,7 @@ InvalidRowValidator checks a row's shape: whether it has the number of fields it
 
 ### `leading_trailing_whitespace_validator.go`
 
-LeadingTrailingWhitespaceValidator checks for fields with leading or trailing whitespace
+LeadingTrailingWhitespaceValidator reports fields padded with leading or trailing whitespace.
 
 | code | severity | |
 |---|---|---|
@@ -170,11 +170,19 @@ BikeAllowanceValidator reports ferry trips that do not say whether bikes may be 
 
 ### `duplicate_route_name_validator.go`
 
-DuplicateRouteNameValidator validates route names are unique within agency/route type
+DuplicateRouteNameValidator reports routes that another route of the same agency and route type is already indistinguishable from.
 
 | code | severity | |
 |---|---|---|
 | `duplicate_route_name` | WARNING | canonical |
+
+### `mixed_case_name_validator.go`
+
+MixedCaseNameValidator applies the Mixed Case rule to the rider-facing text that lives outside agency.txt, routes.txt and stops.txt.
+
+| code | severity | |
+|---|---|---|
+| `mixed_case_recommended_field` | WARNING | canonical |
 
 ### `name_comparison_validator.go`
 
@@ -211,7 +219,6 @@ RouteNameValidator validates route naming according to GTFS best practices
 | code | severity | |
 |---|---|---|
 | `missing_recommended_field` | WARNING | canonical |
-| `mixed_case_recommended_field` | WARNING | canonical |
 | `route_both_short_and_long_name_missing` | ERROR | canonical |
 | `route_long_name_contains_short_name` | WARNING | canonical |
 | `route_short_name_too_long` | WARNING | canonical |
@@ -410,6 +417,7 @@ UsageValidator reports entities nothing in the feed refers to: stops no trip cal
 
 | code | severity | |
 |---|---|---|
+| `location_with_unexpected_stop_time` | ERROR | canonical |
 | `stop_without_stop_time` | WARNING | canonical |
 | `unused_station` | INFO | canonical |
 | `unused_trip` | WARNING | canonical |
@@ -547,7 +555,6 @@ LevelValidator validates level definitions for multi-level stations
 | code | severity | |
 |---|---|---|
 | `duplicate_level_index` | WARNING |  |
-| `missing_recommended_field` | WARNING | canonical |
 | `unused_level` | WARNING |  |
 
 ### `pathway_validator.go`
@@ -561,7 +568,6 @@ PathwayValidator validates pathway definitions for accessibility
 | `foreign_key_violation` | ERROR | canonical |
 | `inconsistent_bidirectional_pathway` | WARNING |  |
 | `missing_level_id` | ERROR | canonical |
-| `missing_recommended_field` | WARNING | canonical |
 | `pathway_dangling_generic_node` | WARNING | canonical |
 | `pathway_loop` | WARNING | canonical |
 | `pathway_to_platform_with_boarding_areas` | ERROR | canonical |
@@ -614,6 +620,7 @@ internalValidator wraps the existing validator implementation.
 |---|---|---|
 | `missing_required_file` | ERROR | canonical |
 | `runtime_exception_in_validator_error` | ERROR | canonical |
+| `validator_skipped` | INFO |  |
 
 ### `file_structure_validator.go`
 
@@ -623,5 +630,6 @@ FileStructureValidator validates the structure of GTFS files
 |---|---|---|
 | `csv_parsing_failed` | ERROR | canonical |
 | `empty_file` | ERROR | canonical |
+| `invalid_input_files_in_subfolder` | ERROR | canonical |
 | `unknown_column` | INFO | canonical |
 
