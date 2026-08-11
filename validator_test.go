@@ -16,7 +16,7 @@ func TestNew(t *testing.T) {
 			name: "default configuration",
 			opts: nil,
 			want: &Config{
-				CountryCode:       "BG",
+				CountryCode:       "",
 				ParallelWorkers:   4,
 				ValidatorVersion:  "1.0.0",
 				MaxNoticesPerType: 0, // no limit by default
@@ -36,7 +36,7 @@ func TestNew(t *testing.T) {
 			name: "custom workers",
 			opts: []Option{WithParallelWorkers(8)},
 			want: &Config{
-				CountryCode:       "BG",
+				CountryCode:       "",
 				ParallelWorkers:   8,
 				ValidatorVersion:  "1.0.0",
 				MaxNoticesPerType: 0, // no limit by default

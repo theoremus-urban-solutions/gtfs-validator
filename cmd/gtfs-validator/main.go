@@ -54,7 +54,7 @@ structured logging, and comprehensive validation with 201 validation rules.`,
 	rootCmd.Flags().StringVarP(&inputPath, "input", "i", "", "Path to GTFS feed (ZIP file or directory) [required]")
 	rootCmd.Flags().StringVarP(&outputFormat, "format", "f", "console", "Output format: console, json, summary, html")
 	rootCmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file path (default: stdout)")
-	rootCmd.Flags().StringVarP(&countryCode, "country", "c", "BG", "Country code for validation (e.g., BG, GB, DE)")
+	rootCmd.Flags().StringVarP(&countryCode, "country", "c", "", "Country code for phone number validation (e.g., BG, GB, DE); unset accepts any dialable length")
 	rootCmd.Flags().Int64Var(&maxMemory, "memory", 0, "Maximum memory usage in MB (0 = no limit)")
 	rootCmd.Flags().IntVarP(&workers, "workers", "w", 4, "Number of parallel workers")
 	rootCmd.Flags().IntVar(&maxNotices, "max-notices", 0, "Maximum notices per type (0 = no limit, the default)")
@@ -114,7 +114,7 @@ comprehensive validation with 201 validation rules.`,
 	// Add the same flags as root command
 	cmd.Flags().StringVarP(&outputFormat, "format", "f", "console", "Output format: console, json, summary, html")
 	cmd.Flags().StringVarP(&outputFile, "output", "o", "", "Output file path (default: stdout)")
-	cmd.Flags().StringVarP(&countryCode, "country", "c", "BG", "Country code for validation (e.g., BG, GB, DE)")
+	cmd.Flags().StringVarP(&countryCode, "country", "c", "", "Country code for phone number validation (e.g., BG, GB, DE); unset accepts any dialable length")
 	cmd.Flags().Int64Var(&maxMemory, "memory", 0, "Maximum memory usage in MB (0 = no limit)")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 4, "Number of parallel workers")
 	cmd.Flags().IntVar(&maxNotices, "max-notices", 0, "Maximum notices per type (0 = no limit, the default)")

@@ -310,12 +310,13 @@ func WithMaxNoticesPerType(max int) Option {
 // that mattered for their feed.
 func New(opts ...Option) Validator {
 	config := &Config{
-		// Bulgaria: this validator is run against Bulgarian feeds, and the
-		// country decides how agency_phone is measured. The canonical
-		// validator defaults to no country at all, which accepts any dialable
-		// length; defaulting to a country that is wrong for the feed is worse
-		// than that, because it fails working numbers.
-		CountryCode:       "BG",
+		// No country unless one is asked for, which is what the canonical
+		// validator does. The country decides how agency_phone is measured,
+		// and assuming the wrong one fails working numbers: a Bulgarian
+		// service line read as a US number is short by two digits. Left empty,
+		// a number only has to be dialable somewhere. Pass BG to hold a
+		// Bulgarian feed to the Bulgarian numbering plan.
+		CountryCode:       "",
 		CurrentDate:       time.Now(),
 		ParallelWorkers:   4,
 		ValidatorVersion:  "1.0.0",
@@ -413,8 +414,9 @@ func (v *validatorImpl) ValidateFileStreamWithContext(ctx context.Context, path 
 func validateConfig(config *Config) error {
 	var errs []error
 
-	// Validate CountryCode (should be 2-letter ISO code)
-	if len(config.CountryCode) != 2 {
+	// Validate CountryCode: either a 2-letter ISO code, or empty for a feed
+	// whose country is not being asserted.
+	if config.CountryCode != "" && len(config.CountryCode) != 2 {
 		errs = append(errs, fmt.Errorf("CountryCode must be a 2-letter ISO code, got: %s", config.CountryCode))
 	}
 
@@ -469,9 +471,11 @@ func validateConfig(config *Config) error {
 
 // sanitizeConfig fixes invalid configuration values by setting them to defaults.
 func sanitizeConfig(config *Config) {
-	// Sanitize CountryCode
+	// Sanitize CountryCode. A value we cannot read becomes no country rather
+	// than a guessed one: measuring a number against the wrong country's plan
+	// fails working feeds, which is worse than not measuring it at all.
 	if len(config.CountryCode) != 2 {
-		config.CountryCode = "BG"
+		config.CountryCode = ""
 	}
 
 	// Sanitize CurrentDate

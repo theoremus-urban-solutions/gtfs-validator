@@ -217,9 +217,19 @@ def write_case(directory, files):
             f.write(content)
 
 
+def country_flag(country):
+    """The -c flag, or nothing when no country is being asserted.
+
+    An empty country is not the same as a country named "". Both validators
+    take the absence of the flag to mean "do not hold phone numbers to any
+    one numbering plan", so the flag has to be absent rather than empty.
+    """
+    return ["-c", country] if country else []
+
+
 def run_fork(binary, path, country, date):
     out = subprocess.run(
-        [binary, "-i", path, "-f", "json", "-c", country],
+        [binary, "-i", path, "-f", "json"] + country_flag(country),
         capture_output=True, text=True,
     )
     # The CLI exits 1 when the feed has errors, which is not a failure to run.
@@ -239,7 +249,8 @@ def run_fork(binary, path, country, date):
 def run_canonical(jar, path, country, date, outdir):
     os.makedirs(outdir, exist_ok=True)
     subprocess.run(
-        ["java", "-jar", jar, "-i", path, "-o", outdir, "-d", date, "-c", country],
+        ["java", "-jar", jar, "-i", path, "-o", outdir, "-d", date]
+        + country_flag(country),
         capture_output=True, text=True,
     )
     report_path = os.path.join(outdir, "report.json")
@@ -255,12 +266,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jar", required=True, help="MobilityData gtfs-validator CLI jar")
     ap.add_argument("--binary", default=os.path.join(ROOT, "gtfs-validator"))
-    ap.add_argument("--country", default="BG",
+    ap.add_argument("--country", default="",
                     help="passed to both validators, so a country-dependent "
                          "rule cannot disagree merely because the two were "
-                         "asked about different places. Defaults to this "
-                         "validator's own default, so the gate tests what an "
-                         "unflagged run actually does")
+                         "asked about different places. Empty by default, "
+                         "which is both validators' own default, so the gate "
+                         "tests what an unflagged run actually does")
     ap.add_argument("--date", default="2026-08-11",
                     help="fixed validation date, so time-based rules cannot "
                          "disagree merely because the runs straddled midnight")

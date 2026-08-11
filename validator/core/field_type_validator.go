@@ -214,6 +214,14 @@ func (v *FieldTypeValidator) validateField(container *notice.NoticeContainer, fi
 		v.validateCurrencyAmount(container, filename, row, spec, value)
 
 	case typePhone:
+		// Without a country there is no numbering plan to measure against, and
+		// canonical skips the check outright rather than guessing at one. A
+		// length that is impossible in Bulgaria is ordinary in Austria, so a
+		// country-free check could only reject numbers that dial fine
+		// somewhere.
+		if countryCode == "" {
+			return
+		}
 		if !isPossiblePhoneNumber(value, countryCode) {
 			container.AddNotice(notice.NewInvalidPhoneNumberNotice(filename, row.RowNumber, spec.Name, value))
 		}
