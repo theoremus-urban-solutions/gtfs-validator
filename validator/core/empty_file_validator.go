@@ -45,74 +45,15 @@ func (v *EmptyFileValidator) validateFileNotEmpty(loader *parser.FeedLoader, con
 		return // Can't read file, skip validation
 	}
 
-	// Check if the file contains only headers and whitespace rows
-	lines := strings.Split(string(content), "\n")
-	hasDataRows := false
-	hasHeaders := false
-
-	for i, line := range lines {
-		trimmed := strings.TrimSpace(line)
-		if trimmed != "" {
-			if i == 0 {
-				// First non-empty line is likely headers
-				hasHeaders = true
-			} else {
-				// Non-empty line after headers is a data row
-				hasDataRows = true
-				break
-			}
-		}
-	}
-
-	// If the file has headers but no data rows, it's empty
-	if hasHeaders && !hasDataRows {
+	// empty_file means the file carries nothing at all — not even a header row.
+	// A header with no data rows is a valid, legitimately empty table: the feed
+	// is saying "this table exists and has no entries", which is a normal thing
+	// to say and which canonical accepts without comment. Reporting it as an
+	// empty file made a header-only stops.txt an ERROR here while canonical
+	// loaded it and reported the references into it instead.
+	if strings.TrimSpace(string(content)) == "" {
 		container.AddNotice(notice.NewEmptyFileNotice(filename))
 		return
 	}
 
-	// Reset reader for CSV parsing
-	reader, err = loader.GetFile(filename)
-	if err != nil {
-		return
-	}
-	defer func() {
-		if closeErr := reader.Close(); closeErr != nil {
-			log.Printf("Warning: failed to close reader %v", closeErr)
-		}
-	}()
-
-	csvFile, err := parser.NewCSVFile(reader, filename)
-	if err != nil {
-		return // File format issues, other validators handle this
-	}
-
-	// Iterate rows to find any non-empty data row
-	hasData := false
-	for {
-		row, err := csvFile.ReadRow()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			// CSV parsing errors should be handled by other validators
-			return
-		}
-
-		// Check if any field contains non-whitespace content
-		rowHasContent := false
-		for _, val := range row.Values {
-			if strings.TrimSpace(val) != "" {
-				rowHasContent = true
-				break
-			}
-		}
-		if rowHasContent {
-			hasData = true
-			break
-		}
-	}
-
-	if !hasData {
-		container.AddNotice(notice.NewEmptyFileNotice(filename))
-	}
 }

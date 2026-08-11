@@ -152,27 +152,11 @@ func (v *StopTimeSequenceTimeValidator) validateTripStopTimeTimes(container *not
 	})
 
 	// Validate individual stop time consistency (arrival <= departure)
-	for _, stopTime := range stopTimes {
-		v.validateStopTimeConsistency(container, stopTime)
-	}
-
-	// Validate time sequence across stops
+	// A row whose arrival is after its own departure is reported as the
+	// canonical start_and_end_range_out_of_order by the field type validator,
+	// which owns every start/end pair in the feed. It used to be reported here
+	// too, under a fork-owned WARNING, which shadowed the canonical ERROR.
 	v.validateTimeSequence(container, stopTimes)
-}
-
-// validateStopTimeConsistency validates that arrival time <= departure time for a single stop
-func (v *StopTimeSequenceTimeValidator) validateStopTimeConsistency(container *notice.NoticeContainer, stopTime StopTimeRecord) {
-	if stopTime.ArrivalTime != nil && stopTime.DepartureTime != nil {
-		if *stopTime.ArrivalTime > *stopTime.DepartureTime {
-			container.AddNotice(notice.NewStopTimeArrivalAfterDepartureNotice(
-				stopTime.TripID,
-				stopTime.StopSequence,
-				v.formatGTFSTime(*stopTime.ArrivalTime),
-				v.formatGTFSTime(*stopTime.DepartureTime),
-				stopTime.RowNumber,
-			))
-		}
-	}
 }
 
 // validateTimeSequence validates that times increase along the trip

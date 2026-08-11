@@ -14,6 +14,7 @@ package notice
 // both rows; the first is the one to report.
 var rowNumberKeys = []string{
 	"csvRowNumber",
+	"oldCsvRowNumber",
 	"rowNumber",
 	"csvRowNumber1",
 	"rowNumber1",
@@ -24,6 +25,7 @@ var rowNumberKeys = []string{
 	"prevCsvRowNumber",
 	"duplicateRowNumber",
 	"duplicateRow",
+	"newCsvRowNumber",
 	"csvRowNumber2",
 	"rowNumber2",
 	"trip2RowNumber",
@@ -260,8 +262,7 @@ var codeFiles = map[string][]string{
 	"location_with_unexpected_stop_time":   {"stops.txt", "stop_times.txt"},
 
 	// stop_times.txt
-	"missing_trip_edge":                                     stopTimes,
-	"stop_time_arrival_after_departure":                     stopTimes,
+	"missing_trip_edge": stopTimes,
 	"stop_time_with_arrival_before_previous_departure_time": stopTimes,
 	"duplicate_stop_in_trip":                                stopTimes,
 	"consecutive_duplicate_stops":                           stopTimes,

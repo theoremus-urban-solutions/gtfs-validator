@@ -16,9 +16,9 @@ moved. Anything keying on specific codes needs the mapping tables below.
 
 | | before | after |
 |---|---|---|
-| Codes emitted | 201 | 179 |
+| Codes emitted | 201 | 177 |
 | — canonical | 40 | **135 (all of them)** |
-| — our own | 161 | 44 |
+| — our own | 161 | 42 |
 | Codes that are ERROR but not canonical | 86 | **0** |
 | Severities disagreeing with canonical | 8 | **0** |
 | Registered validators | 58 | 54 |
@@ -42,6 +42,13 @@ Three things drive the change:
 `python3 scripts/scope_audit.py` reproduces every number here.
 `docs/validation-scope/VALIDATION_SCOPE_PROPOSAL.md` is the full argument, and
 `VALIDATOR_RULES.md` lists every code by validator.
+
+**Parity is now verified by running the canonical validator, not by comparing
+code names.** `scripts/parity_gate.py` builds a feed per defect shape, runs both
+validators over each, and fails on any disagreement about a canonical rule — or
+on any disagreement about whether the feed is valid at all, which catches a
+canonical rule re-badged under a fork-owned name however it is spelled. The
+name-based audit could not see that, and was fooled by it twice; see below.
 
 ### Removed — validation modes and the parsed-feed cache (breaking)
 
@@ -78,32 +85,72 @@ unparseable, missing its key column, or carrying rows with a blank key — and
 checks that depend on a table stand down when it did not load, emitting an INFO
 `validator_skipped` naming the check, the file and the reason.
 
-Measured on a 177-stop feed:
+Measured on a 177-stop feed, and checked against MobilityData v8.0.1 on each:
 
 | fixture | before | after | canonical v8.0.1 |
 |---|---|---|---|
 | `stops.txt` zero bytes | 4,044 errors | **1** | 1 |
+| `stops.txt` header only, no rows | 4,044 errors | **4,043** | 4,043 |
 | `stop_id` column removed | 4,221 errors | **1** | 1 |
 | one blank `stop_id` | 52 errors | **1** | 1 |
-| `stops.txt` header only, no rows | 4,044 errors | **1** | **4,043** |
 
-A single bad row does not silence a whole check — only a table that produced no
-usable rows does. The six real feeds in the parity corpus are unaffected: this
-only changes what a broken feed reports.
+The distinction in the first two rows is canonical's and is the whole rule: a
+file with no content at all did not load, and its dependants stand down; a file
+with a valid header and no data rows loaded perfectly well and happens to be
+empty, so every reference into it is a real dangling reference and is reported.
+An earlier revision of this branch collapsed the two, which suppressed 4,043
+canonical ERRORs and was caught only by running both validators side by side.
 
-**Known divergence, unresolved.** The last row is a real disagreement with
-canonical, not a rounding of it. Canonical distinguishes a zero-byte file (which
-it reports as `empty_file` and which stands its dependants down) from a file with
-a valid header and no data rows (which it loads as a legitimately empty table and
-does not suppress at all, emitting the full reference cascade). This
-implementation treats both as empty. It also raises `empty_file` on the
-header-only case, which canonical does not. Verified by running v8.0.1 on both
-variants. Resolving this is a judgement call between matching canonical and not
-reporting four thousand errors for one defect, and it is deliberately left open
-rather than settled silently here.
+A single bad row does not silence a whole check — only a table that failed to
+load does. The absence of a file usually stands its dependants down too, except
+for `stops.txt`, which canonical treats as conditionally required and whose
+absence therefore still strands every stop reference.
 
 ### Fixed
 
+- **Two canonical ERROR rules were emitted under fork-owned names at WARNING**,
+  so six defect shapes passed with zero errors that canonical rejects. Both were
+  invisible to the name-based audit: renaming a canonical rule satisfies "no
+  non-canonical code is ERROR" rather than tripping "severity mismatch".
+  - `duplicate_key` (ERROR) was emitted as `duplicate_composite_key` (WARNING)
+    for every file with a multi-column primary key — `stop_times.txt`,
+    `calendar_dates.txt`, `fare_rules.txt`, `shapes.txt`, `frequencies.txt` and
+    `transfers.txt`. Canonical draws no single/composite distinction; a
+    duplicated key is the same defect either way. The payload now matches
+    canonical's (`fieldName1`, `fieldValue1`, `oldCsvRowNumber`,
+    `newCsvRowNumber`), and `duplicate_composite_key` is gone.
+  - `start_and_end_range_out_of_order` (ERROR) never ran on
+    `stop_times.arrival_time`/`departure_time`, which was covered instead by a
+    fork-owned `stop_time_arrival_after_departure` (WARNING). A stop time whose
+    arrival is after its own departure is now the canonical ERROR, and the
+    fork-owned code is gone.
+- `empty_file` fired on any file with no data rows. Canonical means a file with
+  no content at all: a valid header with zero rows is a legitimately empty
+  table. Three separate code paths raised it, and notice deduplication made them
+  look like one.
+- `leading_or_trailing_whitespaces` was decided by a hand-written list of field
+  names, which was the wrong axis in both directions — it reported unquoted
+  padding canonical ignores, and stayed silent on quoted padding in any field
+  the list omitted. The rule now turns on whether the value was quoted, which is
+  what canonical tests: unquoted surrounding whitespace is CSV layout any reader
+  may strip, while quoted whitespace is asserted to be part of the value.
+- `missing_timepoint_value` could not tell an absent `timepoint` column from a
+  blank value, because the field was read out of a map. Every feed without the
+  column was reported once per timed row.
+- `route_color_contrast` escalated itself to ERROR below a second luma
+  threshold. Canonical defines the rule at WARNING; the runtime severity also
+  made it the one rule the audit could not compare statically, and it reported
+  it as "not comparable" rather than as the disagreement it was.
+- `Config.CountryCode` was read by nothing at all, so `-c`/`--country` and
+  `WithCountryCode` were inert. It is now plumbed into field validation, where
+  `invalid_phone_number` needs it: the check was a country-blind shape
+  heuristic that both missed impossible numbers (`123` passed) and rejected
+  valid ones (`1-800-FLOWERS`, extensions). It is now a possible-length test
+  per country, which is the question canonical asks.
+- A `calendar.txt` row whose `end_date` precedes its `start_date` enumerated no
+  dates, so the service dropped out of every date-based rule and a plainly
+  expired calendar went unreported. The inverted range is still reported on its
+  own; the end date it nominates is now used for the service window.
 - **Three canonical rules were counted as implemented while emitting nothing**,
   two of them ERROR, so this validator passed feeds MobilityData rejects.
   `scripts/scope_audit.py` excluded rules by matching their names and confirmed

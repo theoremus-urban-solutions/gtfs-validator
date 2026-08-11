@@ -163,13 +163,12 @@ func (v *RouteColorContrastValidator) validateRouteColors(container *notice.Noti
 		return
 	}
 
-	// Low contrast is a legibility complaint, not a broken feed, so it stays a
-	// warning until the name is not merely faint but absent.
-	severity := notice.WARNING
-	if lumaDifference < unreadableLumaDifference {
-		severity = notice.ERROR
-	}
-
+	// Canonical defines this rule at WARNING, so it is emitted at WARNING —
+	// always, however faint the contrast. Escalating to ERROR below a second
+	// threshold made a feed fail here that canonical passes, and because the
+	// severity was then computed at runtime the scope audit could not compare it
+	// against canonical statically and reported it as "not comparable" rather
+	// than as the disagreement it was.
 	container.AddNotice(notice.NewRouteColorContrastNotice(
 		route.RouteID,
 		route.RouteColor.Hex,
@@ -177,7 +176,6 @@ func (v *RouteColorContrastValidator) validateRouteColors(container *notice.Noti
 		float64(lumaDifference),
 		float64(minLumaDifference),
 		route.RowNumber,
-		severity,
 	))
 }
 

@@ -1,19 +1,30 @@
 package notice
 
+import "strings"
+
 // Common validation notices that can occur during GTFS validation
 
-// DuplicateKeyNotice is generated when a duplicate primary key is found
+// DuplicateKeyNotice reports two rows sharing a primary key. It covers keys of
+// any width: a composite key is named as its comma-joined fields with its
+// comma-joined values, which is exactly how canonical reports one.
+//
+// There is deliberately no separate composite notice. A duplicated key is the
+// same defect whether the key is one column or four — the row cannot be
+// referenced unambiguously either way — and splitting the composite case onto a
+// fork-owned WARNING meant a feed with duplicate stop_times, calendar_dates,
+// shapes, transfers, fare_rules or frequencies rows passed with zero errors
+// while canonical rejected it.
 type DuplicateKeyNotice struct {
 	*BaseNotice
 }
 
-func NewDuplicateKeyNotice(filename string, fieldName string, fieldValue interface{}, rowNumber int, duplicateRow int) *DuplicateKeyNotice {
+func NewDuplicateKeyNotice(filename string, keyFields []string, keyValues []string, oldRowNumber int, newRowNumber int) *DuplicateKeyNotice {
 	context := map[string]interface{}{
-		"filename":     filename,
-		"fieldName":    fieldName,
-		"fieldValue":   fieldValue,
-		"csvRowNumber": rowNumber,
-		"duplicateRow": duplicateRow,
+		"filename":        filename,
+		"fieldName1":      strings.Join(keyFields, ","),
+		"fieldValue1":     strings.Join(keyValues, ","),
+		"oldCsvRowNumber": oldRowNumber,
+		"newCsvRowNumber": newRowNumber,
 	}
 	return &DuplicateKeyNotice{
 		BaseNotice: NewBaseNotice("duplicate_key", ERROR, context),
@@ -266,24 +277,6 @@ func NewTripUsabilityNotice(tripID string, stopCount int, rowNumber int) *TripUs
 	}
 	return &TripUsabilityNotice{
 		BaseNotice: NewBaseNotice("unusable_trip", WARNING, context),
-	}
-}
-
-// StopTimeArrivalAfterDepartureNotice is generated when arrival time is after departure time
-type StopTimeArrivalAfterDepartureNotice struct {
-	*BaseNotice
-}
-
-func NewStopTimeArrivalAfterDepartureNotice(tripID string, stopSequence int, arrivalTime string, departureTime string, rowNumber int) *StopTimeArrivalAfterDepartureNotice {
-	context := map[string]interface{}{
-		"tripId":        tripID,
-		"stopSequence":  stopSequence,
-		"arrivalTime":   arrivalTime,
-		"departureTime": departureTime,
-		"csvRowNumber":  rowNumber,
-	}
-	return &StopTimeArrivalAfterDepartureNotice{
-		BaseNotice: NewBaseNotice("stop_time_arrival_after_departure", WARNING, context),
 	}
 }
 
@@ -1087,24 +1080,6 @@ func NewInconsistentStopTimeShapeDistanceNotice(tripID string, missingCount int,
 	}
 }
 
-// DuplicateCompositeKeyNotice represents a duplicate composite primary key error
-type DuplicateCompositeKeyNotice struct {
-	*BaseNotice
-}
-
-func NewDuplicateCompositeKeyNotice(filename, keyFields, keyValue string, firstRow, duplicateRow int) *DuplicateCompositeKeyNotice {
-	context := map[string]interface{}{
-		"filename":     filename,
-		"keyFields":    keyFields,
-		"keyValue":     keyValue,
-		"firstRow":     firstRow,
-		"duplicateRow": duplicateRow,
-	}
-	return &DuplicateCompositeKeyNotice{
-		BaseNotice: NewBaseNotice("duplicate_composite_key", WARNING, context),
-	}
-}
-
 // MultipleRecordsInSingleRecordFileNotice represents multiple records in a file that should have only one
 type MultipleRecordsInSingleRecordFileNotice struct {
 	*BaseNotice
@@ -1137,36 +1112,22 @@ func NewWrongNumberOfFieldsNotice(filename string, rowNumber, expectedFields, ac
 	}
 }
 
-// LeadingWhitespaceNotice represents a field with leading whitespace
-type LeadingWhitespaceNotice struct {
+// LeadingOrTrailingWhitespacesNotice reports a quoted field value padded with
+// leading or trailing whitespace. One notice covers the field however many of
+// its ends are padded — canonical draws no distinction between the two, and a
+// value that is entirely whitespace is one mistake, not two.
+type LeadingOrTrailingWhitespacesNotice struct {
 	*BaseNotice
 }
 
-func NewLeadingWhitespaceNotice(filename, fieldName, fieldValue string, rowNumber int) *LeadingWhitespaceNotice {
+func NewLeadingOrTrailingWhitespacesNotice(filename, fieldName, fieldValue string, rowNumber int) *LeadingOrTrailingWhitespacesNotice {
 	context := map[string]interface{}{
-		"filename":   filename,
-		"fieldName":  fieldName,
-		"fieldValue": fieldValue,
-		"rowNumber":  rowNumber,
+		"filename":     filename,
+		"fieldName":    fieldName,
+		"fieldValue":   fieldValue,
+		"csvRowNumber": rowNumber,
 	}
-	return &LeadingWhitespaceNotice{
-		BaseNotice: NewBaseNotice("leading_or_trailing_whitespaces", WARNING, context),
-	}
-}
-
-// TrailingWhitespaceNotice represents a field with trailing whitespace
-type TrailingWhitespaceNotice struct {
-	*BaseNotice
-}
-
-func NewTrailingWhitespaceNotice(filename, fieldName, fieldValue string, rowNumber int) *TrailingWhitespaceNotice {
-	context := map[string]interface{}{
-		"filename":   filename,
-		"fieldName":  fieldName,
-		"fieldValue": fieldValue,
-		"rowNumber":  rowNumber,
-	}
-	return &TrailingWhitespaceNotice{
+	return &LeadingOrTrailingWhitespacesNotice{
 		BaseNotice: NewBaseNotice("leading_or_trailing_whitespaces", WARNING, context),
 	}
 }
@@ -1347,7 +1308,7 @@ type RouteColorContrastNotice struct {
 	*BaseNotice
 }
 
-func NewRouteColorContrastNotice(routeID, routeColor, routeTextColor string, lumaDifference, minimumLumaDifference float64, rowNumber int, severity SeverityLevel) *RouteColorContrastNotice {
+func NewRouteColorContrastNotice(routeID, routeColor, routeTextColor string, lumaDifference, minimumLumaDifference float64, rowNumber int) *RouteColorContrastNotice {
 	context := map[string]interface{}{
 		"routeId":               routeID,
 		"routeColor":            routeColor,
@@ -1357,7 +1318,7 @@ func NewRouteColorContrastNotice(routeID, routeColor, routeTextColor string, lum
 		"csvRowNumber":          rowNumber,
 	}
 	return &RouteColorContrastNotice{
-		BaseNotice: NewBaseNotice("route_color_contrast", severity, context),
+		BaseNotice: NewBaseNotice("route_color_contrast", WARNING, context),
 	}
 }
 

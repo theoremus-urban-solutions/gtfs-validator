@@ -361,6 +361,17 @@ func (v *ServiceValidationValidator) lastCalendarDates(service *ServiceInfo, lim
 		return nil
 	}
 
+	// An end_date before the start_date describes no days at all, so the walk
+	// below would find nothing and the service would drop out of every
+	// date-based rule — silently passing a calendar that has plainly expired.
+	// The inverted range is reported on its own as
+	// start_and_end_range_out_of_order; for the purpose of "when does this
+	// service last run", the date the row nominates as its end is still the
+	// answer, and canonical reads it the same way.
+	if end.Before(*start) {
+		return []time.Time{*end}
+	}
+
 	var dates []time.Time
 	for date := *end; !date.Before(*start) && len(dates) < limit; date = date.AddDate(0, 0, -1) {
 		if service.Days[dayFieldsByWeekday[date.Weekday()]] {

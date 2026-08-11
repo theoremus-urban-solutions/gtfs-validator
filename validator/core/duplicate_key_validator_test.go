@@ -2,6 +2,7 @@ package core
 
 import (
 	"log"
+	"strings"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/testutil"
@@ -64,7 +65,7 @@ func TestDuplicateKeyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nT1,08:00:00,08:00:00,1,1\nT1,08:01:00,08:01:00,2,1", // Same trip_id + stop_sequence
 			},
-			expectedNoticeCodes: []string{"duplicate_composite_key"},
+			expectedNoticeCodes: []string{"duplicate_key"},
 			description:         "Duplicate composite key (trip_id + stop_sequence) should generate notice",
 		},
 		{
@@ -72,7 +73,7 @@ func TestDuplicateKeyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"calendar_dates.txt": "service_id,date,exception_type\nS1,20250101,1\nS1,20250101,2", // Same service_id + date
 			},
-			expectedNoticeCodes: []string{"duplicate_composite_key"},
+			expectedNoticeCodes: []string{"duplicate_key"},
 			description:         "Duplicate composite key (service_id + date) should generate notice",
 		},
 		{
@@ -80,7 +81,7 @@ func TestDuplicateKeyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nS1,34.05,-118.25,1\nS1,34.06,-118.26,1", // Same shape_id + shape_pt_sequence
 			},
-			expectedNoticeCodes: []string{"duplicate_composite_key"},
+			expectedNoticeCodes: []string{"duplicate_key"},
 			description:         "Duplicate composite key (shape_id + shape_pt_sequence) should generate notice",
 		},
 		{
@@ -88,7 +89,7 @@ func TestDuplicateKeyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"frequencies.txt": "trip_id,start_time,end_time,headway_secs\nT1,06:00:00,22:00:00,600\nT1,06:00:00,23:00:00,900", // Same trip_id + start_time
 			},
-			expectedNoticeCodes: []string{"duplicate_composite_key"},
+			expectedNoticeCodes: []string{"duplicate_key"},
 			description:         "Duplicate composite key (trip_id + start_time) should generate notice",
 		},
 		{
@@ -96,7 +97,7 @@ func TestDuplicateKeyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"transfers.txt": "from_stop_id,to_stop_id,transfer_type\n1,2,0\n1,2,1", // Same from_stop_id + to_stop_id
 			},
-			expectedNoticeCodes: []string{"duplicate_composite_key"},
+			expectedNoticeCodes: []string{"duplicate_key"},
 			description:         "Duplicate composite key (from_stop_id + to_stop_id) should generate notice",
 		},
 		{
@@ -201,7 +202,7 @@ func TestDuplicateKeyValidator_Validate(t *testing.T) {
 			files: map[string]string{
 				"fare_rules.txt": "fare_id,route_id,origin_id,destination_id,contains_id\nF1,R1,O1,D1,C1\nF1,R1,O1,D1,C1", // Duplicate all components
 			},
-			expectedNoticeCodes: []string{"duplicate_composite_key"},
+			expectedNoticeCodes: []string{"duplicate_key"},
 			description:         "fare_rules.txt has complex composite key validation",
 		},
 		{
@@ -345,7 +346,11 @@ func TestDuplicateKeyValidator_BuildKey(t *testing.T) {
 				Values:    tt.rowValues,
 			}
 
-			result := validator.buildKey(row, tt.keyFields)
+			values := validator.keyValues(row, tt.keyFields)
+			result := ""
+			if values != nil {
+				result = strings.Join(values, "|")
+			}
 			if result != tt.expected {
 				t.Errorf("Expected key '%s', got '%s' for %s", tt.expected, result, tt.description)
 			}

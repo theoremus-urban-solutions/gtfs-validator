@@ -39,16 +39,16 @@ func (v *FieldTypeValidator) Validate(loader *parser.FeedLoader, container *noti
 
 	workers := config.ParallelWorkers
 	if workers > 1 && len(files) >= 4 {
-		v.validateFilesParallel(loader, container, files, workers)
+		v.validateFilesParallel(loader, container, files, workers, config.CountryCode)
 		return
 	}
 	for _, filename := range files {
-		v.validateFile(loader, container, filename)
+		v.validateFile(loader, container, filename, config.CountryCode)
 	}
 }
 
 // validateFilesParallel spreads the files across a worker pool.
-func (v *FieldTypeValidator) validateFilesParallel(loader *parser.FeedLoader, container *notice.NoticeContainer, files []string, workers int) {
+func (v *FieldTypeValidator) validateFilesParallel(loader *parser.FeedLoader, container *notice.NoticeContainer, files []string, workers int, countryCode string) {
 	fileChan := make(chan string, len(files))
 	var wg sync.WaitGroup
 
@@ -57,7 +57,7 @@ func (v *FieldTypeValidator) validateFilesParallel(loader *parser.FeedLoader, co
 		go func() {
 			defer wg.Done()
 			for filename := range fileChan {
-				v.validateFile(loader, container, filename)
+				v.validateFile(loader, container, filename, countryCode)
 			}
 		}()
 	}
@@ -70,7 +70,7 @@ func (v *FieldTypeValidator) validateFilesParallel(loader *parser.FeedLoader, co
 }
 
 // validateFile walks one file.
-func (v *FieldTypeValidator) validateFile(loader *parser.FeedLoader, container *notice.NoticeContainer, filename string) {
+func (v *FieldTypeValidator) validateFile(loader *parser.FeedLoader, container *notice.NoticeContainer, filename string, countryCode string) {
 	reader, err := loader.GetFile(filename)
 	if err != nil {
 		return
@@ -114,7 +114,7 @@ func (v *FieldTypeValidator) validateFile(loader *parser.FeedLoader, container *
 		}
 
 		for i := range specs {
-			v.validateField(container, filename, row, &specs[i])
+			v.validateField(container, filename, row, &specs[i], countryCode)
 		}
 		for _, r := range ranges {
 			v.validateRange(container, filename, row, r)
@@ -149,7 +149,7 @@ func (v *FieldTypeValidator) validateEncoding(container *notice.NoticeContainer,
 }
 
 // validateField checks one field of one row against its spec.
-func (v *FieldTypeValidator) validateField(container *notice.NoticeContainer, filename string, row *parser.CSVRow, spec *fieldSpec) {
+func (v *FieldTypeValidator) validateField(container *notice.NoticeContainer, filename string, row *parser.CSVRow, spec *fieldSpec, countryCode string) {
 	raw, present := row.Values[spec.Name]
 	if !present {
 		return
@@ -205,7 +205,7 @@ func (v *FieldTypeValidator) validateField(container *notice.NoticeContainer, fi
 		v.validateCurrencyAmount(container, filename, row, spec, value)
 
 	case typePhone:
-		if !isPlausiblePhoneNumber(value) {
+		if !isPossiblePhoneNumber(value, countryCode) {
 			container.AddNotice(notice.NewInvalidPhoneNumberNotice(filename, row.RowNumber, spec.Name, value))
 		}
 	}
@@ -367,25 +367,4 @@ func gtfsTimeSeconds(value string) (int, bool) {
 func isGTFSTime(value string) bool {
 	_, ok := gtfsTimeSeconds(value)
 	return ok
-}
-
-// isPlausiblePhoneNumber accepts the punctuation phone numbers are written
-// with worldwide and requires enough digits to be dialable. Validating against
-// a country's numbering plan needs a country code the feed does not carry, so
-// this stops at the shape of the value.
-func isPlausiblePhoneNumber(value string) bool {
-	digits := 0
-	for _, r := range value {
-		switch {
-		case r >= '0' && r <= '9':
-			digits++
-		case strings.ContainsRune("+-()., /", r):
-			// Separators phone numbers are conventionally written with.
-		case r == 'x' || r == 'X':
-			// Extension marker, as in "555-0100 x42".
-		default:
-			return false
-		}
-	}
-	return digits >= 3
 }

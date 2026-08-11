@@ -9,7 +9,7 @@ and matches its severity; the rest are ours, and by policy none of them is
 ERROR — a code MobilityData does not define is our opinion, and an opinion
 should not fail someone's feed.
 
-179 codes, 135 of them canonical.
+177 codes, 135 of them canonical.
 
 ## Core
 
@@ -38,7 +38,6 @@ DuplicateKeyValidator checks for duplicate primary keys in GTFS files
 
 | code | severity | |
 |---|---|---|
-| `duplicate_composite_key` | WARNING |  |
 | `duplicate_key` | ERROR | canonical |
 | `more_than_one_entity` | WARNING | canonical |
 
@@ -201,7 +200,7 @@ RouteColorContrastValidator validates color contrast between route_color and rou
 
 | code | severity | |
 |---|---|---|
-| `route_color_contrast` | COMPUTED | canonical |
+| `route_color_contrast` | WARNING | canonical |
 
 ### `route_consistency_validator.go`
 
@@ -374,7 +373,6 @@ StopTimeSequenceTimeValidator validates that arrival/departure times are logical
 
 | code | severity | |
 |---|---|---|
-| `stop_time_arrival_after_departure` | WARNING |  |
 | `stop_time_with_arrival_before_previous_departure_time` | ERROR | canonical |
 
 ### `stop_time_sequence_validator.go`

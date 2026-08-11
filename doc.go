@@ -7,7 +7,7 @@ detailed reports on errors, warnings, and informational notices. It supports bot
 ZIP files and directories containing GTFS data.
 
 Features:
-  - 179 validation rules across 54 validators, all of which always run
+  - 177 validation rules across 54 validators, all of which always run
   - Full parity with the 135 applicable Canonical GTFS Schedule Validator rules
   - Thread-safe concurrent processing with memory pools
   - Context-based cancellation support

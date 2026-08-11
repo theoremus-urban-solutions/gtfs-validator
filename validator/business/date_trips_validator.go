@@ -210,10 +210,19 @@ func (v *DateTripsValidator) datesForService(service *ServiceInfo, exceptions []
 	dates := make(map[int64]time.Time)
 
 	if service != nil && service.StartDate != nil && service.EndDate != nil {
-		date := *service.StartDate
-		for i := 0; !date.After(*service.EndDate) && i < maxServiceSpanDays; i, date = i+1, date.AddDate(0, 0, 1) {
-			if service.DaysOfWeek[weekdayIndex(date)] {
-				dates[date.Unix()] = date
+		if service.EndDate.Before(*service.StartDate) {
+			// A range that ends before it begins enumerates nothing, which would
+			// drop the service out of every window-based rule and leave a plainly
+			// stale calendar unreported. The contradiction itself is reported as
+			// start_and_end_range_out_of_order; here the row still nominates an
+			// end date, and that is what the service window is judged on.
+			dates[service.EndDate.Unix()] = *service.EndDate
+		} else {
+			date := *service.StartDate
+			for i := 0; !date.After(*service.EndDate) && i < maxServiceSpanDays; i, date = i+1, date.AddDate(0, 0, 1) {
+				if service.DaysOfWeek[weekdayIndex(date)] {
+					dates[date.Unix()] = date
+				}
 			}
 		}
 	}

@@ -110,6 +110,20 @@ var keyColumns = map[string]string{
 	"fare_attributes.txt": "fare_id",
 }
 
+// AbsenceStrandsReferences reports whether references into a file should still
+// be judged when the file is not present at all.
+//
+// This encodes a canonical asymmetry rather than a principle. A file the spec
+// requires outright — routes, trips, stop_times, agency — being absent stops
+// the feed loading as a dataset, and canonical answers with the missing-file
+// error alone rather than a violation per reference. stops.txt is only
+// conditionally required since locations.geojson arrived, so canonical loads the
+// feed without it and does report every stop reference as dangling: 4,043 of
+// them on a small feed. Matching canonical means copying that distinction.
+func AbsenceStrandsReferences(filename string) bool {
+	return filename == "stops.txt"
+}
+
 // FileState returns the state of one file, computing it on first request and
 // remembering the answer. Several validators ask about the same file, and the
 // answer cannot change during a validation run.
@@ -163,7 +177,7 @@ func (l *FeedLoader) computeFileState(filename string) FileState {
 		}
 	}
 
-	rows, blankKeys := 0, false
+	blankKeys := false
 	for {
 		row, err := csvFile.ReadRow()
 		if err == io.EOF {
@@ -174,18 +188,20 @@ func (l *FeedLoader) computeFileState(filename string) FileState {
 			// checks; it does not by itself make the table unusable.
 			continue
 		}
-		rows++
 		if joined && strings.TrimSpace(row.Values[key]) == "" {
 			blankKeys = true
 		}
 	}
 
-	switch {
-	case rows == 0:
-		return FileStateEmpty
-	case blankKeys:
+	// A table with a valid header and no data rows is NOT empty — it is a
+	// legitimately empty table that loaded correctly, and it suppresses nothing.
+	// Canonical draws exactly this line: a zero-byte file is EMPTY_FILE and
+	// stands its dependants down, while a header with no rows loads fine and
+	// every reference into it is reported as the violation it is. Collapsing the
+	// two hid 4,043 canonical foreign key ERRORs on a feed with an emptied
+	// stops.txt.
+	if blankKeys {
 		return FileStateInvalidKeyValues
-	default:
-		return FileStateParsed
 	}
+	return FileStateParsed
 }

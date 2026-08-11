@@ -270,6 +270,14 @@ var rangeSpecs = map[string][]rangeSpec{
 	"frequencies.txt": {
 		{Start: "start_time", End: "end_time", EqualIsError: true, EntityField: "trip_id", Kind: typeTime},
 	},
+	// A stop time whose arrival is after its own departure has the vehicle
+	// leaving before it gets there. Equal is normal and correct — the spec says
+	// to repeat the value when there is no separate dwell — so only strictly
+	// out-of-order is an error. This pair was previously covered by a fork-owned
+	// WARNING, which meant a feed canonical rejects passed with zero errors.
+	"stop_times.txt": {
+		{Start: "arrival_time", End: "departure_time", EntityField: "trip_id", Kind: typeTime},
+	},
 }
 
 // validCurrencyCodes contains ISO 4217 currency codes

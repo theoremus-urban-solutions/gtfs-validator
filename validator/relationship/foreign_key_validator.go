@@ -330,10 +330,21 @@ func (v *ForeignKeyValidator) validateFileReferences(loader *parser.FeedLoader, 
 // usable when either of them is, since a feed may declare its services in
 // calendar.txt, in calendar_dates.txt, or in both.
 func (v *ForeignKeyValidator) unusableSource(loader *parser.FeedLoader, referencedTable string) string {
+	// A file present but broken stands the check down: its references cannot be
+	// judged either way. A file that is simply absent usually does too, because
+	// the feed no longer loads as a dataset — except where canonical says
+	// otherwise; see AbsenceStrandsReferences.
+	unusable := func(filename string, state parser.FileState) bool {
+		if state == parser.FileStateMissing {
+			return !parser.AbsenceStrandsReferences(filename)
+		}
+		return !state.Usable()
+	}
+
 	if referencedTable == "service_id" {
 		calendar := loader.FileState("calendar.txt")
 		dates := loader.FileState("calendar_dates.txt")
-		if calendar.Usable() || dates.Usable() {
+		if !unusable("calendar.txt", calendar) || !unusable("calendar_dates.txt", dates) {
 			return ""
 		}
 		return calendar.Reason()
@@ -343,7 +354,7 @@ func (v *ForeignKeyValidator) unusableSource(loader *parser.FeedLoader, referenc
 	if !strings.HasSuffix(source, ".txt") {
 		return "" // no single defining file to judge
 	}
-	if state := loader.FileState(source); !state.Usable() {
+	if state := loader.FileState(source); unusable(source, state) {
 		return state.Reason()
 	}
 	return ""

@@ -1,8 +1,7 @@
 package core
 
 import (
-	"encoding/csv"
-	"errors"
+	"bufio"
 	"io"
 	"log"
 	"strings"
@@ -16,6 +15,16 @@ import (
 // trailing whitespace. The padding is rarely visible to the author but is
 // significant to consumers: an id with a trailing space does not match the same
 // id without one, so the reference silently fails to resolve.
+//
+// Only *quoted* values are reported, and that is the whole rule. In CSV an
+// unquoted field's surrounding whitespace is layout, not content — a reader is
+// entitled to strip it, and the canonical validator does — so reporting it
+// produces a warning about how the file was formatted rather than about what it
+// says. Inside quotes the whitespace is asserted to be part of the value, and
+// that is the mistake worth naming. Testing the field name instead, as this
+// check used to, gets both halves wrong: it fires on unquoted padding canonical
+// ignores, and stays silent on quoted padding in any field the hand-written
+// list happened to omit.
 type LeadingTrailingWhitespaceValidator struct{}
 
 // NewLeadingTrailingWhitespaceValidator creates a new whitespace validator
@@ -25,22 +34,18 @@ func NewLeadingTrailingWhitespaceValidator() *LeadingTrailingWhitespaceValidator
 
 // Validate checks for leading and trailing whitespace in GTFS fields
 func (v *LeadingTrailingWhitespaceValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
-	// Get list of all GTFS files to check
-	gtfsFiles := []string{
-		"agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt",
-		"calendar.txt", "calendar_dates.txt", "fare_attributes.txt",
-		"fare_rules.txt", "shapes.txt", "frequencies.txt", "transfers.txt",
-		"pathways.txt", "levels.txt", "feed_info.txt", "attributions.txt",
-	}
-
-	for _, filename := range gtfsFiles {
-		if loader.HasFile(filename) {
-			v.validateFile(loader, container, filename)
-		}
+	for _, filename := range loader.ListFiles() {
+		v.validateFile(loader, container, filename)
 	}
 }
 
-// validateFile validates a specific GTFS file for whitespace issues
+// quotedField is one CSV field together with whether it was written in quotes.
+type quotedField struct {
+	Value  string
+	Quoted bool
+}
+
+// validateFile reports every quoted, whitespace-padded value in one file.
 func (v *LeadingTrailingWhitespaceValidator) validateFile(loader *parser.FeedLoader, container *notice.NoticeContainer, filename string) {
 	reader, err := loader.GetFile(filename)
 	if err != nil {
@@ -52,192 +57,113 @@ func (v *LeadingTrailingWhitespaceValidator) validateFile(loader *parser.FeedLoa
 		}
 	}()
 
-	csvFile, err := parser.NewCSVFile(reader, filename)
-	if err != nil {
+	records, err := readQuotedRecords(reader)
+	if err != nil || len(records) == 0 {
 		return
 	}
 
-	// Get fields that should be checked for whitespace
-	significantFields := v.getSignificantFields(filename)
+	headers := make([]string, len(records[0]))
+	for i, field := range records[0] {
+		headers[i] = strings.TrimSpace(field.Value)
+	}
+
+	// Row 1 is the header; data rows start at 2, matching every other notice.
+	for rowIndex, record := range records[1:] {
+		for i, field := range record {
+			if i >= len(headers) || !field.Quoted {
+				continue
+			}
+			if !hasSurroundingWhitespace(field.Value) {
+				continue
+			}
+			container.AddNotice(notice.NewLeadingOrTrailingWhitespacesNotice(
+				filename, headers[i], field.Value, rowIndex+2,
+			))
+		}
+	}
+}
+
+// hasSurroundingWhitespace reports whether a value begins or ends with space or
+// tab. A value that is nothing but whitespace does both and is reported once.
+func hasSurroundingWhitespace(value string) bool {
+	if value == "" {
+		return false
+	}
+	return value != strings.Trim(value, " \t")
+}
+
+// readQuotedRecords parses CSV while remembering which fields were quoted,
+// which encoding/csv does not expose and which is the only thing this rule
+// turns on. Quotes, escaped quotes and embedded newlines are handled as the
+// CSV grammar requires; anything malformed is left to the parsing checks.
+func readQuotedRecords(r io.Reader) ([][]quotedField, error) {
+	br := bufio.NewReader(r)
+
+	var (
+		records   [][]quotedField
+		record    []quotedField
+		value     strings.Builder
+		quoted    bool // this field was opened with a quote
+		inQuotes  bool // currently inside a quoted section
+		fieldSeen bool // something has been read towards the current field
+	)
+
+	endField := func() {
+		record = append(record, quotedField{Value: value.String(), Quoted: quoted})
+		value.Reset()
+		quoted, fieldSeen = false, false
+	}
+	endRecord := func() {
+		endField()
+		records = append(records, record)
+		record = nil
+	}
 
 	for {
-		row, err := csvFile.ReadRow()
-		if err == io.EOF {
+		c, _, err := br.ReadRune()
+		if err != nil {
 			break
 		}
-		if err != nil {
-			// A malformed record is recoverable: the CSV reader has already
-			// consumed it, so skipping the row makes progress. Any other error
-			// comes from the underlying stream — a truncated or corrupt member
-			// in the archive, say — and is returned again on every subsequent
-			// call without consuming anything, so continuing here spins
-			// forever. That is the "hangs with large datasets" this validator
-			// was disabled for; it is a stalled read, not slow work.
-			var parseErr *csv.ParseError
-			if errors.As(err, &parseErr) {
+
+		switch {
+		case inQuotes:
+			if c != '"' {
+				value.WriteRune(c)
 				continue
 			}
-			return
-		}
-
-		// Check each field for whitespace issues
-		for fieldName, fieldValue := range row.Values {
-			// Skip empty fields
-			if fieldValue == "" {
+			// A doubled quote is a literal quote; a single one closes the field.
+			next, _, peekErr := br.ReadRune()
+			if peekErr == nil && next == '"' {
+				value.WriteRune('"')
 				continue
 			}
-
-			// Check if this field should be validated
-			if v.shouldValidateField(fieldName, significantFields) {
-				v.validateFieldWhitespace(container, filename, fieldName, fieldValue, row.RowNumber)
+			if peekErr == nil {
+				_ = br.UnreadRune()
 			}
+			inQuotes = false
+
+		case c == '"' && !fieldSeen:
+			inQuotes, quoted, fieldSeen = true, true, true
+
+		case c == ',':
+			endField()
+
+		case c == '\n':
+			endRecord()
+
+		case c == '\r':
+			// Consumed with the newline that follows it.
+
+		default:
+			value.WriteRune(c)
+			fieldSeen = true
 		}
 	}
-}
 
-// validateFieldWhitespace checks a specific field for whitespace issues
-func (v *LeadingTrailingWhitespaceValidator) validateFieldWhitespace(container *notice.NoticeContainer, filename, fieldName, fieldValue string, rowNumber int) {
-	// A field holding nothing but whitespace has both leading and trailing
-	// whitespace, so the two checks below already report it.
-
-	// Check for leading whitespace
-	if strings.HasPrefix(fieldValue, " ") || strings.HasPrefix(fieldValue, "\t") {
-		container.AddNotice(notice.NewLeadingWhitespaceNotice(
-			filename,
-			fieldName,
-			fieldValue,
-			rowNumber,
-		))
+	// A final line with no trailing newline still holds a record.
+	if value.Len() > 0 || len(record) > 0 {
+		endRecord()
 	}
 
-	// Check for trailing whitespace
-	if strings.HasSuffix(fieldValue, " ") || strings.HasSuffix(fieldValue, "\t") {
-		container.AddNotice(notice.NewTrailingWhitespaceNotice(
-			filename,
-			fieldName,
-			fieldValue,
-			rowNumber,
-		))
-	}
-}
-
-// shouldValidateField determines if a field should be checked for whitespace
-func (v *LeadingTrailingWhitespaceValidator) shouldValidateField(fieldName string, significantFields map[string]bool) bool {
-	// If no specific fields defined, validate all text fields
-	if len(significantFields) == 0 {
-		return v.isTextField(fieldName)
-	}
-
-	// Check if field is in the significant fields list
-	return significantFields[fieldName]
-}
-
-// isTextField determines if a field typically contains text data
-func (v *LeadingTrailingWhitespaceValidator) isTextField(fieldName string) bool {
-	// Numeric and coordinate fields don't need whitespace validation as much
-	numericFields := map[string]bool{
-		"stop_lat": true, "stop_lon": true, "route_type": true,
-		"direction_id": true, "location_type": true, "wheelchair_boarding": true,
-		"wheelchair_accessible": true, "bikes_allowed": true, "stop_sequence": true,
-		"pickup_type": true, "drop_off_type": true, "shape_dist_traveled": true,
-		"timepoint": true, "monday": true, "tuesday": true, "wednesday": true,
-		"thursday": true, "friday": true, "saturday": true, "sunday": true,
-		"exception_type": true, "payment_method": true, "transfers": true,
-		"transfer_duration": true, "shape_pt_lat": true, "shape_pt_lon": true,
-		"shape_pt_sequence": true, "headway_secs": true, "exact_times": true,
-		"transfer_type": true, "min_transfer_time": true, "pathway_mode": true,
-		"is_bidirectional": true, "length": true, "traversal_time": true,
-		"stair_count": true, "max_slope": true, "min_width": true,
-		"signposted_as": true, "reversed_signposted_as": true,
-	}
-
-	return !numericFields[fieldName]
-}
-
-// getSignificantFields returns fields that are particularly important for whitespace validation
-func (v *LeadingTrailingWhitespaceValidator) getSignificantFields(filename string) map[string]bool {
-	switch filename {
-	case "agency.txt":
-		return map[string]bool{
-			"agency_id": true, "agency_name": true, "agency_url": true,
-			"agency_timezone": true, "agency_lang": true, "agency_phone": true,
-			"agency_fare_url": true, "agency_email": true,
-		}
-	case "stops.txt":
-		return map[string]bool{
-			"stop_id": true, "stop_code": true, "stop_name": true,
-			"stop_desc": true, "zone_id": true, "stop_url": true,
-			"parent_station": true, "stop_timezone": true, "level_id": true,
-			"platform_code": true,
-		}
-	case "routes.txt":
-		return map[string]bool{
-			"route_id": true, "agency_id": true, "route_short_name": true,
-			"route_long_name": true, "route_desc": true, "route_url": true,
-			"route_color": true, "route_text_color": true, "route_sort_order": true,
-		}
-	case "trips.txt":
-		return map[string]bool{
-			"route_id": true, "service_id": true, "trip_id": true,
-			"trip_headsign": true, "trip_short_name": true, "block_id": true,
-			"shape_id": true,
-		}
-	case "stop_times.txt":
-		return map[string]bool{
-			"trip_id": true, "arrival_time": true, "departure_time": true,
-			"stop_id": true, "stop_headsign": true,
-		}
-	case "calendar.txt":
-		return map[string]bool{
-			"service_id": true, "start_date": true, "end_date": true,
-		}
-	case "calendar_dates.txt":
-		return map[string]bool{
-			"service_id": true, "date": true,
-		}
-	case "fare_attributes.txt":
-		return map[string]bool{
-			"fare_id": true, "price": true, "currency_type": true,
-			"agency_id": true,
-		}
-	case "fare_rules.txt":
-		return map[string]bool{
-			"fare_id": true, "route_id": true, "origin_id": true,
-			"destination_id": true, "contains_id": true,
-		}
-	case "shapes.txt":
-		return map[string]bool{
-			"shape_id": true,
-		}
-	case "feed_info.txt":
-		return map[string]bool{
-			"feed_publisher_name": true, "feed_publisher_url": true,
-			"feed_lang": true, "feed_start_date": true, "feed_end_date": true,
-			"feed_version": true, "feed_contact_email": true, "feed_contact_url": true,
-		}
-	case "frequencies.txt":
-		return map[string]bool{
-			"trip_id": true, "start_time": true, "end_time": true,
-		}
-	case "transfers.txt":
-		return map[string]bool{
-			"from_stop_id": true, "to_stop_id": true,
-		}
-	case "pathways.txt":
-		return map[string]bool{
-			"pathway_id": true, "from_stop_id": true, "to_stop_id": true,
-		}
-	case "levels.txt":
-		return map[string]bool{
-			"level_id": true, "level_index": true, "level_name": true,
-		}
-	case "attributions.txt":
-		return map[string]bool{
-			"attribution_id": true, "agency_id": true, "route_id": true,
-			"trip_id": true, "organization_name": true, "attribution_url": true,
-			"attribution_email": true, "attribution_phone": true,
-		}
-	default:
-		return map[string]bool{} // Validate all text fields
-	}
+	return records, nil
 }

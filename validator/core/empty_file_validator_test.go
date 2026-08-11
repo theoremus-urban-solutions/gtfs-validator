@@ -26,13 +26,13 @@ func TestEmptyFileValidator_Validate(t *testing.T) {
 			description:         "All files contain data rows",
 		},
 		{
-			name: "one file is empty (headers only)",
+			name: "headers with no data rows is a valid empty table",
 			files: map[string]string{
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n1,Metro,http://metro.example,America/Los_Angeles",
 				"stops.txt":  "stop_id,stop_name,stop_lat,stop_lon", // No data rows
 			},
-			expectedNoticeCodes: []string{"empty_file"},
-			description:         "stops.txt has headers but no data",
+			expectedNoticeCodes: []string{},
+			description:         "A header with no rows says the table exists and is empty, which is not a defect",
 		},
 		{
 			name: "multiple empty files",
@@ -41,8 +41,8 @@ func TestEmptyFileValidator_Validate(t *testing.T) {
 				"stops.txt":  "stop_id,stop_name,stop_lat,stop_lon",                                               // Headers only
 				"routes.txt": "route_id,agency_id,route_short_name,route_long_name,route_type\n1,1,1,Main Line,3", // Has data
 			},
-			expectedNoticeCodes: []string{"empty_file", "empty_file"},
-			description:         "Two files are empty, one has data",
+			expectedNoticeCodes: []string{},
+			description:         "Header-only files are valid empty tables, not empty files",
 		},
 		{
 			name: "completely empty file (no headers, no data)",
@@ -50,8 +50,8 @@ func TestEmptyFileValidator_Validate(t *testing.T) {
 				"agency.txt": "", // Completely empty
 				"stops.txt":  "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,34.05,-118.25",
 			},
-			expectedNoticeCodes: []string{},
-			description:         "Completely empty files are handled by CSV parser errors, not empty file validator",
+			expectedNoticeCodes: []string{"empty_file"},
+			description:         "A file with no content at all is the only thing empty_file means",
 		},
 		{
 			name: "file with only whitespace after headers",
@@ -59,24 +59,24 @@ func TestEmptyFileValidator_Validate(t *testing.T) {
 				"agency.txt": "agency_id,agency_name,agency_url,agency_timezone\n   \n  \n", // Whitespace rows
 				"stops.txt":  "stop_id,stop_name,stop_lat,stop_lon\n1,Main St,34.05,-118.25",
 			},
-			expectedNoticeCodes: []string{"empty_file"},
-			description:         "File with only whitespace rows after headers is considered empty",
+			expectedNoticeCodes: []string{},
+			description:         "Whitespace rows after a header still leave a readable, empty table",
 		},
 		{
 			name: "single file with no data",
 			files: map[string]string{
 				"feed_info.txt": "feed_publisher_name,feed_publisher_url,feed_lang",
 			},
-			expectedNoticeCodes: []string{"empty_file"},
-			description:         "Optional file with headers but no data",
+			expectedNoticeCodes: []string{},
+			description:         "An optional file present but empty is not a defect",
 		},
 		{
 			name: "file with UTF-8 BOM and no data",
 			files: map[string]string{
 				"agency.txt": "\ufeffagency_id,agency_name,agency_url,agency_timezone",
 			},
-			expectedNoticeCodes: []string{"empty_file"},
-			description:         "File with UTF-8 BOM and headers but no data rows",
+			expectedNoticeCodes: []string{},
+			description:         "A BOM plus headers is still a readable, empty table",
 		},
 		{
 			name: "file with data after empty rows",
@@ -153,19 +153,19 @@ func TestEmptyFileValidator_ValidateFileNotEmpty(t *testing.T) {
 			name:              "file with headers only",
 			filename:          "stops.txt",
 			content:           "stop_id,stop_name,stop_lat,stop_lon",
-			expectEmptyNotice: true,
+			expectEmptyNotice: false, // a valid, empty table
 		},
 		{
 			name:              "file with headers and empty line",
 			filename:          "routes.txt",
 			content:           "route_id,agency_id,route_short_name,route_long_name,route_type\n",
-			expectEmptyNotice: true,
+			expectEmptyNotice: false, // a valid, empty table
 		},
 		{
 			name:              "file with headers and whitespace line",
 			filename:          "trips.txt",
 			content:           "route_id,service_id,trip_id\n   ",
-			expectEmptyNotice: true,
+			expectEmptyNotice: false, // a valid, empty table
 		},
 	}
 

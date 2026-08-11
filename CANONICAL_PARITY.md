@@ -19,8 +19,20 @@ and prints the reconciliation.
 | **Implemented and registered** | **135** |
 | Severity disagreements with canonical | 0 |
 
-`scope_audit.py` exits non-zero if any rule disagrees on severity, or if a
-validator exists in source but the registry never constructs it. The second
+Parity is checked two ways, because one of them is not enough.
+`scripts/parity_gate.py` runs the canonical validator itself over a corpus of
+single-defect feeds and fails on any disagreement about a canonical rule — this
+is the authority. `scope_audit.py` reconciles the code lists and exits non-zero
+if any rule disagrees on severity, or if a validator exists in source but the
+registry never constructs it.
+
+The gate exists because name-matching cannot see a rename. Two canonical ERROR
+rules were emitted under fork-owned names at WARNING (`duplicate_key` as
+`duplicate_composite_key`, `start_and_end_range_out_of_order` as
+`stop_time_arrival_after_departure`), which satisfied the "no non-canonical
+ERROR" rule instead of tripping the severity check, and made six ordinary defect
+shapes pass with zero errors. Both are fixed; the gate is what stops the next
+one. The second
 check is why "implemented" now reads "implemented and registered": the earlier
 count of 133/133 was wrong in three places, and two of them were ERRORs that
 made this validator pass feeds MobilityData rejects.

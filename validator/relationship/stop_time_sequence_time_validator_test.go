@@ -25,9 +25,10 @@ func TestStopTimeSequenceTimeValidator_Validate(t *testing.T) {
 		codes[n.Code()]++
 	}
 
-	if codes["stop_time_arrival_after_departure"] == 0 {
-		t.Errorf("expected stop_time_arrival_after_departure notice")
-	}
+	// A row whose arrival is after its own departure is the canonical
+	// start_and_end_range_out_of_order, reported by the field type validator
+	// which owns every start/end pair. This validator owns only the ordering
+	// across stops.
 	if codes["stop_time_with_arrival_before_previous_departure_time"] == 0 {
 		t.Errorf("expected stop_time_decreasing_time notice across stops")
 	}

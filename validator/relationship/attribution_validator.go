@@ -290,10 +290,10 @@ func (v *AttributionValidator) validateAttributionUniqueness(container *notice.N
 				if existing, exists := attributionIDs[attribution.AttributionID]; exists {
 					container.AddNotice(notice.NewDuplicateKeyNotice(
 						"attributions.txt",
-						"attribution_id",
-						attribution.AttributionID,
-						attribution.RowNumber,
+						[]string{"attribution_id"},
+						[]string{attribution.AttributionID},
 						existing.RowNumber,
+						attribution.RowNumber,
 					))
 				} else {
 					attributionIDs[attribution.AttributionID] = attribution

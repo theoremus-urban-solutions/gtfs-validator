@@ -77,6 +77,14 @@ func (v *StopTimeFieldValidator) Validate(loader *parser.FeedLoader, container *
 		return
 	}
 
+	hasTimepointColumn := false
+	for _, header := range csvFile.Headers {
+		if strings.TrimSpace(header) == "timepoint" {
+			hasTimepointColumn = true
+			break
+		}
+	}
+
 	// unsorted_stop_times is about the file as written, so order is tracked as
 	// rows arrive rather than after sorting. It is reported once per trip and
 	// names the trip's whole span in the file, which is only known once its
@@ -104,7 +112,7 @@ func (v *StopTimeFieldValidator) Validate(loader *parser.FeedLoader, container *
 			continue
 		}
 
-		v.validateTimes(container, stopTime)
+		v.validateTimes(container, stopTime, hasTimepointColumn)
 		v.validateWindows(container, stopTime, routeContinuity)
 		v.validateShapeDistTraveled(container, stopTime)
 
@@ -171,7 +179,7 @@ func (v *StopTimeFieldValidator) Validate(loader *parser.FeedLoader, container *
 
 // validateTimes checks arrival_time, departure_time and timepoint against each
 // other.
-func (v *StopTimeFieldValidator) validateTimes(container *notice.NoticeContainer, row *stopTimeRow) {
+func (v *StopTimeFieldValidator) validateTimes(container *notice.NoticeContainer, row *stopTimeRow, hasTimepointColumn bool) {
 	hasArrival := row.ArrivalTime != ""
 	hasDeparture := row.DepartureTime != ""
 
@@ -196,7 +204,12 @@ func (v *StopTimeFieldValidator) validateTimes(container *notice.NoticeContainer
 	}
 
 	if row.Timepoint == "" {
-		if hasArrival || hasDeparture {
+		// Only a blank value in a column that exists is a missing timepoint. A
+		// file with no timepoint column at all has not omitted a value — the
+		// field is optional, and canonical says nothing about it. Reading the
+		// field out of a map made the two indistinguishable, so every feed
+		// without the column was reported once per timed row.
+		if hasTimepointColumn && (hasArrival || hasDeparture) {
 			container.AddNotice(notice.NewMissingTimepointValueNotice(
 				row.TripID, row.RowNumber, row.StopSequence,
 			))

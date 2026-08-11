@@ -71,10 +71,9 @@ func (v *FileStructureValidator) validateFile(loader *parser.FeedLoader, contain
 		return
 	}
 
-	if csvFile.IsEmpty() {
-		container.AddNotice(notice.NewEmptyFileNotice(filename))
-		return
-	}
+	// A file with a header and no data rows is a valid empty table, not an
+	// empty file — empty_file is reported only for a file with no content at
+	// all, by the empty file validator. Its columns are still worth checking.
 
 	// Check for unknown columns based on file type
 	v.checkUnknownColumns(csvFile, container)

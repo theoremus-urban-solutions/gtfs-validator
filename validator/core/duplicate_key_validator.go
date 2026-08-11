@@ -95,53 +95,45 @@ func (v *DuplicateKeyValidator) validateFileKeys(loader *parser.FeedLoader, cont
 			break
 		}
 
-		key := v.buildKey(row, config.KeyFields)
-		if key == "" {
+		values := v.keyValues(row, config.KeyFields)
+		if values == nil {
 			continue // Skip rows with missing key components
 		}
+		key := strings.Join(values, "|")
 
 		if firstRowNumber, exists := keyMap[key]; exists {
-			// Duplicate key found
-			if config.IsComposite {
-				container.AddNotice(notice.NewDuplicateCompositeKeyNotice(
-					config.Filename,
-					strings.Join(config.KeyFields, "+"),
-					key,
-					firstRowNumber,
-					row.RowNumber,
-				))
-			} else {
-				container.AddNotice(notice.NewDuplicateKeyNotice(
-					config.Filename,
-					config.KeyFields[0],
-					key,
-					firstRowNumber,
-					row.RowNumber,
-				))
-			}
+			container.AddNotice(notice.NewDuplicateKeyNotice(
+				config.Filename,
+				config.KeyFields,
+				values,
+				firstRowNumber,
+				row.RowNumber,
+			))
 		} else {
 			keyMap[key] = row.RowNumber
 		}
 	}
 }
 
-// buildKey creates a composite key string from the specified fields
-func (v *DuplicateKeyValidator) buildKey(row *parser.CSVRow, keyFields []string) string {
-	var keyParts []string
+// keyValues returns the row's value for each key field, or nil when any of them
+// is absent or blank — such a row has no identity to be duplicated, and its
+// missing key is reported by the required-field check.
+func (v *DuplicateKeyValidator) keyValues(row *parser.CSVRow, keyFields []string) []string {
+	values := make([]string, 0, len(keyFields))
 
 	for _, field := range keyFields {
-		if value, exists := row.Values[field]; exists {
-			trimmedValue := strings.TrimSpace(value)
-			if trimmedValue == "" {
-				return "" // Missing key component
-			}
-			keyParts = append(keyParts, trimmedValue)
-		} else {
-			return "" // Missing key field
+		value, exists := row.Values[field]
+		if !exists {
+			return nil
 		}
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			return nil
+		}
+		values = append(values, trimmed)
 	}
 
-	return strings.Join(keyParts, "|")
+	return values
 }
 
 // validateSingleRecordFile validates files that should contain only one record
