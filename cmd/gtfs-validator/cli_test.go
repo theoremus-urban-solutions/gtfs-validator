@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 // Helper to run CLI command
@@ -194,49 +193,6 @@ func TestCLI_SummaryOutput(t *testing.T) {
 	}
 }
 
-func TestCLI_PerformanceMode(t *testing.T) {
-	testDir := createTestGTFS(t, true)
-
-	start := time.Now()
-	stdout, stderr, exitCode := runCLI(t, "-i", testDir, "-m", "performance")
-	elapsed := time.Since(start)
-
-	if exitCode != 0 {
-		t.Logf("STDOUT: %s", stdout)
-		t.Logf("STDERR: %s", stderr)
-		t.Errorf("Expected exit code 0, got %d", exitCode)
-	}
-
-	if !strings.Contains(stderr, "Mode: performance") {
-		t.Errorf("Expected performance mode indication in stderr, got: %s", stderr)
-	}
-
-	// Performance mode should be reasonably fast (less than 30 seconds for this small dataset)
-	if elapsed > 30*time.Second {
-		t.Errorf("Performance mode took too long: %v", elapsed)
-	}
-}
-
-func TestCLI_ComprehensiveMode(t *testing.T) {
-	testDir := createTestGTFS(t, true)
-
-	stdout, stderr, exitCode := runCLI(t, "-i", testDir, "-m", "comprehensive")
-
-	if !strings.Contains(stderr, "Mode: comprehensive") {
-		t.Errorf("Expected comprehensive mode indication in stderr, got: %s", stderr)
-	}
-
-	if !strings.Contains(stderr, "✅ Validation completed") {
-		t.Errorf("Expected validation completion message in stderr, got: %s", stderr)
-	}
-
-	if exitCode != 0 {
-		t.Logf("CLI found validation errors in comprehensive mode (exit code %d)", exitCode)
-		t.Logf("STDOUT: %s", stdout)
-		t.Logf("STDERR: %s", stderr)
-	}
-}
-
 func TestCLI_NonExistentInput(t *testing.T) {
 	stdout, stderr, exitCode := runCLI(t, "-i", "/non/existent/path")
 
@@ -262,22 +218,6 @@ func TestCLI_MissingInput(t *testing.T) {
 
 	if !strings.Contains(stderr, "required flag(s) \"input\" not set") {
 		t.Errorf("Expected missing input error in stderr, got: %s", stderr)
-	}
-}
-
-func TestCLI_InvalidMode(t *testing.T) {
-	testDir := createTestGTFS(t, true)
-
-	stdout, stderr, exitCode := runCLI(t, "-i", testDir, "-m", "invalid_mode")
-
-	if exitCode == 0 {
-		t.Logf("STDOUT: %s", stdout)
-		t.Logf("STDERR: %s", stderr)
-		t.Error("Expected non-zero exit code for invalid mode")
-	}
-
-	if !strings.Contains(stderr, "invalid validation mode") {
-		t.Errorf("Expected invalid mode error in stderr, got: %s", stderr)
 	}
 }
 

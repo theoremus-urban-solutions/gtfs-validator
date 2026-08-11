@@ -19,7 +19,6 @@ func TestNew(t *testing.T) {
 				CountryCode:       "US",
 				ParallelWorkers:   4,
 				ValidatorVersion:  "1.0.0",
-				ValidationMode:    ValidationModeDefault,
 				MaxNoticesPerType: 0, // no limit by default
 			},
 		},
@@ -30,18 +29,6 @@ func TestNew(t *testing.T) {
 				CountryCode:       "UK",
 				ParallelWorkers:   4,
 				ValidatorVersion:  "1.0.0",
-				ValidationMode:    ValidationModeDefault,
-				MaxNoticesPerType: 0, // no limit by default
-			},
-		},
-		{
-			name: "performance mode",
-			opts: []Option{WithValidationMode(ValidationModePerformance)},
-			want: &Config{
-				CountryCode:       "US",
-				ParallelWorkers:   4,
-				ValidatorVersion:  "1.0.0",
-				ValidationMode:    ValidationModePerformance,
 				MaxNoticesPerType: 0, // no limit by default
 			},
 		},
@@ -52,7 +39,6 @@ func TestNew(t *testing.T) {
 				CountryCode:       "US",
 				ParallelWorkers:   8,
 				ValidatorVersion:  "1.0.0",
-				ValidationMode:    ValidationModeDefault,
 				MaxNoticesPerType: 0, // no limit by default
 			},
 		},
@@ -75,9 +61,6 @@ func TestNew(t *testing.T) {
 			}
 			if config.ValidatorVersion != tt.want.ValidatorVersion {
 				t.Errorf("ValidatorVersion = %q, want %q", config.ValidatorVersion, tt.want.ValidatorVersion)
-			}
-			if config.ValidationMode != tt.want.ValidationMode {
-				t.Errorf("ValidationMode = %q, want %q", config.ValidationMode, tt.want.ValidationMode)
 			}
 			if config.MaxNoticesPerType != tt.want.MaxNoticesPerType {
 				t.Errorf("MaxNoticesPerType = %d, want %d", config.MaxNoticesPerType, tt.want.MaxNoticesPerType)
@@ -146,24 +129,6 @@ func TestWithOptions(t *testing.T) {
 			t.Error("Expected progress callback to be called")
 		}
 	})
-}
-
-func TestValidationModes(t *testing.T) {
-	modes := []ValidationMode{
-		ValidationModePerformance,
-		ValidationModeDefault,
-		ValidationModeComprehensive,
-	}
-
-	for _, mode := range modes {
-		t.Run(string(mode), func(t *testing.T) {
-			validator := New(WithValidationMode(mode))
-			impl := validator.(*validatorImpl)
-			if impl.config.ValidationMode != mode {
-				t.Errorf("Expected mode %s, got %s", mode, impl.config.ValidationMode)
-			}
-		})
-	}
 }
 
 func TestValidationReport(t *testing.T) {

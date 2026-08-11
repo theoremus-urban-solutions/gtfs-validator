@@ -318,10 +318,11 @@ func TestShapeGeometryValidator_Validate(t *testing.T) {
 	}
 }
 
-// TestShapeGeometryValidator_ReportsEveryTripInAPattern pins the grouping down:
-// the geometry is walked once for trips that share a shape and a stop list, but
-// each of those trips still has to appear in the report.
-func TestShapeGeometryValidator_ReportsEveryTripInAPattern(t *testing.T) {
+// TestShapeGeometryValidator_ReportsPatternOnce pins the grouping down: trips
+// that share a shape and a stop list have identical geometry, so the finding is
+// reported once for the pattern rather than once per trip. Reporting per trip
+// multiplied a single misplaced stop by the size of the timetable.
+func TestShapeGeometryValidator_ReportsPatternOnce(t *testing.T) {
 	loader := testutil.CreateTestFeedLoader(t, map[string]string{
 		"stops.txt": "stop_id,stop_name,stop_lat,stop_lon\nA,A,0,0\nB,B,0.01,0.01",
 		"trips.txt": "route_id,service_id,trip_id,shape_id\n" +
@@ -336,18 +337,23 @@ func TestShapeGeometryValidator_ReportsEveryTripInAPattern(t *testing.T) {
 	NewShapeGeometryValidator().Validate(loader, container, gtfsvalidator.Config{})
 
 	trips := make(map[string]bool)
+	notices := 0
 	for _, n := range container.GetNotices() {
 		if n.Code() != "stop_too_far_from_shape" {
 			continue
 		}
+		notices++
 		if tripID, ok := n.Context()["tripId"].(string); ok {
 			trips[tripID] = true
 		}
 	}
 
-	for _, tripID := range []string{"T1", "T2", "T3"} {
-		if !trips[tripID] {
-			t.Errorf("expected %s to be reported, got %v", tripID, trips)
-		}
+	// One notice for the pattern, naming the first trip that uses it, however
+	// many trips share it.
+	if notices != 1 {
+		t.Errorf("expected the pattern to be reported once, got %d notices from %v", notices, trips)
+	}
+	if !trips["T1"] {
+		t.Errorf("expected the notice to name T1, got %v", trips)
 	}
 }

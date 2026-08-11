@@ -73,37 +73,13 @@ type Config struct {
 	// ProgressCallback is called during validation to report progress.
 	ProgressCallback func(progress ProgressInfo)
 
-	// ValidationMode configures which validators to run.
-	ValidationMode ValidationMode
-
 	// MaxNoticesPerType limits notices per type (0 = no limit, the default).
 	//
 	// A cap silently discards notices once reached, and since notices arrive
 	// in file order rather than severity order, the discarded ones can be the
 	// errors. Only set this if you knowingly want a truncated report.
 	MaxNoticesPerType int
-
-	// EnableCaching enables shared data caching across validators.
-	// When enabled, frequently-accessed files (stop_times, trips, stops, routes)
-	// are loaded once and shared, significantly reducing file I/O and parsing overhead.
-	// Recommended: true for large feeds and resource-constrained servers.
-	// Default: false (for backward compatibility).
-	EnableCaching bool
 }
-
-// ValidationMode defines preset validation configurations.
-type ValidationMode string
-
-const (
-	// ValidationModePerformance runs only essential validators for speed.
-	ValidationModePerformance ValidationMode = "performance"
-
-	// ValidationModeDefault runs standard validators.
-	ValidationModeDefault ValidationMode = "default"
-
-	// ValidationModeComprehensive runs all validators including expensive ones.
-	ValidationModeComprehensive ValidationMode = "comprehensive"
-)
 
 // ProgressInfo contains information about validation progress.
 type ProgressInfo struct {
@@ -319,13 +295,6 @@ func WithProgressCallback(callback func(ProgressInfo)) Option {
 	}
 }
 
-// WithValidationMode sets the validation mode.
-func WithValidationMode(mode ValidationMode) Option {
-	return func(c *Config) {
-		c.ValidationMode = mode
-	}
-}
-
 // WithMaxNoticesPerType sets the maximum notices per type.
 func WithMaxNoticesPerType(max int) Option {
 	return func(c *Config) {
@@ -333,26 +302,19 @@ func WithMaxNoticesPerType(max int) Option {
 	}
 }
 
-// WithCaching enables or disables the parsed feed cache.
-// When enabled, frequently-accessed files are loaded once and shared across validators.
-// This can significantly reduce validation time (40% faster) and memory usage (48% less GC pressure).
-// Recommended for large feeds and resource-constrained servers.
-func WithCaching(enabled bool) Option {
-	return func(c *Config) {
-		c.EnableCaching = enabled
-	}
-}
-
 // New creates a new GTFS validator with the given options.
+//
+// Every check the validator implements runs on every feed. There is no mode or
+// preset to select a subset: a rule worth shipping is worth running, and a
+// caller cannot tell which of the rules a preset drops would have been the one
+// that mattered for their feed.
 func New(opts ...Option) Validator {
 	config := &Config{
 		CountryCode:       "US",
 		CurrentDate:       time.Now(),
 		ParallelWorkers:   4,
 		ValidatorVersion:  "1.0.0",
-		ValidationMode:    ValidationModeDefault,
-		MaxNoticesPerType: 0,     // No limit: capping per type silently drops findings
-		EnableCaching:     false, // Default false for backward compatibility
+		MaxNoticesPerType: 0, // No limit: capping per type silently drops findings
 	}
 
 	for _, opt := range opts {
@@ -477,16 +439,6 @@ func validateConfig(config *Config) error {
 		errs = append(errs, errors.New("ValidatorVersion cannot be empty"))
 	}
 
-	// Validate ValidationMode (should be a known mode)
-	switch config.ValidationMode {
-	case ValidationModePerformance, ValidationModeDefault, ValidationModeComprehensive:
-		// Valid modes
-	case "":
-		errs = append(errs, errors.New("ValidationMode cannot be empty"))
-	default:
-		errs = append(errs, fmt.Errorf("unknown ValidationMode: %s", config.ValidationMode))
-	}
-
 	// Validate MaxNoticesPerType (should be reasonable)
 	if config.MaxNoticesPerType < 0 {
 		errs = append(errs, fmt.Errorf("MaxNoticesPerType cannot be negative: %d", config.MaxNoticesPerType))
@@ -542,15 +494,6 @@ func sanitizeConfig(config *Config) {
 	// Sanitize ValidatorVersion
 	if strings.TrimSpace(config.ValidatorVersion) == "" {
 		config.ValidatorVersion = "1.0.0"
-	}
-
-	// Sanitize ValidationMode
-	switch config.ValidationMode {
-	case ValidationModePerformance, ValidationModeDefault, ValidationModeComprehensive:
-		// Valid modes, keep as is - no action needed
-		_ = config.ValidationMode // Avoid unused variable warning
-	default:
-		config.ValidationMode = ValidationModeDefault
 	}
 
 	// Sanitize MaxNoticesPerType

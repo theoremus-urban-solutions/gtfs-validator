@@ -129,28 +129,23 @@ func TestForeignKeyValidator_ResolvesAgainstTheDefiningFile(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		for _, caching := range []bool{false, true} {
-			t.Run(tt.name, func(t *testing.T) {
-				loader := testutil.CreateTestFeedLoader(t, tt.files)
-				if caching {
-					loader.EnableCaching()
-				}
-				container := notice.NewNoticeContainer()
+		t.Run(tt.name, func(t *testing.T) {
+			loader := testutil.CreateTestFeedLoader(t, tt.files)
+			container := notice.NewNoticeContainer()
 
-				NewForeignKeyValidator().Validate(loader, container, gtfsvalidator.Config{})
+			NewForeignKeyValidator().Validate(loader, container, gtfsvalidator.Config{})
 
-				violations := 0
-				for _, n := range container.GetNotices() {
-					if n.Code() == "foreign_key_violation" {
-						violations++
-					}
+			violations := 0
+			for _, n := range container.GetNotices() {
+				if n.Code() == "foreign_key_violation" {
+					violations++
 				}
+			}
 
-				if violations != tt.expected {
-					t.Errorf("caching=%v: expected %d foreign_key_violation notices, got %d (%s)",
-						caching, tt.expected, violations, tt.description)
-				}
-			})
-		}
+			if violations != tt.expected {
+				t.Errorf("expected %d foreign_key_violation notices, got %d (%s)",
+					tt.expected, violations, tt.description)
+			}
+		})
 	}
 }

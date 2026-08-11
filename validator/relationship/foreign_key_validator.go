@@ -22,17 +22,10 @@ func NewForeignKeyValidator() *ForeignKeyValidator {
 // Validate checks that all foreign key references are valid
 func (v *ForeignKeyValidator) Validate(loader *parser.FeedLoader, container *notice.NoticeContainer, config validator.Config) {
 	var lookupMaps map[string]map[string]bool
-
-	// Try to use cache if available (Phase 1 optimization)
-	if cache := loader.GetCache(); cache != nil {
-		lookupMaps = v.buildLookupMapsFromCache(cache)
+	if config.ParallelWorkers > 1 {
+		lookupMaps = v.buildLookupMapsParallel(loader)
 	} else {
-		// Fallback: use parallel building if configured (Phase 2 optimization)
-		if config.ParallelWorkers > 1 {
-			lookupMaps = v.buildLookupMapsParallel(loader)
-		} else {
-			lookupMaps = v.buildLookupMaps(loader)
-		}
+		lookupMaps = v.buildLookupMaps(loader)
 	}
 
 	// Validate foreign keys in each file
@@ -48,81 +41,9 @@ func (v *ForeignKeyValidator) Validate(loader *parser.FeedLoader, container *not
 	v.validatePathwaysReferences(loader, container, lookupMaps)
 }
 
-// buildLookupMapsFromCache builds lookup maps instantly from cached data.
-// This eliminates all file I/O for building lookup maps (~16s → ~1s).
-func (v *ForeignKeyValidator) buildLookupMapsFromCache(cache *parser.ParsedFeedCache) map[string]map[string]bool {
-	lookupMaps := make(map[string]map[string]bool, 10) // Pre-allocate for 10 lookup types
-
-	// Build stop_id lookup from cached stops
-	stops, err := cache.GetStops()
-	if err == nil {
-		stopMap := make(map[string]bool, len(stops))
-		for _, stop := range stops {
-			if stop.StopID != "" {
-				stopMap[stop.StopID] = true
-			}
-		}
-		lookupMaps["stop_id"] = stopMap
-	}
-
-	// Build trip_id lookup from cached trips
-	trips, err := cache.GetTrips()
-	if err == nil {
-		tripMap := make(map[string]bool, len(trips))
-		for _, trip := range trips {
-			if trip.TripID != "" {
-				tripMap[trip.TripID] = true
-			}
-		}
-		lookupMaps["trip_id"] = tripMap
-	}
-
-	// Build route_id lookup from cached routes
-	routes, err := cache.GetRoutes()
-	if err == nil {
-		routeMap := make(map[string]bool, len(routes))
-		for _, route := range routes {
-			if route.RouteID != "" {
-				routeMap[route.RouteID] = true
-			}
-		}
-		lookupMaps["route_id"] = routeMap
-	}
-
-	// Build zone_id lookup from cached stops
-	if stops != nil {
-		zoneMap := make(map[string]bool, len(stops)/10) // Typical: ~200 zones for 2000 stops
-		for _, stop := range stops {
-			if stop.ZoneID != "" {
-				zoneMap[stop.ZoneID] = true
-			}
-		}
-		lookupMaps["zone_id"] = zoneMap
-	}
-
-	// For files not in cache, fall back to sequential loading
-	// (these are typically small files)
-	//
-	// A lookup has to be built from the file that defines the key, never from a
-	// file that refers to it. agency_id comes from agency.txt rather than the
-	// cached routes, service_id from the calendars rather than the cached trips,
-	// and shape_id from shapes.txt rather than the cached trips, because a
-	// lookup gathered from the referring side contains the very values being
-	// checked against it: nothing could fail, and anything defined but unused
-	// would be reported as missing.
-	loader := cache.GetLoader()
-	lookupMaps["agency_id"] = v.buildLookupMap(loader, "agency.txt", "agency_id")
-	lookupMaps["service_id"] = v.buildServiceIdLookupMap(loader)
-	lookupMaps["shape_id"] = v.buildLookupMap(loader, "shapes.txt", "shape_id")
-	lookupMaps["fare_id"] = v.buildLookupMap(loader, "fare_attributes.txt", "fare_id")
-	lookupMaps["pathway_id"] = v.buildLookupMap(loader, "pathways.txt", "pathway_id")
-	lookupMaps["level_id"] = v.buildLookupMap(loader, "levels.txt", "level_id")
-
-	return lookupMaps
-}
-
-// buildLookupMapsParallel builds lookup maps in parallel when cache is unavailable.
-// This provides a fallback optimization for non-cached mode (~16s → ~5s).
+// buildLookupMapsParallel builds the lookup maps concurrently, one goroutine
+// per file. Each is an independent read of a different file, so the work
+// parallelises cleanly.
 func (v *ForeignKeyValidator) buildLookupMapsParallel(loader *parser.FeedLoader) map[string]map[string]bool {
 	// Define tasks for parallel execution
 	type mapTask struct {

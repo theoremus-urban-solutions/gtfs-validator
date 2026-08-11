@@ -23,34 +23,6 @@ func BenchmarkValidateFile(b *testing.B) {
 	}
 }
 
-// BenchmarkValidateFile_Performance benchmarks performance mode
-func BenchmarkValidateFile_Performance(b *testing.B) {
-	validator := New(WithValidationMode(ValidationModePerformance))
-	zipPath := createBenchmarkZip(b, MinimalValidGTFS())
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := validator.ValidateFile(zipPath)
-		if err != nil {
-			b.Fatalf("Validation failed: %v", err)
-		}
-	}
-}
-
-// BenchmarkValidateFile_Comprehensive benchmarks comprehensive mode
-func BenchmarkValidateFile_Comprehensive(b *testing.B) {
-	validator := New(WithValidationMode(ValidationModeComprehensive))
-	zipPath := createBenchmarkZip(b, MinimalValidGTFS())
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		_, err := validator.ValidateFile(zipPath)
-		if err != nil {
-			b.Fatalf("Validation failed: %v", err)
-		}
-	}
-}
-
 // BenchmarkValidateFile_ParallelWorkers benchmarks different worker counts
 func BenchmarkValidateFile_ParallelWorkers(b *testing.B) {
 	workerCounts := []int{1, 2, 4, 8}

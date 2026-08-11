@@ -37,7 +37,6 @@ SERVICE1,1,1,1,1,1,0,0,20241201,20241231`,
 
 	// Create validator with streaming callback
 	validator := New(
-		WithValidationMode(ValidationModeDefault),
 		WithParallelWorkers(1), // Use sequential for predictable streaming
 	)
 
@@ -103,7 +102,7 @@ func TestStreamingValidationCancellation(t *testing.T) {
 	}
 
 	// Create validator
-	validator := New(WithValidationMode(ValidationModeComprehensive))
+	validator := New()
 
 	// Create context that cancels after 1 second
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)

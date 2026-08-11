@@ -103,9 +103,6 @@ func main() {
 // Memory-optimized configuration for large feeds
 func createMemoryOptimizedValidator() (gtfsvalidator.Validator, string) {
 	validator := gtfsvalidator.New(
-		// Use default mode (balanced performance vs coverage)
-		gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModeDefault),
-
 		// Limit memory usage to 1GB
 		gtfsvalidator.WithMaxMemory(1024*1024*1024),
 
@@ -129,9 +126,6 @@ func createMemoryOptimizedValidator() (gtfsvalidator.Validator, string) {
 // Fast configuration prioritizing speed over thoroughness
 func createFastValidator() (gtfsvalidator.Validator, string) {
 	validator := gtfsvalidator.New(
-		// Performance mode for speed
-		gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),
-
 		// High parallelism for speed
 		gtfsvalidator.WithParallelWorkers(8),
 
@@ -148,15 +142,12 @@ func createFastValidator() (gtfsvalidator.Validator, string) {
 		}),
 	)
 
-	return validator, "Fast: Performance mode, 8 workers, 2GB limit, minimal notices"
+	return validator, "Fast: 8 workers, 2GB limit, minimal notices"
 }
 
 // Comprehensive configuration for thorough analysis
 func createComprehensiveValidator() (gtfsvalidator.Validator, string) {
 	validator := gtfsvalidator.New(
-		// Comprehensive mode for maximum coverage
-		gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModeComprehensive),
-
 		// Moderate parallelism to balance speed and memory
 		gtfsvalidator.WithParallelWorkers(4),
 
@@ -332,7 +323,6 @@ func printMemoryOptimizationTips(mode string, report *gtfsvalidator.ValidationRe
 
 	if feedSize > 1000000 { // >1M stop times
 		fmt.Println("🔧 For very large feeds:")
-		fmt.Println("  • Use performance mode for faster processing")
 		fmt.Println("  • Limit parallel workers to 2-4 to reduce memory usage")
 		fmt.Println("  • Set MaxNoticesPerType to 10-25 to limit memory growth")
 		fmt.Println("  • Set MaxMemory to appropriate limit (1-2GB)")

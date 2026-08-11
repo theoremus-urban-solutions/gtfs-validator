@@ -14,10 +14,10 @@ import (
 // StopTimeFieldValidator makes a single streaming pass over stop_times.txt and
 // reports the per-row rules that depend on the file's own order.
 //
-// It reads the file rather than the parsed cache deliberately: the cache
-// normalises timepoint to an int, which loses the distinction between
-// "timepoint=0" and "timepoint not given" that missing_timepoint_value turns
-// on, and it does not carry the pickup/drop-off window fields at all.
+// The optional fields are kept as written rather than parsed into their target
+// types, because several of these rules turn on the difference between a field
+// given as zero and a field not given at all — missing_timepoint_value is
+// exactly that distinction, and an int cannot hold it.
 type StopTimeFieldValidator struct{}
 
 // NewStopTimeFieldValidator creates a new stop time field validator

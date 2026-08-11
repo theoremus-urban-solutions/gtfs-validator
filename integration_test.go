@@ -151,43 +151,6 @@ func TestValidateFile_EmptyPath(t *testing.T) {
 	}
 }
 
-func TestValidationModes_Performance(t *testing.T) {
-	validator := New(WithValidationMode(ValidationModePerformance))
-
-	zipPath := CreateTempZip(t, MinimalValidGTFS())
-	report, err := validator.ValidateFile(zipPath)
-	if err != nil {
-		t.Fatalf("Validation failed: %v", err)
-	}
-
-	_ = NewAssertValidationReport(t, report)
-	// Performance mode may still find errors - that's legitimate
-	if report.HasErrors() {
-		t.Logf("Performance mode found %d errors (this may be expected)", report.ErrorCount())
-	}
-
-	// Performance mode should be faster (this is more of a smoke test)
-	if report.Summary.ValidationTime < 0 {
-		t.Error("Expected positive validation time")
-	}
-}
-
-func TestValidationModes_Comprehensive(t *testing.T) {
-	validator := New(WithValidationMode(ValidationModeComprehensive))
-
-	zipPath := CreateTempZip(t, MinimalValidGTFS())
-	report, err := validator.ValidateFile(zipPath)
-	if err != nil {
-		t.Fatalf("Validation failed: %v", err)
-	}
-
-	_ = NewAssertValidationReport(t, report)
-	// Comprehensive mode may find more errors - that's expected
-	if report.HasErrors() {
-		t.Logf("Comprehensive mode found %d errors (this is expected with thorough validation)", report.ErrorCount())
-	}
-}
-
 func TestProgressCallback(t *testing.T) {
 	var progressUpdates []ProgressInfo
 	var mu sync.Mutex

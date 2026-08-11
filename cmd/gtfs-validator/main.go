@@ -26,7 +26,6 @@ var (
 	countryCode  string
 	maxMemory    int64
 	workers      int
-	mode         string
 	maxNotices   int
 	timeout      time.Duration
 	showProgress bool
@@ -46,7 +45,6 @@ structured logging, and comprehensive validation with 201 validation rules.`,
 		Example: `  gtfs-validator -i feed.zip
   gtfs-validator -i ./gtfs-feed -f json -o report.json
   gtfs-validator -i feed.zip -f html -o report.html
-  gtfs-validator -i feed.zip -m performance
   gtfs-validator -i feed.zip --progress`,
 		Version: version,
 		RunE:    runValidation,
@@ -59,7 +57,6 @@ structured logging, and comprehensive validation with 201 validation rules.`,
 	rootCmd.Flags().StringVarP(&countryCode, "country", "c", "US", "Country code for validation (e.g., US, GB, FR)")
 	rootCmd.Flags().Int64Var(&maxMemory, "memory", 0, "Maximum memory usage in MB (0 = no limit)")
 	rootCmd.Flags().IntVarP(&workers, "workers", "w", 4, "Number of parallel workers")
-	rootCmd.Flags().StringVarP(&mode, "mode", "m", "default", "Validation mode: performance, default, comprehensive")
 	rootCmd.Flags().IntVar(&maxNotices, "max-notices", 0, "Maximum notices per type (0 = no limit, the default)")
 	rootCmd.Flags().DurationVarP(&timeout, "timeout", "t", 5*time.Minute, "Validation timeout")
 	rootCmd.Flags().BoolVarP(&showProgress, "progress", "p", false, "Show progress bar")
@@ -106,7 +103,7 @@ comprehensive validation with 201 validation rules.`,
 		Example: `  gtfs-validator validate feed.zip
   gtfs-validator validate ./gtfs-directory --format json
   gtfs-validator validate feed.zip --format html --output report.html
-  gtfs-validator validate feed.zip --mode performance --progress`,
+  gtfs-validator validate feed.zip --progress`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			inputPath = args[0]
@@ -120,7 +117,6 @@ comprehensive validation with 201 validation rules.`,
 	cmd.Flags().StringVarP(&countryCode, "country", "c", "US", "Country code for validation (e.g., US, GB, FR)")
 	cmd.Flags().Int64Var(&maxMemory, "memory", 0, "Maximum memory usage in MB (0 = no limit)")
 	cmd.Flags().IntVarP(&workers, "workers", "w", 4, "Number of parallel workers")
-	cmd.Flags().StringVarP(&mode, "mode", "m", "default", "Validation mode: performance, default, comprehensive")
 	cmd.Flags().IntVar(&maxNotices, "max-notices", 0, "Maximum notices per type (0 = no limit, the default)")
 	cmd.Flags().DurationVarP(&timeout, "timeout", "t", 5*time.Minute, "Validation timeout")
 	cmd.Flags().BoolVarP(&showProgress, "progress", "p", false, "Show progress bar")
@@ -130,7 +126,7 @@ comprehensive validation with 201 validation rules.`,
 
 func runValidation(cmd *cobra.Command, args []string) error {
 	// Validate input
-	if err := validateInput(inputPath, mode, outputFormat); err != nil {
+	if err := validateInput(inputPath, outputFormat); err != nil {
 		return fmt.Errorf("❌ %v", err)
 	}
 
@@ -155,16 +151,6 @@ func runValidation(cmd *cobra.Command, args []string) error {
 		gtfsvalidator.WithMaxNoticesPerType(maxNotices),
 	}
 
-	// Set validation mode
-	switch mode {
-	case "performance":
-		opts = append(opts, gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance))
-	case "comprehensive":
-		opts = append(opts, gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModeComprehensive))
-	default:
-		opts = append(opts, gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModeDefault))
-	}
-
 	// Add progress callback if requested
 	if showProgress {
 		progressBar := NewProgressBar()
@@ -179,7 +165,6 @@ func runValidation(cmd *cobra.Command, args []string) error {
 	// Show startup message
 	fmt.Fprintf(os.Stderr, "🚀 Starting GTFS validation...\n")
 	fmt.Fprintf(os.Stderr, "   Feed: %s\n", filepath.Base(inputPath))
-	fmt.Fprintf(os.Stderr, "   Mode: %s\n", mode)
 	if maxNotices > 0 {
 		fmt.Fprintf(os.Stderr, "   Notice limit: %d per type\n", maxNotices)
 	}
@@ -261,16 +246,10 @@ func runValidation(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func validateInput(inputPath, mode, format string) error {
+func validateInput(inputPath, format string) error {
 	// Check if input exists
 	if _, err := os.Stat(inputPath); os.IsNotExist(err) {
 		return fmt.Errorf("input error: path does not exist: '%s'", inputPath)
-	}
-
-	// Validate mode
-	validModes := []string{"performance", "default", "comprehensive"}
-	if !contains(validModes, mode) {
-		return fmt.Errorf("invalid validation mode: '%s'. valid modes: %s", mode, strings.Join(validModes, ", "))
 	}
 
 	// Validate format

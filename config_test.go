@@ -24,7 +24,6 @@ func TestConfigValidation(t *testing.T) {
 				WithCountryCode("GB"),
 				WithParallelWorkers(8),
 				WithMaxMemory(512 * 1024 * 1024), // 512MB
-				WithValidationMode(ValidationModePerformance),
 				WithMaxNoticesPerType(50),
 			},
 			expectValid: true,
@@ -32,7 +31,6 @@ func TestConfigValidation(t *testing.T) {
 				"CountryCode":       "GB",
 				"ParallelWorkers":   8,
 				"MaxMemory":         int64(512 * 1024 * 1024),
-				"ValidationMode":    ValidationModePerformance,
 				"MaxNoticesPerType": 50,
 			},
 		},
@@ -84,16 +82,6 @@ func TestConfigValidation(t *testing.T) {
 			expectValid: false,
 			expectedValues: map[string]interface{}{
 				"MaxMemory": int64(10 * 1024 * 1024), // Should be sanitized to 10MB
-			},
-		},
-		{
-			name: "Invalid validation mode (gets sanitized)",
-			configOptions: []Option{
-				WithValidationMode("invalid_mode"),
-			},
-			expectValid: false,
-			expectedValues: map[string]interface{}{
-				"ValidationMode": ValidationModeDefault, // Should be sanitized to default
 			},
 		},
 		{
@@ -157,8 +145,6 @@ func TestConfigValidation(t *testing.T) {
 						actualValue = config.ParallelWorkers
 					case "MaxMemory":
 						actualValue = config.MaxMemory
-					case "ValidationMode":
-						actualValue = config.ValidationMode
 					case "MaxNoticesPerType":
 						actualValue = config.MaxNoticesPerType
 					default:
@@ -196,7 +182,6 @@ func TestConfigValidationFunctions(t *testing.T) {
 			MaxMemory:         512 * 1024 * 1024,
 			ParallelWorkers:   4,
 			ValidatorVersion:  "1.0.0",
-			ValidationMode:    ValidationModeDefault,
 			MaxNoticesPerType: 100,
 		}
 
@@ -212,7 +197,6 @@ func TestConfigValidationFunctions(t *testing.T) {
 			MaxMemory:         -1000,     // Negative
 			ParallelWorkers:   -5,        // Negative
 			ValidatorVersion:  "",        // Empty
-			ValidationMode:    "invalid", // Unknown mode
 			MaxNoticesPerType: -10,       // Negative
 		}
 
@@ -228,7 +212,6 @@ func TestConfigValidationFunctions(t *testing.T) {
 			"MaxMemory",
 			"ParallelWorkers",
 			"ValidatorVersion",
-			"ValidationMode",
 			"MaxNoticesPerType",
 		}
 
@@ -246,7 +229,6 @@ func TestConfigValidationFunctions(t *testing.T) {
 			MaxMemory:         -1000,                        // Negative
 			ParallelWorkers:   200,                          // Too high
 			ValidatorVersion:  "",                           // Empty
-			ValidationMode:    "invalid",                    // Unknown mode
 			MaxNoticesPerType: -10,                          // Negative
 		}
 
@@ -268,10 +250,6 @@ func TestConfigValidationFunctions(t *testing.T) {
 
 		if config.ValidatorVersion != "1.0.0" {
 			t.Errorf("Expected sanitized ValidatorVersion to be '1.0.0', got: %s", config.ValidatorVersion)
-		}
-
-		if config.ValidationMode != ValidationModeDefault {
-			t.Errorf("Expected sanitized ValidationMode to be '%s', got: %s", ValidationModeDefault, config.ValidationMode)
 		}
 
 		if config.MaxNoticesPerType != 0 {

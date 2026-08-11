@@ -14,6 +14,8 @@ import (
 
 // ValidationRequest represents an API validation request
 type ValidationRequest struct {
+	// Mode is accepted only so that a request built against the old API can be
+	// rejected with an explanation. It selects nothing: there are no modes.
 	Mode              string `json:"mode,omitempty"`
 	CountryCode       string `json:"countryCode,omitempty"`
 	MaxNoticesPerType int    `json:"maxNoticesPerType,omitempty"`
@@ -79,14 +81,13 @@ func validateHandler(w http.ResponseWriter, r *http.Request) {
 	// Create validator with configuration
 	opts := []gtfsvalidator.Option{}
 
-	// Set validation mode
-	switch req.Mode {
-	case "performance":
-		opts = append(opts, gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance))
-	case "comprehensive":
-		opts = append(opts, gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModeComprehensive))
-	default:
-		opts = append(opts, gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModeDefault))
+	// Validation modes are gone: every check runs on every feed. A caller that
+	// still sends "mode" is told so rather than quietly given a different
+	// amount of validation than it asked for — a silently ignored field here
+	// would look like the old performance mode still working.
+	if req.Mode != "" {
+		sendErrorResponse(w, "The 'mode' parameter has been removed; all validators now always run", http.StatusBadRequest)
+		return
 	}
 
 	// Set country code

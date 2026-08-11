@@ -62,7 +62,6 @@ func example2() {
 	// Create validator with valid custom settings
 	validator := gtfsvalidator.New(
 		gtfsvalidator.WithCountryCode("GB"), // Valid 2-letter code
-		gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),
 		gtfsvalidator.WithParallelWorkers(8),                       // Valid range
 		gtfsvalidator.WithMaxMemory(512*1024*1024),                 // 512MB
 		gtfsvalidator.WithMaxNoticesPerType(50),                    // Reasonable limit
@@ -113,7 +112,6 @@ func example4() {
 	// Fast validation for CI/CD
 	fmt.Println("🚀 Fast Validation (CI/CD):")
 	fastValidator := gtfsvalidator.New(
-		gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),
 		gtfsvalidator.WithParallelWorkers(8),
 		gtfsvalidator.WithMaxNoticesPerType(10), // Limit notices for quick feedback
 	)
@@ -126,7 +124,6 @@ func example4() {
 	// Thorough validation for production
 	fmt.Println("🔍 Thorough Validation (Production):")
 	thoroughValidator := gtfsvalidator.New(
-		gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModeComprehensive),
 		gtfsvalidator.WithParallelWorkers(4),          // Moderate parallelism
 		gtfsvalidator.WithMaxNoticesPerType(1000),     // More detailed reporting
 		gtfsvalidator.WithMaxMemory(2*1024*1024*1024), // 2GB limit
@@ -140,7 +137,6 @@ func example4() {
 	// Memory-constrained validation
 	fmt.Println("💾 Memory-Constrained Validation:")
 	constrainedValidator := gtfsvalidator.New(
-		gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModeDefault),
 		gtfsvalidator.WithParallelWorkers(2),       // Fewer workers = less memory
 		gtfsvalidator.WithMaxMemory(256*1024*1024), // 256MB limit
 		gtfsvalidator.WithMaxNoticesPerType(50),    // Limit memory usage
@@ -160,7 +156,6 @@ func example5(gtfsFile string) {
 
 	// Create validator with progress callback
 	validator := gtfsvalidator.New(
-		gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModeDefault),
 		gtfsvalidator.WithProgressCallback(func(info gtfsvalidator.ProgressInfo) {
 			// Only show progress every 20%
 			if int(info.PercentComplete)%20 == 0 {

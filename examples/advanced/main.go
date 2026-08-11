@@ -39,7 +39,6 @@ func main() {
 	// Create validator with advanced configuration
 	validator := gtfsvalidator.New(
 		// Set validation mode for performance
-		gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModePerformance),
 
 		// Limit notices to prevent huge reports
 		gtfsvalidator.WithMaxNoticesPerType(50),

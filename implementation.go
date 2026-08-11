@@ -120,26 +120,12 @@ func (v *validatorImpl) createInternalConfig() Config {
 		MaxMemory:        v.config.MaxMemory,
 		ParallelWorkers:  v.config.ParallelWorkers,
 		ValidatorVersion: v.config.ValidatorVersion,
-		EnableCaching:    v.config.EnableCaching,
 	}
 }
 
-// createValidationConfig creates the validation configuration based on mode.
+// createValidationConfig creates the validation configuration.
 func (v *validatorImpl) createValidationConfig() validationConfig {
-	var config validationConfig
-	switch v.config.ValidationMode {
-	case ValidationModePerformance:
-		config = performanceValidationConfig()
-	case ValidationModeComprehensive:
-		config = comprehensiveValidationConfig()
-	default:
-		config = defaultValidationConfig()
-	}
-
-	// The mode presets no longer cap notices; an explicit limit is the only
-	// thing that does.
-	config.MaxNoticesPerType = v.config.MaxNoticesPerType
-	return config
+	return validationConfig{MaxNoticesPerType: v.config.MaxNoticesPerType}
 }
 
 // convertReport converts internal report format to public API format.
@@ -212,56 +198,11 @@ func (v *validatorImpl) convertReport(internal *report.ValidationReport, elapsed
 
 // Internal types that mirror the existing implementation
 
+// validationConfig is what the internal validator needs beyond the public
+// Config. The per-category enable flags are gone with the validation modes:
+// every registered validator runs on every feed.
 type validationConfig struct {
-	EnableCore          bool
-	EnableEntity        bool
-	EnableRelationship  bool
-	EnableBusiness      bool
-	EnableAccessibility bool
-	EnableFare          bool
-	EnableMeta          bool
-	EnableGeospatial    bool
-	EnableShapeGeometry bool
-	EnableDateTrips     bool
-	MaxNoticesPerType   int
-}
-
-func defaultValidationConfig() validationConfig {
-	return validationConfig{
-		EnableCore:          true,
-		EnableEntity:        true,
-		EnableRelationship:  true,
-		EnableBusiness:      true,
-		EnableAccessibility: true,
-		EnableFare:          true,
-		EnableMeta:          true,
-		MaxNoticesPerType:   0, // No limit: see NewNoticeContainer
-	}
-}
-
-func performanceValidationConfig() validationConfig {
-	return validationConfig{
-		EnableCore:         true,
-		EnableRelationship: true,
-		EnableMeta:         true,
-		MaxNoticesPerType:  0, // No limit: see NewNoticeContainer
-	}
-}
-
-func comprehensiveValidationConfig() validationConfig {
-	return validationConfig{
-		EnableCore:          true,
-		EnableEntity:        true,
-		EnableRelationship:  true,
-		EnableBusiness:      true,
-		EnableAccessibility: true,
-		EnableFare:          true,
-		EnableMeta:          true,
-		EnableGeospatial:    true,
-		EnableShapeGeometry: true,
-		EnableDateTrips:     true,
-		MaxNoticesPerType:   0, // No limit: see NewNoticeContainer
-	}
+	MaxNoticesPerType int
 }
 
 // internalValidator wraps the existing validator implementation.
@@ -325,11 +266,6 @@ func (v *internalValidator) ValidateZipWithContext(ctx context.Context, zipPath 
 		}
 	}()
 
-	// Enable caching if configured (Phase 1 optimization)
-	if v.config.EnableCaching {
-		loader.EnableCaching()
-	}
-
 	v.feedLoader = loader
 
 	// Run validation with context
@@ -359,11 +295,6 @@ func (v *internalValidator) ValidateDirectoryWithContext(ctx context.Context, di
 			log.Printf("Warning: failed to close loader: %v", err)
 		}
 	}()
-
-	// Enable caching if configured (Phase 1 optimization)
-	if v.config.EnableCaching {
-		loader.EnableCaching()
-	}
 
 	v.feedLoader = loader
 
@@ -668,117 +599,85 @@ func (v *internalValidator) extractServiceDates(feedInfo *report.FeedInfo) {
 	}
 }
 
-// initializeValidators sets up validators based on configuration.
+// initializeValidators sets up the validators. Every one of them runs on every
+// feed: this list is the validator's behaviour, and the scope audit in
+// scripts/scope_audit.py reads it to decide which canonical rules are actually
+// reachable, so a check that is not constructed here does not exist.
 func (v *internalValidator) initializeValidators() {
-	v.validators = []validator.Validator{}
+	v.validators = []validator.Validator{
+		// Core: file structure, field types and required fields.
+		core.NewMissingFilesValidator(),
+		core.NewEmptyFileValidator(),
+		core.NewUnknownFileValidator(),
+		core.NewDuplicateHeaderValidator(),
+		core.NewMissingColumnValidator(),
+		core.NewRequiredFieldValidator(),
+		core.NewFieldFormatValidator(),
+		core.NewCoordinateValidator(),
+		core.NewDuplicateKeyValidator(),
+		core.NewInvalidRowValidator(),
+		core.NewFieldTypeValidator(),
+		core.NewLeadingTrailingWhitespaceValidator(),
+		// Registered here rather than in the core package because it lives in
+		// the validator package itself.
+		validator.NewFileStructureValidator(),
 
-	// Core validators
-	if v.validationConfig.EnableCore {
-		v.validators = append(v.validators,
-			core.NewMissingFilesValidator(),
-			core.NewEmptyFileValidator(),
-			core.NewUnknownFileValidator(),
-			core.NewDuplicateHeaderValidator(),
-			core.NewMissingColumnValidator(),
-			core.NewRequiredFieldValidator(),
-			core.NewFieldFormatValidator(),
-			core.NewCoordinateValidator(),
-			core.NewDuplicateKeyValidator(),
-			core.NewInvalidRowValidator(),
-			core.NewFieldTypeValidator(),
-			// Registered here rather than in the core package because it lives
-			// in the validator package itself. It was previously constructed
-			// nowhere at all, so csv_parsing_failed and unknown_column counted
-			// as implemented while never being emitted.
-			validator.NewFileStructureValidator(),
-			core.NewLeadingTrailingWhitespaceValidator(),
-		)
-	}
+		// Entity: properties and constraints of a single record.
+		entity.NewAgencyConsistencyValidator(),
+		entity.NewRouteConsistencyValidator(),
+		entity.NewServiceValidationValidator(),
+		entity.NewStopLocationValidator(),
+		entity.NewShapeValidator(),
+		entity.NewZoneValidator(),
+		entity.NewRouteNameValidator(),
+		entity.NewTripPatternValidator(),
+		entity.NewDuplicateRouteNameValidator(),
+		entity.NewRouteColorContrastValidator(),
+		entity.NewStopNameValidator(),
+		entity.NewAttributionWithoutRoleValidator(),
+		entity.NewRouteTypeValidator(),
+		entity.NewNameComparisonValidator(),
+		entity.NewMixedCaseNameValidator(),
+		entity.NewBikeAllowanceValidator(),
 
-	// Entity validators
-	if v.validationConfig.EnableEntity {
-		v.validators = append(v.validators,
-			entity.NewAgencyConsistencyValidator(),
-			entity.NewRouteConsistencyValidator(),
-			entity.NewServiceValidationValidator(),
-			entity.NewStopLocationValidator(),
-			entity.NewShapeValidator(),
-			entity.NewZoneValidator(),
-			entity.NewRouteNameValidator(),
-			entity.NewTripPatternValidator(),
-			entity.NewDuplicateRouteNameValidator(),
-			entity.NewRouteColorContrastValidator(),
-			entity.NewStopNameValidator(),
-			entity.NewAttributionWithoutRoleValidator(),
-			entity.NewRouteTypeValidator(),
-			entity.NewNameComparisonValidator(),
-			entity.NewMixedCaseNameValidator(),
-			entity.NewBikeAllowanceValidator(),
-		)
-	}
+		// Relationship: references between files.
+		relationship.NewForeignKeyValidator(),
+		relationship.NewStopTimeSequenceValidator(),
+		relationship.NewStopTimeSequenceTimeValidator(),
+		relationship.NewStopTimeFieldValidator(),
+		relationship.NewUsageValidator(),
+		relationship.NewTranslationValidator(),
+		relationship.NewTripHeadsignValidator(),
+		relationship.NewTripShapeDistanceValidator(),
+		relationship.NewStopTimeConsistencyValidator(),
+		relationship.NewAttributionValidator(),
+		relationship.NewRouteConsistencyValidator(),
 
-	// Relationship validators
-	if v.validationConfig.EnableRelationship {
-		v.validators = append(v.validators,
-			relationship.NewForeignKeyValidator(),
-			relationship.NewStopTimeSequenceValidator(),
-			relationship.NewStopTimeSequenceTimeValidator(),
-			relationship.NewStopTimeFieldValidator(),
-			relationship.NewUsageValidator(),
-			relationship.NewTranslationValidator(),
-			relationship.NewTripHeadsignValidator(),
-			relationship.NewTripShapeDistanceValidator(),
-			relationship.NewStopTimeConsistencyValidator(),
-			relationship.NewAttributionValidator(),
-			relationship.NewRouteConsistencyValidator(),
-		)
-	}
+		// Business: operational consistency across the feed. The last three
+		// were previously reserved for the comprehensive mode on the strength
+		// of a cost that measurement did not support — running everything is
+		// about 1.15x the old default on the largest feed we have.
+		business.NewFrequencyValidator(),
+		business.NewFeedExpirationDateValidator(),
+		business.NewTransferValidator(),
+		business.NewTripUsabilityValidator(),
+		business.NewTravelSpeedValidator(),
+		business.NewBlockOverlappingValidator(),
+		business.NewServiceConsistencyValidator(),
+		business.NewInSeatTransferValidator(),
+		business.NewGeospatialValidator(),
+		business.NewShapeGeometryValidator(),
+		business.NewDateTripsValidator(),
 
-	// Business validators
-	if v.validationConfig.EnableBusiness {
-		v.validators = append(v.validators,
-			business.NewFrequencyValidator(),
-			business.NewFeedExpirationDateValidator(),
-			business.NewTransferValidator(),
-			business.NewTripUsabilityValidator(),
-			business.NewTravelSpeedValidator(),
-			business.NewBlockOverlappingValidator(),
-			business.NewServiceConsistencyValidator(),
-			business.NewInSeatTransferValidator(),
-		)
+		// Accessibility: pathways and levels.
+		accessibility.NewPathwayValidator(),
+		accessibility.NewLevelValidator(),
 
-		// Expensive business validators (optional)
-		if v.validationConfig.EnableGeospatial {
-			v.validators = append(v.validators, business.NewGeospatialValidator())
-		}
-		if v.validationConfig.EnableShapeGeometry {
-			v.validators = append(v.validators, business.NewShapeGeometryValidator())
-		}
-		if v.validationConfig.EnableDateTrips {
-			v.validators = append(v.validators, business.NewDateTripsValidator())
-		}
-	}
+		// Fare: fare rules and attributes.
+		fare.NewFareValidator(),
 
-	// Accessibility validators
-	if v.validationConfig.EnableAccessibility {
-		v.validators = append(v.validators,
-			accessibility.NewPathwayValidator(),
-			accessibility.NewLevelValidator(),
-		)
-	}
-
-	// Fare validators
-	if v.validationConfig.EnableFare {
-		v.validators = append(v.validators,
-			fare.NewFareValidator(),
-		)
-	}
-
-	// Meta validators
-	if v.validationConfig.EnableMeta {
-		v.validators = append(v.validators,
-			meta.NewFeedInfoValidator(),
-		)
+		// Meta: feed metadata.
+		meta.NewFeedInfoValidator(),
 	}
 }
 

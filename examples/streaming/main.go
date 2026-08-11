@@ -42,7 +42,6 @@ func main() {
 	// Create validator with streaming configuration
 	validator := gtfsvalidator.New(
 		// Use default mode for comprehensive validation
-		gtfsvalidator.WithValidationMode(gtfsvalidator.ValidationModeDefault),
 
 		// Limit notices to prevent overwhelming output
 		gtfsvalidator.WithMaxNoticesPerType(10),
