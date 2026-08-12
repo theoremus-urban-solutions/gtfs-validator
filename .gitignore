@@ -5,6 +5,10 @@
 *.so
 *.dylib
 
+# Compiled binaries built at the repo root
+/gtfs-validator
+/large-feeds
+
 # Test binary, built with `go test -c`
 *.test
 
