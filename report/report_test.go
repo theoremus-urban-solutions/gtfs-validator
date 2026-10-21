@@ -2,6 +2,8 @@ package report
 
 import (
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -207,3 +209,73 @@ func TestDescribeNoticeDoesNotMutateContext(t *testing.T) {
 
 // TestFileResolutionForMultiFileCode checks that a code spanning several files
 // still resolves a notice to one, using the file its rows belong to.
+
+// The samples must not depend on the order notices were reported in, or a feed validated twice reports different samples.
+func TestSamplesDoNotDependOnReportOrder(t *testing.T) {
+	var notices []notice.Notice
+	for i := 0; i < 12; i++ {
+		file := "trips.txt"
+		if i%3 == 0 {
+			file = "stops.txt"
+		}
+		notices = append(notices, notice.NewBaseNotice("some_code", notice.WARNING, map[string]interface{}{
+			"filename":     file,
+			"csvRowNumber": 20 - i,
+			"fieldName":    "field",
+		}))
+	}
+	// Two notices on one row, told apart only by the field they name.
+	notices = append(notices,
+		notice.NewBaseNotice("some_code", notice.WARNING, map[string]interface{}{"filename": "stops.txt", "csvRowNumber": 2, "fieldName": "b"}),
+		notice.NewBaseNotice("some_code", notice.WARNING, map[string]interface{}{"filename": "stops.txt", "csvRowNumber": 2, "fieldName": "a"}),
+	)
+
+	samples := func(order []notice.Notice) []map[string]interface{} {
+		container := notice.NewNoticeContainer()
+		for _, n := range order {
+			container.AddNotice(n)
+		}
+		return NewReportGeneratorWithSamples("v1", 5).GenerateReport(container, FeedInfo{}, 0).Notices[0].SampleNotices
+	}
+	reversed := make([]notice.Notice, len(notices))
+	for i, n := range notices {
+		reversed[len(notices)-1-i] = n
+	}
+
+	forward, backward := samples(notices), samples(reversed)
+	if !reflect.DeepEqual(forward, backward) {
+		t.Fatalf("samples depend on report order:\n forward  %v\n backward %v", forward, backward)
+	}
+	want := []string{"stops.txt|2|a", "stops.txt|2|b", "stops.txt|11|field", "stops.txt|14|field", "stops.txt|17|field"}
+	for i, s := range forward {
+		got := fmt.Sprintf("%v|%v|%v", s["filename"], s["csvRowNumber"], s["fieldName"])
+		if got != want[i] {
+			t.Errorf("sample %d = %s, want %s", i, got, want[i])
+		}
+	}
+}
+
+// The sample limit is the caller's, and the default stays 5.
+func TestSampleLimit(t *testing.T) {
+	container := notice.NewNoticeContainer()
+	for i := 0; i < 30; i++ {
+		container.AddNotice(notice.NewBaseNotice("some_code", notice.INFO, map[string]interface{}{"csvRowNumber": i + 2}))
+	}
+	for _, tc := range []struct {
+		gen  *ReportGenerator
+		want int
+	}{
+		{NewReportGenerator("v1"), 5},
+		{NewReportGeneratorWithSamples("v1", 0), 5},
+		{NewReportGeneratorWithSamples("v1", 20), 20},
+		{NewReportGeneratorWithSamples("v1", 100), 30},
+	} {
+		r := tc.gen.GenerateReport(container, FeedInfo{}, 0)
+		if got := len(r.Notices[0].SampleNotices); got != tc.want {
+			t.Errorf("limit %d: %d samples, want %d", tc.gen.maxSamplesPerNotice, got, tc.want)
+		}
+		if r.Notices[0].TotalNotices != 30 {
+			t.Errorf("total %d, want 30", r.Notices[0].TotalNotices)
+		}
+	}
+}

@@ -3,6 +3,7 @@ package relationship
 import (
 	"io"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -57,7 +58,14 @@ func (v *TripHeadsignValidator) Validate(loader *parser.FeedLoader, container *n
 
 	v.scanStopTimes(loader, candidates, stopNames)
 
-	for tripID, candidate := range candidates {
+	// Trips in ID order, so notices come out the same on every run.
+	tripIDs := make([]string, 0, len(candidates))
+	for tripID := range candidates {
+		tripIDs = append(tripIDs, tripID)
+	}
+	sort.Strings(tripIDs)
+	for _, tripID := range tripIDs {
+		candidate := candidates[tripID]
 		if !candidate.HasLast {
 			continue
 		}

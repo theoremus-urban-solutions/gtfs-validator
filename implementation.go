@@ -6,7 +6,6 @@ import (
 	"io"
 	"log"
 	"os"
-	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -115,12 +114,13 @@ func (v *validatorImpl) ValidateReaderWithContext(ctx context.Context, reader io
 // createInternalConfig creates the internal validator configuration.
 func (v *validatorImpl) createInternalConfig() Config {
 	return Config{
-		CountryCode:      v.config.CountryCode,
-		CurrentDate:      v.config.CurrentDate,
-		MaxMemory:        v.config.MaxMemory,
-		ParallelWorkers:  v.config.ParallelWorkers,
-		ValidatorVersion: v.config.ValidatorVersion,
-		EnableCaching:    v.config.EnableCaching,
+		CountryCode:         v.config.CountryCode,
+		CurrentDate:         v.config.CurrentDate,
+		MaxMemory:           v.config.MaxMemory,
+		ParallelWorkers:     v.config.ParallelWorkers,
+		ValidatorVersion:    v.config.ValidatorVersion,
+		EnableCaching:       v.config.EnableCaching,
+		MaxSamplesPerNotice: v.config.MaxSamplesPerNotice,
 	}
 }
 
@@ -341,7 +341,7 @@ func (v *internalValidator) ValidateZipWithContext(ctx context.Context, zipPath 
 
 	// Generate report
 	validationTime := time.Since(startTime).Seconds()
-	reportGen := report.NewReportGenerator(v.config.ValidatorVersion)
+	reportGen := report.NewReportGeneratorWithSamples(v.config.ValidatorVersion, v.config.MaxSamplesPerNotice)
 	return reportGen.GenerateReport(v.noticeContainer, feedInfo, validationTime), nil
 }
 
@@ -376,7 +376,7 @@ func (v *internalValidator) ValidateDirectoryWithContext(ctx context.Context, di
 
 	// Generate report
 	validationTime := time.Since(startTime).Seconds()
-	reportGen := report.NewReportGenerator(v.config.ValidatorVersion)
+	reportGen := report.NewReportGeneratorWithSamples(v.config.ValidatorVersion, v.config.MaxSamplesPerNotice)
 	return reportGen.GenerateReport(v.noticeContainer, feedInfo, validationTime), nil
 }
 
@@ -818,17 +818,13 @@ func (v *internalValidator) streamNoticeGroups() {
 			continue
 		}
 
-		// Order most severe first so the sample cap cannot hide the errors
-		// in a group that is mostly warnings.
-		ordered := make([]notice.Notice, len(groupNotices))
-		copy(ordered, groupNotices)
-		sort.SliceStable(ordered, func(i, j int) bool {
-			return ordered[i].Severity() > ordered[j].Severity()
-		})
+		ordered := report.SortNotices(groupNotices)
 
-		// Create sample notices (limit to 5 samples)
 		sampleNotices := make([]map[string]interface{}, 0)
-		sampleLimit := 5
+		sampleLimit := v.config.MaxSamplesPerNotice
+		if sampleLimit <= 0 {
+			sampleLimit = report.DefaultMaxSamplesPerNotice
+		}
 		counts := NoticeCounts{Total: len(ordered)}
 		for i, n := range ordered {
 			if i < sampleLimit {

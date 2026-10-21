@@ -1,6 +1,7 @@
 package business
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -91,5 +92,29 @@ func TestBlockOverlappingValidator_RouteTypeConsistency(t *testing.T) {
 				t.Errorf("inconsistent_route_type_for_block_id: got %d, want %d", count, tt.expected)
 			}
 		})
+	}
+}
+
+// A block's trips are compared against its lowest trip ID, so the mismatch count is the same on every run.
+func TestBlockServiceMismatchComparesAgainstTheLowestTripID(t *testing.T) {
+	files := map[string]string{
+		"trips.txt": "route_id,service_id,trip_id,block_id\nR1,SVB,T3,B1\nR1,SVA,T1,B1\nR1,SVA,T2,B1",
+		"stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n" +
+			"T1,06:00:00,06:00:00,A,1\nT1,06:30:00,06:30:00,B,2\n" +
+			"T2,07:00:00,07:00:00,A,1\nT2,07:30:00,07:30:00,B,2\n" +
+			"T3,08:00:00,08:00:00,A,1\nT3,08:30:00,08:30:00,B,2",
+	}
+	for run := 0; run < 30; run++ {
+		container := notice.NewNoticeContainer()
+		NewBlockOverlappingValidator().Validate(testutil.CreateTestFeedLoader(t, files), container, gtfsvalidator.Config{})
+		var got []string
+		for _, n := range container.GetNotices() {
+			if n.Code() == "block_service_mismatch" {
+				got = append(got, fmt.Sprintf("%v", n.Context()))
+			}
+		}
+		if len(got) != 1 {
+			t.Fatalf("run %d: %d block_service_mismatch notices, want 1 (T3 against T1): %v", run, len(got), got)
+		}
 	}
 }

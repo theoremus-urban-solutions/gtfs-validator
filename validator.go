@@ -83,6 +83,9 @@ type Config struct {
 	// errors. Only set this if you knowingly want a truncated report.
 	MaxNoticesPerType int
 
+	// MaxSamplesPerNotice is how many sample notices each notice group carries (0 = the default of 5, maximum 10000).
+	MaxSamplesPerNotice int
+
 	// EnableCaching enables shared data caching across validators.
 	// When enabled, frequently-accessed files (stop_times, trips, stops, routes)
 	// are loaded once and shared, significantly reducing file I/O and parsing overhead.
@@ -333,6 +336,13 @@ func WithMaxNoticesPerType(max int) Option {
 	}
 }
 
+// WithMaxSamplesPerNotice sets how many sample notices each notice group carries.
+func WithMaxSamplesPerNotice(max int) Option {
+	return func(c *Config) {
+		c.MaxSamplesPerNotice = max
+	}
+}
+
 // WithCaching enables or disables the parsed feed cache.
 // When enabled, frequently-accessed files are loaded once and shared across validators.
 // This can significantly reduce validation time (40% faster) and memory usage (48% less GC pressure).
@@ -494,6 +504,12 @@ func validateConfig(config *Config) error {
 	if config.MaxNoticesPerType > 10000 {
 		errs = append(errs, fmt.Errorf("MaxNoticesPerType is too high (maximum 10000): %d", config.MaxNoticesPerType))
 	}
+	if config.MaxSamplesPerNotice < 0 {
+		errs = append(errs, fmt.Errorf("MaxSamplesPerNotice cannot be negative: %d", config.MaxSamplesPerNotice))
+	}
+	if config.MaxSamplesPerNotice > 10000 {
+		errs = append(errs, fmt.Errorf("MaxSamplesPerNotice is too high (maximum 10000): %d", config.MaxSamplesPerNotice))
+	}
 
 	// Combine errors if any
 	if len(errs) > 0 {
@@ -558,6 +574,11 @@ func sanitizeConfig(config *Config) {
 		config.MaxNoticesPerType = 0 // 0 means no limit
 	} else if config.MaxNoticesPerType > 10000 {
 		config.MaxNoticesPerType = 10000
+	}
+	if config.MaxSamplesPerNotice < 0 {
+		config.MaxSamplesPerNotice = 0
+	} else if config.MaxSamplesPerNotice > 10000 {
+		config.MaxSamplesPerNotice = 10000
 	}
 	// 0 is valid (no limit), no action needed
 }

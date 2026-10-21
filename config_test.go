@@ -117,6 +117,26 @@ func TestConfigValidation(t *testing.T) {
 			},
 		},
 		{
+			name: "Negative max samples (gets sanitized)",
+			configOptions: []Option{
+				WithMaxSamplesPerNotice(-1),
+			},
+			expectValid: false,
+			expectedValues: map[string]interface{}{
+				"MaxSamplesPerNotice": 0, // Should be sanitized to the default
+			},
+		},
+		{
+			name: "Too many max samples (gets sanitized)",
+			configOptions: []Option{
+				WithMaxSamplesPerNotice(20000),
+			},
+			expectValid: false,
+			expectedValues: map[string]interface{}{
+				"MaxSamplesPerNotice": 10000, // Should be sanitized to maximum
+			},
+		},
+		{
 			name: "Future date (valid within 10 years)",
 			configOptions: []Option{
 				WithCurrentDate(time.Now().AddDate(1, 0, 0)), // 1 year in future
@@ -161,6 +181,8 @@ func TestConfigValidation(t *testing.T) {
 						actualValue = config.ValidationMode
 					case "MaxNoticesPerType":
 						actualValue = config.MaxNoticesPerType
+					case "MaxSamplesPerNotice":
+						actualValue = config.MaxSamplesPerNotice
 					default:
 						t.Errorf("Unknown config key: %s", key)
 						continue

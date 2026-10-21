@@ -1,6 +1,8 @@
 package relationship
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -119,5 +121,32 @@ func TestTripHeadsignValidator_Validate(t *testing.T) {
 				t.Errorf("trip_headsign_matches_intermediate_stop: got %d, want %d", count, tt.expected)
 			}
 		})
+	}
+}
+
+// Notices come out in trip ID order on every run, whatever order trips.txt lists them in.
+func TestTripHeadsignNoticesComeOutInTripOrder(t *testing.T) {
+	stops := "stop_id,stop_name,stop_lat,stop_lon\nS1,Central,1.0,1.0\nS2,Midtown,2.0,2.0\nS3,Airport,3.0,3.0"
+	trips := "route_id,service_id,trip_id,trip_headsign\n"
+	stopTimes := "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"
+	var want []string
+	for i := 9; i >= 0; i-- {
+		id := fmt.Sprintf("T%d", i)
+		trips += fmt.Sprintf("R1,SV1,%s,Midtown\n", id)
+		stopTimes += fmt.Sprintf("%s,08:00:00,08:00:00,S1,1\n%s,08:10:00,08:10:00,S2,2\n%s,08:20:00,08:20:00,S3,3\n", id, id, id)
+		want = append([]string{id}, want...)
+	}
+	files := map[string]string{"stops.txt": stops, "trips.txt": trips, "stop_times.txt": stopTimes}
+
+	for run := 0; run < 20; run++ {
+		container := notice.NewNoticeContainer()
+		NewTripHeadsignValidator().Validate(testutil.CreateTestFeedLoader(t, files), container, gtfsvalidator.Config{})
+		var got []string
+		for _, n := range container.GetNotices() {
+			got = append(got, fmt.Sprint(n.Context()["tripId"]))
+		}
+		if strings.Join(got, ",") != strings.Join(want, ",") {
+			t.Fatalf("run %d: notices for %v, want %v", run, got, want)
+		}
 	}
 }

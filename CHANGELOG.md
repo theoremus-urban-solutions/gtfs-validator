@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed — the same feed gives the same report
+
+- Sample notices are sorted by severity, file, line and content, so they no
+  longer depend on the order validators ran in.
+- `trip_headsign_matches_intermediate_stop` reports trips in ID order.
+- `block_service_mismatch` compares each block's trips against its lowest trip
+  ID; it compared against whichever trip came first in map order, so the count
+  changed between runs.
+
+### Added
+
+- `WithMaxSamplesPerNotice(n)` sets how many samples a notice group carries
+  (default 5, maximum 10000).
+
 ### Changed — validation scope reworked (breaking)
 
 The emitted rule set is now reconciled against the

@@ -255,6 +255,10 @@ func (v *BlockOverlappingValidator) loadTripTimeRanges(loader *parser.FeedLoader
 		}
 	}
 
+	// Trip ID order, so each block's first trip, which the service check compares against, is the same on every run.
+	sort.Slice(tripTimeRanges, func(i, j int) bool {
+		return tripTimeRanges[i].TripID < tripTimeRanges[j].TripID
+	})
 	return tripTimeRanges
 }
 
@@ -443,7 +447,7 @@ func (v *BlockOverlappingValidator) validateBlockServiceConsistency(container *n
 // validateBlockTripOverlaps validates overlaps within a single block
 func (v *BlockOverlappingValidator) validateBlockTripOverlaps(container *notice.NoticeContainer, blockID string, trips []TripTimeRange) {
 	// Sort trips by start time for easier comparison
-	sort.Slice(trips, func(i, j int) bool {
+	sort.SliceStable(trips, func(i, j int) bool {
 		return trips[i].StartTime < trips[j].StartTime
 	})
 

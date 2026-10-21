@@ -264,7 +264,9 @@ severity, file and line.
 ```
 
 Samples are ordered most severe first, so the sample cap never hides the errors
-in a group that is mostly warnings. `affectedFiles` lists the GTFS files a code
+in a group that is mostly warnings, then by file, line and content, so the same
+feed always gives the same samples. A group carries 5 samples by default;
+`WithMaxSamplesPerNotice(n)` raises that to as many as 10000. `affectedFiles` lists the GTFS files a code
 concerns, the file its rows belong to first; feed-wide summary notices have
 neither a file nor a line.
 
