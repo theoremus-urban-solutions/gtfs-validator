@@ -2,6 +2,7 @@ package report
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 	"time"
 
@@ -79,11 +80,22 @@ type ReportGenerator struct {
 	maxSamplesPerNotice int
 }
 
+// DefaultMaxSamplesPerNotice is how many samples a notice group carries unless the caller asks for more.
+const DefaultMaxSamplesPerNotice = 5
+
 // NewReportGenerator creates a new report generator
 func NewReportGenerator(validatorVersion string) *ReportGenerator {
+	return NewReportGeneratorWithSamples(validatorVersion, DefaultMaxSamplesPerNotice)
+}
+
+// NewReportGeneratorWithSamples creates a report generator that keeps up to maxSamples samples per notice code, or the default when maxSamples is not positive.
+func NewReportGeneratorWithSamples(validatorVersion string, maxSamples int) *ReportGenerator {
+	if maxSamples <= 0 {
+		maxSamples = DefaultMaxSamplesPerNotice
+	}
 	return &ReportGenerator{
 		validatorVersion:    validatorVersion,
-		maxSamplesPerNotice: 5, // Limit samples to prevent huge reports
+		maxSamplesPerNotice: maxSamples,
 	}
 }
 
@@ -160,17 +172,9 @@ func countBySeverity(notices []notice.Notice) NoticeCounts {
 	return counts
 }
 
-// getSampleNotices returns a sample of notices (limited to maxSamplesPerNotice).
-//
-// Samples are ordered most severe first so that the cap can never hide the
-// errors in a group that is mostly warnings. Order within a severity is the
-// order the notices were reported in.
+// getSampleNotices returns a sample of notices (limited to maxSamplesPerNotice), in SortNotices order.
 func (g *ReportGenerator) getSampleNotices(code string, notices []notice.Notice) []map[string]interface{} {
-	ordered := make([]notice.Notice, len(notices))
-	copy(ordered, notices)
-	sort.SliceStable(ordered, func(i, j int) bool {
-		return ordered[i].Severity() > ordered[j].Severity()
-	})
+	ordered := SortNotices(notices)
 
 	limit := g.maxSamplesPerNotice
 	if len(ordered) < limit {
@@ -183,6 +187,63 @@ func (g *ReportGenerator) getSampleNotices(code string, notices []notice.Notice)
 	}
 
 	return samples
+}
+
+// SortNotices returns a sorted copy: most severe first, then by file, row and context, so the sample never depends on the order validators ran in.
+func SortNotices(notices []notice.Notice) []notice.Notice {
+	type keyed struct {
+		n       notice.Notice
+		file    string
+		row     int64
+		context string
+	}
+	keys := make([]keyed, len(notices))
+	for i, n := range notices {
+		ctx := n.Context()
+		keys[i] = keyed{n: n, file: fmt.Sprint(ctx["filename"]), row: contextInt(ctx["csvRowNumber"]), context: contextKey(ctx)}
+	}
+	sort.SliceStable(keys, func(i, j int) bool {
+		a, b := keys[i], keys[j]
+		if a.n.Severity() != b.n.Severity() {
+			return a.n.Severity() > b.n.Severity()
+		}
+		if a.file != b.file {
+			return a.file < b.file
+		}
+		if a.row != b.row {
+			return a.row < b.row
+		}
+		return a.context < b.context
+	})
+	ordered := make([]notice.Notice, len(keys))
+	for i, k := range keys {
+		ordered[i] = k.n
+	}
+	return ordered
+}
+
+// contextInt reads a row number of any integer or float type, or -1 when there is none.
+func contextInt(v interface{}) int64 {
+	switch n := v.(type) {
+	case int:
+		return int64(n)
+	case int32:
+		return int64(n)
+	case int64:
+		return n
+	case float64:
+		return int64(n)
+	default:
+		return -1
+	}
+}
+
+// contextKey renders a notice context as JSON, whose map keys are sorted, so equal contexts give equal keys.
+func contextKey(ctx map[string]interface{}) string {
+	if b, err := json.Marshal(ctx); err == nil {
+		return string(b)
+	}
+	return fmt.Sprint(ctx)
 }
 
 // DescribeNotice renders a single notice as a map, adding the severity, file

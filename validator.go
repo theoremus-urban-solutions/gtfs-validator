@@ -79,6 +79,9 @@ type Config struct {
 	// in file order rather than severity order, the discarded ones can be the
 	// errors. Only set this if you knowingly want a truncated report.
 	MaxNoticesPerType int
+
+	// MaxSamplesPerNotice is how many sample notices each notice group carries (0 = the default of 5, maximum 10000).
+	MaxSamplesPerNotice int
 }
 
 // ProgressInfo contains information about validation progress.
@@ -302,6 +305,13 @@ func WithMaxNoticesPerType(max int) Option {
 	}
 }
 
+// WithMaxSamplesPerNotice sets how many sample notices each notice group carries.
+func WithMaxSamplesPerNotice(max int) Option {
+	return func(c *Config) {
+		c.MaxSamplesPerNotice = max
+	}
+}
+
 // New creates a new GTFS validator with the given options.
 //
 // Every check the validator implements runs on every feed. There is no mode or
@@ -453,6 +463,12 @@ func validateConfig(config *Config) error {
 	if config.MaxNoticesPerType > 10000 {
 		errs = append(errs, fmt.Errorf("MaxNoticesPerType is too high (maximum 10000): %d", config.MaxNoticesPerType))
 	}
+	if config.MaxSamplesPerNotice < 0 {
+		errs = append(errs, fmt.Errorf("MaxSamplesPerNotice cannot be negative: %d", config.MaxSamplesPerNotice))
+	}
+	if config.MaxSamplesPerNotice > 10000 {
+		errs = append(errs, fmt.Errorf("MaxSamplesPerNotice is too high (maximum 10000): %d", config.MaxSamplesPerNotice))
+	}
 
 	// Combine errors if any
 	if len(errs) > 0 {
@@ -510,6 +526,11 @@ func sanitizeConfig(config *Config) {
 		config.MaxNoticesPerType = 0 // 0 means no limit
 	} else if config.MaxNoticesPerType > 10000 {
 		config.MaxNoticesPerType = 10000
+	}
+	if config.MaxSamplesPerNotice < 0 {
+		config.MaxSamplesPerNotice = 0
+	} else if config.MaxSamplesPerNotice > 10000 {
+		config.MaxSamplesPerNotice = 10000
 	}
 	// 0 is valid (no limit), no action needed
 }
