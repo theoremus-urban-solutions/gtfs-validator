@@ -122,19 +122,38 @@ value1,,value3
 	}
 }
 
-func TestCSVFile_ExtraCommas(t *testing.T) {
+// A row of the wrong length is handed over with its own row number, and the rows after it are still read.
+func TestCSVFile_RowOfWrongLengthKeepsReading(t *testing.T) {
 	csvContent := `header1,header2,header3
-value1,value2,value3,extra1`
+value1,value2,value3
+long1,long2,long3,extra
+short1,short2
+value4,value5,value6`
 
-	reader := strings.NewReader(csvContent)
-	csvFile, err := NewCSVFile(reader, "extra_commas.txt")
+	csvFile, err := NewCSVFile(strings.NewReader(csvContent), "wrong_length.txt")
 	if err != nil {
 		t.Fatalf("Failed to create CSV file: %v", err)
 	}
+	if err := csvFile.ReadAll(); err != nil {
+		t.Fatalf("ReadAll stopped at a row of the wrong length: %v", err)
+	}
 
-	// Reading should fail due to wrong number of fields
-	if err := csvFile.ReadAll(); err == nil {
-		t.Error("Expected error when reading CSV with extra fields")
+	want := []struct {
+		row, fields int
+		header1     string
+	}{{2, 3, "value1"}, {3, 4, "long1"}, {4, 2, "short1"}, {5, 3, "value4"}}
+	if len(csvFile.Rows) != len(want) {
+		t.Fatalf("Expected %d rows, got %d", len(want), len(csvFile.Rows))
+	}
+	for i, w := range want {
+		got := csvFile.Rows[i]
+		if got.RowNumber != w.row || got.RawFieldCount != w.fields || got.Values["header1"] != w.header1 {
+			t.Errorf("row %d: got number %d, %d fields, header1 %q; want number %d, %d fields, header1 %q",
+				i, got.RowNumber, got.RawFieldCount, got.Values["header1"], w.row, w.fields, w.header1)
+		}
+	}
+	if v := csvFile.Rows[2].Values["header3"]; v != "" {
+		t.Errorf("short row: header3 should be empty, got %q", v)
 	}
 }
 

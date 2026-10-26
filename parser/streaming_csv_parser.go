@@ -57,6 +57,7 @@ func NewStreamingCSVParser(reader io.Reader, filename string, opts *StreamingCSV
 	csvReader := csv.NewReader(bufferedReader)
 	csvReader.LazyQuotes = opts.LazyQuotes
 	csvReader.TrimLeadingSpace = opts.TrimLeadingSpace
+	csvReader.FieldsPerRecord = -1 // A row of the wrong length is returned, not an error, so reading goes on past it
 
 	// Read headers
 	headers, err := csvReader.Read()

@@ -3,7 +3,6 @@ package core
 import (
 	"io"
 	"log"
-	"strings"
 	"sync"
 
 	"github.com/theoremus-urban-solutions/gtfs-validator/notice"
@@ -109,18 +108,7 @@ func (v *InvalidRowValidator) validateFile(loader *parser.FeedLoader, container 
 			break
 		}
 		if err != nil {
-			// CSV parsing error - check if it's a wrong number of fields error
-			if strings.Contains(err.Error(), "wrong number of fields") {
-				// Extract field count information if possible
-				// For now, we'll generate a wrong number of fields notice
-				container.AddNotice(notice.NewWrongNumberOfFieldsNotice(
-					filename,
-					headerCount+1, // approximate first data row
-					headerCount,
-					0, // unknown actual count
-				))
-			}
-			// Any other parse error is reported by file_structure_validator.go
+			// A parse error is reported by file_structure_validator.go
 			// as csv_parsing_failed, which reads every file in the feed rather
 			// than the spec files listed here.
 			continue

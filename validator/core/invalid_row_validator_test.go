@@ -72,6 +72,40 @@ func TestInvalidRowValidator_Validate(t *testing.T) {
 	}
 }
 
+// Each row of the wrong length is reported at its own row with its own field count.
+func TestInvalidRowValidator_NamesTheRealRow(t *testing.T) {
+	files := map[string]string{
+		"shapes.txt": "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence,shape_dist_traveled\n" +
+			"S1,42.71,23.32,1,0\n" +
+			"S1,42.72,23.32,2,10\n" +
+			"S1,42.73,23.32,3,20,extra\n" +
+			"S1,42.74,23.32,4,30\n" +
+			"S1,42.75,23.32,5\n" +
+			"S1,42.76,23.32,6,50",
+	}
+	loader := testutil.CreateTestFeedLoader(t, files)
+	container := notice.NewNoticeContainer()
+
+	NewInvalidRowValidator().Validate(loader, container, gtfsvalidator.Config{})
+
+	want := []map[string]int{
+		{"rowNumber": 4, "expectedFields": 5, "actualFields": 6},
+		{"rowNumber": 6, "expectedFields": 5, "actualFields": 4},
+	}
+	notices := container.GetNotices()
+	if len(notices) != len(want) {
+		t.Fatalf("Expected %d invalid_row_length notices, got %d", len(want), len(notices))
+	}
+	for i, w := range want {
+		ctx := notices[i].Context()
+		for key, value := range w {
+			if ctx[key] != value {
+				t.Errorf("notice %d: %s = %v, want %d", i, key, ctx[key], value)
+			}
+		}
+	}
+}
+
 func TestInvalidRowValidator_New(t *testing.T) {
 	if NewInvalidRowValidator() == nil {
 		t.Error("NewInvalidRowValidator() returned nil")

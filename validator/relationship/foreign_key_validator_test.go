@@ -126,6 +126,17 @@ func TestForeignKeyValidator_ResolvesAgainstTheDefiningFile(t *testing.T) {
 			expected:    1,
 			description: "Z999 is referenced but never defined",
 		},
+		{
+			name: "trip naming a shape defined after a row of the wrong length",
+			files: map[string]string{
+				"shapes.txt":   "shape_id,shape_pt_lat,shape_pt_lon,shape_pt_sequence\nSH1,42.71,23.32,1\nSH1,42.72,23.32,2,extra\nSH2,42.73,23.32,1",
+				"trips.txt":    "route_id,service_id,trip_id,shape_id\nR1,SVC1,T1,SH2",
+				"routes.txt":   "route_id,route_short_name,route_type\nR1,1,3",
+				"calendar.txt": "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\nSVC1,1,1,1,1,1,0,0,20240101,20241231",
+			},
+			expected:    0,
+			description: "SH2 is defined after the long row, which must not stop the read",
+		},
 	}
 
 	for _, tt := range tests {

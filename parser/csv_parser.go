@@ -32,6 +32,7 @@ func NewCSVFile(reader io.Reader, filename string) (*CSVFile, error) {
 	csvReader := csv.NewReader(reader)
 	csvReader.LazyQuotes = true
 	csvReader.TrimLeadingSpace = false // We'll handle whitespace validation
+	csvReader.FieldsPerRecord = -1     // A row of the wrong length is returned, not an error, so reading goes on past it
 
 	// Read headers
 	headers, err := csvReader.Read()
