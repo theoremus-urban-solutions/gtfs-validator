@@ -288,6 +288,33 @@ func TestStreamingCSVParserEmptyFile(t *testing.T) {
 	}
 }
 
+func TestStreamingCSVParserRowOfWrongLengthKeepsReading(t *testing.T) {
+	csvData := "id,name,type\n123,Test Station,0\n456,Long,1,extra\n789,Short\n999,Last,2"
+
+	parser, err := NewStreamingCSVParser(strings.NewReader(csvData), "test.csv", nil)
+	if err != nil {
+		t.Fatalf("Failed to create streaming CSV parser: %v", err)
+	}
+
+	want := []struct {
+		row, fields int
+		id          string
+	}{{2, 3, "123"}, {3, 4, "456"}, {4, 2, "789"}, {5, 3, "999"}}
+	for _, w := range want {
+		row, err := parser.ReadRow()
+		if err != nil {
+			t.Fatalf("ReadRow stopped before row %d: %v", w.row, err)
+		}
+		if row.RowNumber != w.row || row.RawFieldCount != w.fields || row.Values["id"] != w.id {
+			t.Errorf("got number %d, %d fields, id %q; want number %d, %d fields, id %q",
+				row.RowNumber, row.RawFieldCount, row.Values["id"], w.row, w.fields, w.id)
+		}
+	}
+	if _, err := parser.ReadRow(); err != io.EOF {
+		t.Errorf("Expected io.EOF after the last row, got %v", err)
+	}
+}
+
 func TestStreamingCSVParserBOM(t *testing.T) {
 	csvData := "\ufeffid,name,type\n123,Test Station,0"
 
