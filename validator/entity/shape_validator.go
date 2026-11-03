@@ -147,12 +147,16 @@ func (v *ShapeValidator) loadShapes(loader *parser.FeedLoader) map[string]*Shape
 		point := v.parseShapePoint(row)
 		if point != nil {
 			if shapes[point.ShapeID] == nil {
-				shapes[point.ShapeID] = &ShapeInfo{
-					ShapeID: point.ShapeID,
+				shapeID := strings.Clone(point.ShapeID)
+				shapes[shapeID] = &ShapeInfo{
+					ShapeID: shapeID,
 					Points:  []*ShapePointDetailed{},
 				}
 			}
-			shapes[point.ShapeID].Points = append(shapes[point.ShapeID].Points, point)
+			shape := shapes[point.ShapeID]
+			// The shape's own copy, so the point does not hold its CSV line.
+			point.ShapeID = shape.ShapeID
+			shape.Points = append(shape.Points, point)
 		}
 	}
 

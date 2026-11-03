@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed — a third less time, a third of the memory
+
+- Sofia (18.7 MB), 8 cores, 4 workers: wall 36.4 s to 25.4 s, peak RSS
+  1,493 MB to 512 MB, CPU 142 s to 109 s, allocation 31.3 GB to 23.0 GB.
+  Reports are byte-identical.
+- The file-structure check and the summary row counts count rows without
+  keeping them, and the whitespace check checks each record as it reads it.
+- File states are worked out in parallel, once per file.
+- Row maps are sized to the header. IDs the heavy checks keep are copied once,
+  so their CSV lines can be freed, and the block check keeps one time span per
+  trip instead of every stop time.
+- Added `CSVFile.CountRows`, `FeedLoader.PrefetchFileStates` and `IDInterner`
+  in `parser`.
+- In `validator/business`, `StopTimeWithLocation` and `StopTimeForBlock` hold
+  their times as values with `HasArrival` and `HasDeparture`, and
+  `StopTimeWithLocation` no longer carries `TripID`.
+
 ### Fixed — the same feed gives the same report
 
 - Sample notices are sorted by severity, file, line and content, so they no

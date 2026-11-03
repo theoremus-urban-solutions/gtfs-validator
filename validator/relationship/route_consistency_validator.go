@@ -311,6 +311,7 @@ func (v *RouteConsistencyValidator) enhanceWithStopTimeData(loader *parser.FeedL
 	// Group stop times by trip
 	tripStops := make(map[string][]string)
 	tripTimePoints := make(map[string]bool)
+	ids := parser.NewIDInterner()
 
 	for {
 		row, err := csvFile.ReadRow()
@@ -326,11 +327,12 @@ func (v *RouteConsistencyValidator) enhanceWithStopTimeData(loader *parser.FeedL
 			continue
 		}
 
-		tripStops[stopTime.TripID] = append(tripStops[stopTime.TripID], stopTime.StopID)
+		tripID := ids.Intern(stopTime.TripID)
+		tripStops[tripID] = append(tripStops[tripID], ids.Intern(stopTime.StopID))
 
 		// Check for timepoints
 		if stopTime.ArrivalTime != "" || stopTime.DepartureTime != "" {
-			tripTimePoints[stopTime.TripID] = true
+			tripTimePoints[tripID] = true
 		}
 	}
 

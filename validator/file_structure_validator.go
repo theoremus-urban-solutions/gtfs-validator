@@ -62,7 +62,7 @@ func (v *FileStructureValidator) validateFile(loader *parser.FeedLoader, contain
 	}
 
 	// Check for empty file (no data rows)
-	err = csvFile.ReadAll()
+	_, err = csvFile.CountRows()
 	if err != nil && err != io.EOF {
 		container.AddNotice(notice.NewBaseNotice("csv_parsing_failed", notice.ERROR, map[string]interface{}{
 			"filename": filename,

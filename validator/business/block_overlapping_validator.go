@@ -224,8 +224,8 @@ func (v *BlockOverlappingValidator) loadTripTimeRanges(loader *parser.FeedLoader
 		return tripTimeRanges
 	}
 
-	// Collect all stop times by trip
-	tripStopTimes := make(map[string][]StopTimeForBlock)
+	// Only trips in a block get a range, and a range needs only the earliest and latest time, so no stop time is kept.
+	spans := make(map[string]*tripSpan)
 
 	for {
 		row, err := csvFile.ReadRow()
@@ -236,23 +236,35 @@ func (v *BlockOverlappingValidator) loadTripTimeRanges(loader *parser.FeedLoader
 			break
 		}
 
-		stopTime := v.parseStopTimeForBlock(row)
-		if stopTime != nil {
-			tripStopTimes[stopTime.TripID] = append(tripStopTimes[stopTime.TripID], *stopTime)
+		stopTime, ok := v.parseStopTimeForBlock(row)
+		if !ok {
+			continue
 		}
-	}
-
-	// Calculate time ranges for each trip
-	for tripID, stopTimes := range tripStopTimes {
-		tripBlock, hasBlock := tripBlocks[tripID]
+		tripBlock, hasBlock := tripBlocks[stopTime.TripID]
 		if !hasBlock {
 			continue // Skip trips without block information
 		}
-
-		timeRange := v.calculateTripTimeRange(tripID, stopTimes, tripBlock)
-		if timeRange != nil {
-			tripTimeRanges = append(tripTimeRanges, *timeRange)
+		span := spans[tripBlock.TripID]
+		if span == nil {
+			span = &tripSpan{}
+			spans[tripBlock.TripID] = span
 		}
+		span.add(stopTime)
+	}
+
+	for tripID, span := range spans {
+		if !span.hasStart || !span.hasEnd {
+			continue
+		}
+		tripBlock := tripBlocks[tripID]
+		tripTimeRanges = append(tripTimeRanges, TripTimeRange{
+			TripID:    tripID,
+			BlockID:   tripBlock.BlockID,
+			ServiceID: tripBlock.ServiceID,
+			StartTime: span.start,
+			EndTime:   span.end,
+			RowNumber: tripBlock.RowNumber,
+		})
 	}
 
 	// Trip ID order, so each block's first trip, which the service check compares against, is the same on every run.
@@ -266,28 +278,54 @@ func (v *BlockOverlappingValidator) loadTripTimeRanges(loader *parser.FeedLoader
 type StopTimeForBlock struct {
 	TripID        string
 	StopSequence  int
-	ArrivalTime   *int
-	DepartureTime *int
+	ArrivalTime   int // seconds since midnight, set when HasArrival
+	DepartureTime int // seconds since midnight, set when HasDeparture
+	HasArrival    bool
+	HasDeparture  bool
 	RowNumber     int
 }
 
+// tripSpan is a trip's earliest and latest time, built one stop time at a time.
+type tripSpan struct {
+	start, end       int
+	hasStart, hasEnd bool
+}
+
+// add widens the span: a stop starts at its arrival, else its departure, and ends at its departure, else its arrival.
+func (s *tripSpan) add(stopTime StopTimeForBlock) {
+	if t, ok := timeOrFallback(stopTime.ArrivalTime, stopTime.HasArrival, stopTime.DepartureTime, stopTime.HasDeparture); ok && (!s.hasStart || t < s.start) {
+		s.start, s.hasStart = t, true
+	}
+	if t, ok := timeOrFallback(stopTime.DepartureTime, stopTime.HasDeparture, stopTime.ArrivalTime, stopTime.HasArrival); ok && (!s.hasEnd || t > s.end) {
+		s.end, s.hasEnd = t, true
+	}
+}
+
+// timeOrFallback returns the first time when it is set, else the second.
+func timeOrFallback(first int, hasFirst bool, second int, hasSecond bool) (int, bool) {
+	if hasFirst {
+		return first, true
+	}
+	return second, hasSecond
+}
+
 // parseStopTimeForBlock parses a stop time row for block validation
-func (v *BlockOverlappingValidator) parseStopTimeForBlock(row *parser.CSVRow) *StopTimeForBlock {
+func (v *BlockOverlappingValidator) parseStopTimeForBlock(row *parser.CSVRow) (StopTimeForBlock, bool) {
 	tripID, hasTripID := row.Values["trip_id"]
 	stopSeqStr, hasStopSeq := row.Values["stop_sequence"]
 	arrivalTimeStr, hasArrivalTime := row.Values["arrival_time"]
 	departureTimeStr, hasDepartureTime := row.Values["departure_time"]
 
 	if !hasTripID || !hasStopSeq {
-		return nil
+		return StopTimeForBlock{}, false
 	}
 
 	stopSequence, err := strconv.Atoi(strings.TrimSpace(stopSeqStr))
 	if err != nil {
-		return nil
+		return StopTimeForBlock{}, false
 	}
 
-	stopTime := &StopTimeForBlock{
+	stopTime := StopTimeForBlock{
 		TripID:       strings.TrimSpace(tripID),
 		StopSequence: stopSequence,
 		RowNumber:    row.RowNumber,
@@ -296,17 +334,17 @@ func (v *BlockOverlappingValidator) parseStopTimeForBlock(row *parser.CSVRow) *S
 	// Parse times
 	if hasArrivalTime && strings.TrimSpace(arrivalTimeStr) != "" {
 		if arrivalSeconds, err := v.parseGTFSTime(strings.TrimSpace(arrivalTimeStr)); err == nil {
-			stopTime.ArrivalTime = &arrivalSeconds
+			stopTime.ArrivalTime, stopTime.HasArrival = arrivalSeconds, true
 		}
 	}
 
 	if hasDepartureTime && strings.TrimSpace(departureTimeStr) != "" {
 		if departureSeconds, err := v.parseGTFSTime(strings.TrimSpace(departureTimeStr)); err == nil {
-			stopTime.DepartureTime = &departureSeconds
+			stopTime.DepartureTime, stopTime.HasDeparture = departureSeconds, true
 		}
 	}
 
-	return stopTime
+	return stopTime, true
 }
 
 // parseGTFSTime parses a GTFS time string (HH:MM:SS) into seconds since midnight
@@ -336,62 +374,6 @@ func (v *BlockOverlappingValidator) parseGTFSTime(timeStr string) (int, error) {
 	}
 
 	return hours*3600 + minutes*60 + seconds, nil
-}
-
-// calculateTripTimeRange calculates the time range for a trip
-func (v *BlockOverlappingValidator) calculateTripTimeRange(tripID string, stopTimes []StopTimeForBlock, tripBlock *TripBlock) *TripTimeRange {
-	if len(stopTimes) == 0 {
-		return nil
-	}
-
-	// Sort by stop sequence
-	sort.Slice(stopTimes, func(i, j int) bool {
-		return stopTimes[i].StopSequence < stopTimes[j].StopSequence
-	})
-
-	// Find earliest time (start of trip)
-	var startTime *int
-	for _, stopTime := range stopTimes {
-		var timeToCheck *int
-		if stopTime.ArrivalTime != nil {
-			timeToCheck = stopTime.ArrivalTime
-		} else if stopTime.DepartureTime != nil {
-			timeToCheck = stopTime.DepartureTime
-		}
-
-		if timeToCheck != nil && (startTime == nil || *timeToCheck < *startTime) {
-			startTime = timeToCheck
-		}
-	}
-
-	// Find latest time (end of trip)
-	var endTime *int
-	for i := len(stopTimes) - 1; i >= 0; i-- {
-		stopTime := stopTimes[i]
-		var timeToCheck *int
-		if stopTime.DepartureTime != nil {
-			timeToCheck = stopTime.DepartureTime
-		} else if stopTime.ArrivalTime != nil {
-			timeToCheck = stopTime.ArrivalTime
-		}
-
-		if timeToCheck != nil && (endTime == nil || *timeToCheck > *endTime) {
-			endTime = timeToCheck
-		}
-	}
-
-	if startTime == nil || endTime == nil {
-		return nil
-	}
-
-	return &TripTimeRange{
-		TripID:    tripID,
-		BlockID:   tripBlock.BlockID,
-		ServiceID: tripBlock.ServiceID,
-		StartTime: *startTime,
-		EndTime:   *endTime,
-		RowNumber: tripBlock.RowNumber,
-	}
 }
 
 // loadServiceDates expands calendar.txt and calendar_dates.txt into the active

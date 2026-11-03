@@ -115,6 +115,7 @@ func (v *StopTimeConsistencyValidator) loadStopTimes(loader *parser.FeedLoader) 
 		return stopTimes
 	}
 
+	ids := parser.NewIDInterner()
 	for {
 		row, err := csvFile.ReadRow()
 		if err == io.EOF {
@@ -126,6 +127,11 @@ func (v *StopTimeConsistencyValidator) loadStopTimes(loader *parser.FeedLoader) 
 
 		stopTime := v.parseStopTime(row)
 		if stopTime != nil {
+			stopTime.TripID = ids.Intern(stopTime.TripID)
+			stopTime.StopID = ids.Intern(stopTime.StopID)
+			stopTime.ArrivalTime = ids.Intern(stopTime.ArrivalTime)
+			stopTime.DepartureTime = ids.Intern(stopTime.DepartureTime)
+			stopTime.StopHeadsign = ids.Intern(stopTime.StopHeadsign)
 			stopTimes = append(stopTimes, stopTime)
 		}
 	}

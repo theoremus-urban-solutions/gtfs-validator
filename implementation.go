@@ -339,6 +339,7 @@ func (v *internalValidator) validateWithContext(ctx context.Context) (report.Fee
 	if err := v.runValidators(ctx, validatorConfig, startTime, len(foundation)); err != nil {
 		return feedInfo, err
 	}
+	v.prefetchFileStates()
 	v.validators = v.skipValidatorsWithUnusableFiles(rest, v.filesWithRowErrors())
 
 	totalValidators := len(v.validators)
@@ -515,6 +516,17 @@ func (v *internalValidator) firstUnloadableTable(poisoned map[string]bool) (stri
 		}
 	}
 	return "", parser.FileStateParsed, false
+}
+
+// prefetchFileStates works out every known table's state in parallel, so the skip step does not read them one by one.
+func (v *internalValidator) prefetchFileStates() {
+	var tables []string
+	for _, filename := range v.feedLoader.ListFiles() {
+		if core.IsKnownGTFSTable(filename) {
+			tables = append(tables, filename)
+		}
+	}
+	v.feedLoader.PrefetchFileStates(tables, v.config.ParallelWorkers)
 }
 
 // sortedKeys keeps the file the skip record names stable from run to run.
@@ -764,12 +776,12 @@ func (v *internalValidator) countRowsInFile(filename string) int {
 		return 0
 	}
 
-	err = csvFile.ReadAll()
+	n, err := csvFile.CountRows()
 	if err != nil {
 		return 0
 	}
 
-	return csvFile.RowCount()
+	return n
 }
 
 // extractServiceDates extracts service date range from feed_info.txt.

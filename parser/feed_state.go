@@ -133,21 +133,54 @@ func AbsenceStrandsReferences(filename string) bool {
 
 // FileState returns the state of one file, computing it on first request and
 // remembering the answer. Several validators ask about the same file, and the
-// answer cannot change during a validation run.
+// answer cannot change during a validation run. Different files are computed
+// at the same time; the same file is computed once.
 func (l *FeedLoader) FileState(filename string) FileState {
 	l.stateOnce.Do(func() {
-		l.states = make(map[string]FileState, len(keyColumns))
+		l.states = make(map[string]*fileStateEntry, len(keyColumns))
 		l.stateMu = &sync.Mutex{}
 	})
 
 	l.stateMu.Lock()
-	defer l.stateMu.Unlock()
-	if state, known := l.states[filename]; known {
-		return state
+	entry, known := l.states[filename]
+	if !known {
+		entry = &fileStateEntry{}
+		l.states[filename] = entry
 	}
-	state := l.computeFileState(filename)
-	l.states[filename] = state
-	return state
+	l.stateMu.Unlock()
+
+	entry.once.Do(func() { entry.state = l.computeFileState(filename) })
+	return entry.state
+}
+
+// fileStateEntry holds one file's memoised state.
+type fileStateEntry struct {
+	once  sync.Once
+	state FileState
+}
+
+// PrefetchFileStates computes the state of each named file, up to workers files at a time.
+func (l *FeedLoader) PrefetchFileStates(filenames []string, workers int) {
+	if workers < 1 {
+		workers = 1
+	}
+	jobs := make(chan string, len(filenames))
+	for _, filename := range filenames {
+		jobs <- filename
+	}
+	close(jobs)
+
+	var wg sync.WaitGroup
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for filename := range jobs {
+				l.FileState(filename)
+			}
+		}()
+	}
+	wg.Wait()
 }
 
 // computeFileState reads the file far enough to classify it.

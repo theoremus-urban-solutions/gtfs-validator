@@ -22,7 +22,7 @@ type FeedLoader struct {
 	// Per-file state, computed on demand and memoised; see feed_state.go.
 	stateOnce sync.Once
 	stateMu   *sync.Mutex
-	states    map[string]FileState
+	states    map[string]*fileStateEntry
 }
 
 // isArchiveMetadata reports whether a zip entry is packaging noise rather than

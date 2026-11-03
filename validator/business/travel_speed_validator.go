@@ -22,20 +22,21 @@ func NewTravelSpeedValidator() *TravelSpeedValidator {
 	return &TravelSpeedValidator{}
 }
 
-// StopTimeWithLocation represents a stop time with geographic location
+// StopTimeWithLocation is one stop time with its stop's position, kept small because every stop time of the feed is held at once.
 type StopTimeWithLocation struct {
-	TripID        string
 	StopID        string
 	StopSequence  int
-	ArrivalTime   *int // seconds since midnight
-	DepartureTime *int // seconds since midnight
-	Latitude      *float64
-	Longitude     *float64
+	RowNumber     int
+	ArrivalTime   int // seconds since midnight, set when HasArrival
+	DepartureTime int // seconds since midnight, set when HasDeparture
+	// Location is nil when the stop has no usable coordinates.
+	Location     *StopLocation
+	HasArrival   bool
+	HasDeparture bool
 	// Declared is true when stops.txt names this stop at all, whether or not it
 	// gave it usable coordinates. A stop_id nothing declares is a dangling
 	// reference and is left entirely to the foreign key check.
-	Declared  bool
-	RowNumber int
+	Declared bool
 }
 
 // RouteTypeSpeedLimits defines speed limits by route type (km/h). The values
@@ -227,6 +228,7 @@ func (v *TravelSpeedValidator) validateStopTimeSpeeds(loader *parser.FeedLoader,
 
 	// Group stop times by trip_id
 	tripStopTimes := make(map[string][]StopTimeWithLocation)
+	ids := parser.NewIDInterner()
 
 	for {
 		row, err := csvFile.ReadRow()
@@ -237,9 +239,11 @@ func (v *TravelSpeedValidator) validateStopTimeSpeeds(loader *parser.FeedLoader,
 			break
 		}
 
-		stopTime := v.parseStopTimeWithLocation(row, stopLocations)
-		if stopTime != nil {
-			tripStopTimes[stopTime.TripID] = append(tripStopTimes[stopTime.TripID], *stopTime)
+		tripID, stopTime, ok := v.parseStopTimeWithLocation(row, stopLocations)
+		if ok {
+			tripID = ids.Intern(tripID)
+			stopTime.StopID = ids.Intern(stopTime.StopID)
+			tripStopTimes[tripID] = append(tripStopTimes[tripID], stopTime)
 		}
 	}
 
@@ -255,8 +259,8 @@ func (v *TravelSpeedValidator) validateStopTimeSpeeds(loader *parser.FeedLoader,
 	}
 }
 
-// parseStopTimeWithLocation parses a stop time row with location data
-func (v *TravelSpeedValidator) parseStopTimeWithLocation(row *parser.CSVRow, stopLocations map[string]*StopLocation) *StopTimeWithLocation {
+// parseStopTimeWithLocation parses a stop time row with location data and returns its trip_id beside it.
+func (v *TravelSpeedValidator) parseStopTimeWithLocation(row *parser.CSVRow, stopLocations map[string]*StopLocation) (string, StopTimeWithLocation, bool) {
 	tripID, hasTripID := row.Values["trip_id"]
 	stopID, hasStopID := row.Values["stop_id"]
 	stopSeqStr, hasStopSeq := row.Values["stop_sequence"]
@@ -264,12 +268,12 @@ func (v *TravelSpeedValidator) parseStopTimeWithLocation(row *parser.CSVRow, sto
 	departureTimeStr, hasDepartureTime := row.Values["departure_time"]
 
 	if !hasTripID || !hasStopID || !hasStopSeq {
-		return nil
+		return "", StopTimeWithLocation{}, false
 	}
 
 	stopSequence, err := strconv.Atoi(strings.TrimSpace(stopSeqStr))
 	if err != nil {
-		return nil
+		return "", StopTimeWithLocation{}, false
 	}
 
 	stopIDTrimmed := strings.TrimSpace(stopID)
@@ -279,8 +283,7 @@ func (v *TravelSpeedValidator) parseStopTimeWithLocation(row *parser.CSVRow, sto
 	// checks below decide for themselves what an unplaceable stop means to
 	// them — dropping it here would silently close the gap it leaves and hide
 	// the legs on either side.
-	stopTime := &StopTimeWithLocation{
-		TripID:       strings.TrimSpace(tripID),
+	stopTime := StopTimeWithLocation{
 		StopID:       stopIDTrimmed,
 		StopSequence: stopSequence,
 		RowNumber:    row.RowNumber,
@@ -288,25 +291,24 @@ func (v *TravelSpeedValidator) parseStopTimeWithLocation(row *parser.CSVRow, sto
 	if stopLocation, declared := stopLocations[stopIDTrimmed]; declared {
 		stopTime.Declared = true
 		if stopLocation.Placed {
-			stopTime.Latitude = &stopLocation.Latitude
-			stopTime.Longitude = &stopLocation.Longitude
+			stopTime.Location = stopLocation
 		}
 	}
 
 	// Parse times (similar to previous validator)
 	if hasArrivalTime && strings.TrimSpace(arrivalTimeStr) != "" {
 		if arrivalSeconds, err := v.parseGTFSTime(strings.TrimSpace(arrivalTimeStr)); err == nil {
-			stopTime.ArrivalTime = &arrivalSeconds
+			stopTime.ArrivalTime, stopTime.HasArrival = arrivalSeconds, true
 		}
 	}
 
 	if hasDepartureTime && strings.TrimSpace(departureTimeStr) != "" {
 		if departureSeconds, err := v.parseGTFSTime(strings.TrimSpace(departureTimeStr)); err == nil {
-			stopTime.DepartureTime = &departureSeconds
+			stopTime.DepartureTime, stopTime.HasDeparture = departureSeconds, true
 		}
 	}
 
-	return stopTime
+	return strings.TrimSpace(tripID), stopTime, true
 }
 
 // parseGTFSTime parses a GTFS time string (HH:MM:SS) into seconds since midnight
@@ -410,8 +412,8 @@ const (
 func (v *TravelSpeedValidator) validateFarStopSpeeds(container *notice.NoticeContainer, tripID string, stopTimes []StopTimeWithLocation, speedLimit float64) {
 	for i := range stopTimes {
 		from := &stopTimes[i]
-		departure := departureOrArrival(from)
-		if departure == nil {
+		departure, hasDeparture := departureOrArrival(from)
+		if !hasDeparture {
 			continue
 		}
 		// An unplaceable stop cannot start a stretch — except at the very front
@@ -445,12 +447,12 @@ func (v *TravelSpeedValidator) validateFarStopSpeeds(container *notice.NoticeCon
 			}
 
 			to := &stopTimes[j]
-			arrival := arrivalOrDeparture(to)
-			if arrival == nil {
+			arrival, hasArrival := arrivalOrDeparture(to)
+			if !hasArrival {
 				continue // no time to judge against; keep looking ahead
 			}
 
-			seconds := travelSecondsBetween(*departure, *arrival)
+			seconds := travelSecondsBetween(departure, arrival)
 			if speed := accumulatedKm / (float64(seconds) / 3600.0); speed > speedLimit {
 				container.AddNotice(notice.NewFastTravelBetweenFarStopsNotice(
 					tripID,
@@ -468,42 +470,30 @@ func (v *TravelSpeedValidator) validateFarStopSpeeds(container *notice.NoticeCon
 
 // departureOrArrival is when the vehicle leaves a stop, falling back to when it
 // arrived for stop times that give only one of the two.
-func departureOrArrival(stopTime *StopTimeWithLocation) *int {
-	if stopTime.DepartureTime != nil {
-		return stopTime.DepartureTime
+func departureOrArrival(stopTime *StopTimeWithLocation) (int, bool) {
+	if stopTime.HasDeparture {
+		return stopTime.DepartureTime, true
 	}
-	return stopTime.ArrivalTime
+	return stopTime.ArrivalTime, stopTime.HasArrival
 }
 
 // arrivalOrDeparture is the mirror of departureOrArrival, for the far end of a
 // stretch.
-func arrivalOrDeparture(stopTime *StopTimeWithLocation) *int {
-	if stopTime.ArrivalTime != nil {
-		return stopTime.ArrivalTime
+func arrivalOrDeparture(stopTime *StopTimeWithLocation) (int, bool) {
+	if stopTime.HasArrival {
+		return stopTime.ArrivalTime, true
 	}
-	return stopTime.DepartureTime
+	return stopTime.DepartureTime, stopTime.HasDeparture
 }
 
 // validateStopPairSpeed validates travel speed between two consecutive stops
 func (v *TravelSpeedValidator) validateStopPairSpeed(container *notice.NoticeContainer, tripID string, prev, curr *StopTimeWithLocation, speedLimit float64, routeType int) {
-	// Get departure time from previous stop
-	var prevTime *int
-	if prev.DepartureTime != nil {
-		prevTime = prev.DepartureTime
-	} else if prev.ArrivalTime != nil {
-		prevTime = prev.ArrivalTime
-	}
-
-	// Get arrival time at current stop
-	var currTime *int
-	if curr.ArrivalTime != nil {
-		currTime = curr.ArrivalTime
-	} else if curr.DepartureTime != nil {
-		currTime = curr.DepartureTime
-	}
+	// Departure from the previous stop and arrival at this one, each falling back to the other time.
+	prevTime, hasPrevTime := departureOrArrival(prev)
+	currTime, hasCurrTime := arrivalOrDeparture(curr)
 
 	// Skip if we don't have both times
-	if prevTime == nil || currTime == nil {
+	if !hasPrevTime || !hasCurrTime {
 		return
 	}
 
@@ -517,7 +507,7 @@ func (v *TravelSpeedValidator) validateStopPairSpeed(container *notice.NoticeCon
 		return
 	}
 
-	timeDiffSeconds := travelSecondsBetween(*prevTime, *currTime)
+	timeDiffSeconds := travelSecondsBetween(prevTime, currTime)
 
 	// Calculate distance using Haversine formula
 	distance := v.haversineDistance(prevLat, prevLon, currLat, currLon)
@@ -575,8 +565,8 @@ func (v *TravelSpeedValidator) haversineDistance(lat1, lon1, lat2, lon2 float64)
 // reported as stop_without_location, and the distance checks leave it alone
 // rather than measuring to a point that does not exist.
 func position(stopTime *StopTimeWithLocation) (lat float64, lon float64, ok bool) {
-	if stopTime.Latitude == nil || stopTime.Longitude == nil {
+	if stopTime.Location == nil {
 		return 0, 0, false
 	}
-	return *stopTime.Latitude, *stopTime.Longitude, true
+	return stopTime.Location.Latitude, stopTime.Location.Longitude, true
 }

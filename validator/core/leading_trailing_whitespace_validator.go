@@ -57,18 +57,18 @@ func (v *LeadingTrailingWhitespaceValidator) validateFile(loader *parser.FeedLoa
 		}
 	}()
 
-	records, err := readQuotedRecords(reader)
-	if err != nil || len(records) == 0 {
-		return
-	}
-
-	headers := make([]string, len(records[0]))
-	for i, field := range records[0] {
-		headers[i] = strings.TrimSpace(field.Value)
-	}
-
 	// Row 1 is the header; data rows start at 2, matching every other notice.
-	for rowIndex, record := range records[1:] {
+	var headers []string
+	rowNumber := 1
+	scanQuotedRecords(reader, func(record []quotedField) {
+		if headers == nil {
+			headers = make([]string, len(record))
+			for i, field := range record {
+				headers[i] = strings.TrimSpace(field.Value)
+			}
+			return
+		}
+		rowNumber++
 		for i, field := range record {
 			if i >= len(headers) || !field.Quoted {
 				continue
@@ -77,10 +77,10 @@ func (v *LeadingTrailingWhitespaceValidator) validateFile(loader *parser.FeedLoa
 				continue
 			}
 			container.AddNotice(notice.NewLeadingOrTrailingWhitespacesNotice(
-				filename, headers[i], field.Value, rowIndex+2,
+				filename, headers[i], field.Value, rowNumber,
 			))
 		}
-	}
+	})
 }
 
 // hasSurroundingWhitespace reports whether a value begins or ends with space or
@@ -92,15 +92,15 @@ func hasSurroundingWhitespace(value string) bool {
 	return value != strings.Trim(value, " \t")
 }
 
-// readQuotedRecords parses CSV while remembering which fields were quoted,
+// scanQuotedRecords parses CSV while remembering which fields were quoted,
 // which encoding/csv does not expose and which is the only thing this rule
 // turns on. Quotes, escaped quotes and embedded newlines are handled as the
 // CSV grammar requires; anything malformed is left to the parsing checks.
-func readQuotedRecords(r io.Reader) ([][]quotedField, error) {
+// Each record goes to emit as it ends, and its slice is reused afterwards.
+func scanQuotedRecords(r io.Reader, emit func([]quotedField)) {
 	br := bufio.NewReader(r)
 
 	var (
-		records   [][]quotedField
 		record    []quotedField
 		value     strings.Builder
 		quoted    bool // this field was opened with a quote
@@ -115,8 +115,8 @@ func readQuotedRecords(r io.Reader) ([][]quotedField, error) {
 	}
 	endRecord := func() {
 		endField()
-		records = append(records, record)
-		record = nil
+		emit(record)
+		record = record[:0]
 	}
 
 	for {
@@ -164,6 +164,4 @@ func readQuotedRecords(r io.Reader) ([][]quotedField, error) {
 	if value.Len() > 0 || len(record) > 0 {
 		endRecord()
 	}
-
-	return records, nil
 }

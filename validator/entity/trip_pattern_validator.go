@@ -74,6 +74,7 @@ func (v *TripPatternValidator) loadStopTimes(loader *parser.FeedLoader) []*TripS
 		return stopTimes
 	}
 
+	ids := parser.NewIDInterner()
 	for {
 		row, err := csvFile.ReadRow()
 		if err == io.EOF {
@@ -85,6 +86,10 @@ func (v *TripPatternValidator) loadStopTimes(loader *parser.FeedLoader) []*TripS
 
 		stopTime := v.parseStopTime(row)
 		if stopTime != nil {
+			stopTime.TripID = ids.Intern(stopTime.TripID)
+			stopTime.StopID = ids.Intern(stopTime.StopID)
+			stopTime.ArrivalTime = ids.Intern(stopTime.ArrivalTime)
+			stopTime.DepartureTime = ids.Intern(stopTime.DepartureTime)
 			stopTimes = append(stopTimes, stopTime)
 		}
 	}

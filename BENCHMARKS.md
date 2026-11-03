@@ -56,10 +56,27 @@ preset was measured at 1.15x default on Sofia (8.59 s to 9.86 s) and 1.19x on
 the railway feed. Those old figures — "5-30 minutes" for large feeds — were
 never measurements.
 
-**Allocation volume is the real cost, and it is high**: validating an 18 MB feed
-allocates on the order of 150 GB in total, which is why peak RSS is over a
-gigabyte and why the run is GC-bound rather than I/O-bound. Wall time is not
-currently a constraint; this is the open performance question.
+**Allocation volume was the real cost.** Measured 2026-11-03 on Sofia (18.7 MB
+zip, 628,558 stop times) on an 8-core Linux VM, with `WithCountryCode("BG")` and
+4 workers, under `/usr/bin/time -v`. Allocated is `runtime.MemStats.TotalAlloc`.
+
+```
+                          wall     peak RSS   CPU user   allocated
+main before (9738b19)     36.4 s   1,493 MB   142.4 s    31.3 GB
+v1.1.10                   25.4 s     512 MB   108.5 s    23.0 GB
+```
+
+The report is byte-identical between the two. Before, two checks held a whole
+file in memory, one of them only to count its rows; every row became a map that
+regrew as it filled; the file-state step read the tables one at a time under one
+lock; and IDs the heavy checks kept were substrings that held their whole CSV
+line alive.
+
+Two things still shape the peak. Each check reads its files itself, so the big
+files are decompressed and parsed many times per run, and peak RSS grows with
+`WithParallelWorkers` because every running check holds its own copy of what it
+read. `WithMaxMemory` is recorded but not enforced; to cap the heap, set
+`GOMEMLIMIT` in the host process.
 
 There is no parsed-feed cache. One existed and was removed: it was consulted by
 3 of the ~50 validators, saved a constant 3.98 GB of allocation (about 2.5%)

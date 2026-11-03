@@ -122,8 +122,9 @@ func (v *ServiceConsistencyValidator) parseServiceDefinition(row *parser.CSVRow)
 }
 
 // loadServiceExceptions loads service exceptions from calendar_dates.txt
-func (v *ServiceConsistencyValidator) loadServiceExceptions(loader *parser.FeedLoader) map[string][]*ServiceException {
-	exceptions := make(map[string][]*ServiceException)
+func (v *ServiceConsistencyValidator) loadServiceExceptions(loader *parser.FeedLoader) map[string][]ServiceException {
+	exceptions := make(map[string][]ServiceException)
+	ids := parser.NewIDInterner()
 
 	reader, err := loader.GetFile("calendar_dates.txt")
 	if err != nil {
@@ -149,8 +150,10 @@ func (v *ServiceConsistencyValidator) loadServiceExceptions(loader *parser.FeedL
 			continue
 		}
 
-		exception := v.parseServiceException(row)
-		if exception != nil {
+		exception, ok := v.parseServiceException(row)
+		if ok {
+			exception.ServiceID = ids.Intern(exception.ServiceID)
+			exception.Date = ids.Intern(exception.Date)
 			exceptions[exception.ServiceID] = append(exceptions[exception.ServiceID], exception)
 		}
 	}
@@ -159,32 +162,32 @@ func (v *ServiceConsistencyValidator) loadServiceExceptions(loader *parser.FeedL
 }
 
 // parseServiceException parses a service exception from calendar_dates.txt
-func (v *ServiceConsistencyValidator) parseServiceException(row *parser.CSVRow) *ServiceException {
+func (v *ServiceConsistencyValidator) parseServiceException(row *parser.CSVRow) (ServiceException, bool) {
 	serviceID, hasServiceID := row.Values["service_id"]
 	date, hasDate := row.Values["date"]
 	exceptionTypeStr, hasExceptionType := row.Values["exception_type"]
 
 	if !hasServiceID || !hasDate || !hasExceptionType {
-		return nil
+		return ServiceException{}, false
 	}
 
 	exceptionType, err := strconv.Atoi(strings.TrimSpace(exceptionTypeStr))
 	if err != nil {
-		return nil
+		return ServiceException{}, false
 	}
 
-	return &ServiceException{
+	return ServiceException{
 		ServiceID:     strings.TrimSpace(serviceID),
 		Date:          strings.TrimSpace(date),
 		ExceptionType: exceptionType,
 		RowNumber:     row.RowNumber,
-	}
+	}, true
 }
 
 // validateServiceExceptions reports a service given two exceptions for the same
 // date. Which of the two wins is undefined, so the schedule that day depends on
 // the consumer.
-func (v *ServiceConsistencyValidator) validateServiceExceptions(container *notice.NoticeContainer, exceptions map[string][]*ServiceException) {
+func (v *ServiceConsistencyValidator) validateServiceExceptions(container *notice.NoticeContainer, exceptions map[string][]ServiceException) {
 	for serviceID, serviceExceptions := range exceptions {
 		// Sort exceptions by date
 		sort.Slice(serviceExceptions, func(i, j int) bool {
@@ -192,7 +195,7 @@ func (v *ServiceConsistencyValidator) validateServiceExceptions(container *notic
 		})
 
 		// Check for duplicate dates
-		dateMap := make(map[string]*ServiceException)
+		dateMap := make(map[string]ServiceException)
 		for _, exception := range serviceExceptions {
 			if existing, exists := dateMap[exception.Date]; exists {
 				if existing.ExceptionType != exception.ExceptionType {
@@ -221,7 +224,7 @@ func (v *ServiceConsistencyValidator) validateServiceExceptions(container *notic
 // The earliest date any service can run is the earliest calendar.txt start_date
 // or added calendar_dates.txt date; if even that is still ahead, the feed
 // schedules nothing for today.
-func (v *ServiceConsistencyValidator) validateFeedStartsInFuture(container *notice.NoticeContainer, services map[string]*ServiceDefinition, exceptions map[string][]*ServiceException, currentDate time.Time) {
+func (v *ServiceConsistencyValidator) validateFeedStartsInFuture(container *notice.NoticeContainer, services map[string]*ServiceDefinition, exceptions map[string][]ServiceException, currentDate time.Time) {
 	var earliest *time.Time
 
 	consider := func(dateStr string) {
