@@ -68,26 +68,13 @@ func (f *CSVFile) ReadRow() (*CSVRow, error) {
 
 	f.rowCounter++ // Increment counter for each data row; first data row should be row 2
 
-	// Use pooled memory for the row values map
-	rowValues := make(map[string]string)
-
-	// Try to use pooled memory if field counts match
-	if len(values) == len(f.Headers) {
-		pooledMap := f.parser.ParseRecord(values, f.Headers)
-		if pooledMap != nil {
-			rowValues = pooledMap
-		}
-	}
-
-	// Fill in the map (either pooled or regular)
-	if len(rowValues) == 0 {
-		// Manual mapping for mismatched field counts or pool failure
-		for i, header := range f.Headers {
-			if i < len(values) {
-				rowValues[header] = values[i]
-			} else {
-				rowValues[header] = ""
-			}
+	// Sized up front so the map never regrows; a short row gets "" for its missing columns.
+	rowValues := make(map[string]string, len(f.Headers))
+	for i, header := range f.Headers {
+		if i < len(values) {
+			rowValues[header] = values[i]
+		} else {
+			rowValues[header] = ""
 		}
 	}
 
@@ -113,6 +100,22 @@ func (f *CSVFile) ReadAll() error {
 		f.Rows = append(f.Rows, *row)
 	}
 	return nil
+}
+
+// CountRows reads the remaining rows without keeping them, and fails the way ReadAll does.
+func (f *CSVFile) CountRows() (int, error) {
+	n := 0
+	for {
+		_, err := f.reader.Read()
+		if err == io.EOF {
+			return n, nil
+		}
+		if err != nil {
+			return n, fmt.Errorf("error reading row %d: %v", n+2, err)
+		}
+		f.rowCounter++
+		n++
+	}
 }
 
 // GetHeaderIndex returns the index of a header, or -1 if not found

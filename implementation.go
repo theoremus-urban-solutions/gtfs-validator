@@ -626,12 +626,12 @@ func (v *internalValidator) countRowsInFile(filename string) int {
 		return 0
 	}
 
-	err = csvFile.ReadAll()
+	n, err := csvFile.CountRows()
 	if err != nil {
 		return 0
 	}
 
-	return csvFile.RowCount()
+	return n
 }
 
 // extractServiceDates extracts service date range from feed_info.txt.
